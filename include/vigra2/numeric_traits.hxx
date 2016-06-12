@@ -52,8 +52,8 @@ namespace vigra {
 template <class T1, class T2=T1>
 struct PromoteTraits
 {
-    typedef decltype(*(T1*)0 + *(T2*)0)                   Promote;
-    typedef typename PromoteTraits<Promote>::RealPromote  RealPromote;
+    typedef decltype(*(T1*)0 + *(T2*)0)   Promote;
+    typedef decltype(sqrt(*(Promote*)0))  RealPromote;
 };
 
 template <class T>
