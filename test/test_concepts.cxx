@@ -33,51 +33,70 @@
 /*                                                                      */
 /************************************************************************/
 
-#pragma once
+#include <typeinfo>
+#include <iostream>
+#include <string>
+#include <vigra2/unittest.hxx>
+#include <vigra2/concepts.hxx>
 
-#ifndef VIGRA2_CONCEPTS_HXX
-#define VIGRA2_CONCEPTS_HXX
+using namespace vigra;
 
-#include "config.hxx"
-#include <type_traits>
-
-namespace vigra {
-
-enum SkipInitialization { DontInit };
-enum ReverseCopyTag { ReverseCopy };
-enum MemoryOrder { C_ORDER, F_ORDER };
-
-template <bool CONCEPTS, class RETURN=void>
-using EnableIf = typename std::enable_if<CONCEPTS, RETURN>::type;
-
-/**********************************************************/
-/*                                                        */
-/*            multi-dimensional array concept             */
-/*                                                        */
-/**********************************************************/
-
-struct ArrayNDTag;
-
-    // By default, 'ARRAY' fulfills the ArrayNDConcept if it contains
-    // an embedded type 'typedef ArrayNDTag array_concept'.
-    //
-    // Alternatively, one can partially specialize ArrayNDConcept.
-template <class ARRAY>
-struct ArrayNDConcept
+struct ConceptTest
 {
-    static void * test(...);
+    struct ThisIsAnArrayND
+    {
+        typedef ArrayNDTag array_concept;
+    };
 
-    template <class U>
-    static typename U::array_concept * test(U*, typename U::array_concept * = 0);
+    struct ThisIsNoArrayND
+    {
+        typedef int array_concept;
+    };
 
-    static const bool value =
-        std::is_same<decltype(test((ARRAY*)0)), ArrayNDTag*>::value;
+    int
+    checkEnableIfArray(...)
+    {
+        return 1;
+    }
+
+    template <class A>
+    EnableIfArrayND<A, int>
+    checkEnableIfArray(A *)
+    {
+        return 2;
+    }
+
+    void test()
+    {
+        shouldEqual(ArrayNDConcept<int>::value, false);
+        shouldEqual(ArrayNDConcept<std::string>::value, false);
+        shouldEqual(ArrayNDConcept<ThisIsNoArrayND>::value, false);
+        shouldEqual(ArrayNDConcept<ThisIsAnArrayND>::value, true);
+
+        shouldEqual(checkEnableIfArray((int*)0), 1);
+        shouldEqual(checkEnableIfArray((std::string*)0), 1);
+        shouldEqual(checkEnableIfArray((ThisIsNoArrayND*)0), 1);
+        shouldEqual(checkEnableIfArray((ThisIsAnArrayND*)0), 2);
+    }
 };
 
-template <class ARRAY, class RETURN=void>
-using EnableIfArrayND =
-      typename std::enable_if<ArrayNDConcept<ARRAY>::value, RETURN>::type;
+struct ConceptTestSuite
+: public vigra::test_suite
+{
+    ConceptTestSuite()
+    : vigra::test_suite("ConceptTestSuite")
+    {
+        add( testCase(&ConceptTest::test));
+    }
+};
 
-} // namespace vigra
+int main(int argc, char ** argv)
+{
+    ConceptTestSuite test;
 
-#endif // VIGRA2_CONCEPTS_HXX
+    int failed = test.run(vigra::testsToBeExecuted(argc, argv));
+
+    std::cout << test.report() << std::endl;
+
+    return (failed != 0);
+}
