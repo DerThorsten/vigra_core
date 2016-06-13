@@ -68,29 +68,27 @@ namespace vigra {
     \endcode
 
     The MESSAGE is passed to the exception and can be retrieved via
-    the overloaded member function '<TT>exception.what()</TT>'. If the compiler
-    flag '<TT>NDEBUG</TT>' is <em>not</em> defined, the file name and line number of
-    the error are automatically included in the message. The macro
+    the overloaded member function '<TT>exception.what()</TT>'. The macro
 
     \code
     vigra_assert(PREDICATE, MESSAGE);
     \endcode
 
-    is identical to <tt>vigra_precondition()</tt> except that it is completely removed
-    when '<TT>NDEBUG</TT>' is defined. This is useful for tests that are only needed during
-    debugging, such as array index bound checking. The following macro
+    is identical to <tt>vigra_invariant()</tt> except that it is completely removed
+    when '<TT>NDEBUG</TT>' is defined. This is useful for tests that are only needed
+    during debugging, such as array index bound checking. The macro
 
     \code
     vigra_fail(MESSAGE);
     \endcode
 
     unconditionally throws a '<TT>std::runtime_error</TT>' constructed from the message
-    (along with file name and line number, if NDEBUG is not set).
+    along with file name and line number.
 
     <b> Usage:</b>
 
     Include-File:
-    \<vigra/error.hxx\>
+    \<vigra2/error.hxx\>
     <p>
     Namespace: vigra (except for the macros, of course)
 
@@ -151,10 +149,6 @@ class ContractViolation
 };
 
 
-//#ifndef NDEBUG
-
-#if 1
-
 inline
 void throw_contract_error(char const * prefix, char const * message,
                           char const * file, int line)
@@ -192,9 +186,6 @@ void throw_runtime_error(std::string message, char const * file, int line)
     if((PREDICATE)) {} else \
         vigra::throw_contract_error("Precondition violation!", MESSAGE, __FILE__, __LINE__)
 
-#define vigra_assert(PREDICATE, MESSAGE) \
-    vigra_precondition(PREDICATE, MESSAGE)
-
 #define vigra_postcondition(PREDICATE, MESSAGE) \
     if((PREDICATE)) {} else \
         vigra::throw_contract_error("Postcondition violation!", MESSAGE, __FILE__, __LINE__)
@@ -206,30 +197,14 @@ void throw_runtime_error(std::string message, char const * file, int line)
 #define vigra_fail(MESSAGE) \
     vigra::throw_runtime_error(MESSAGE, __FILE__, __LINE__)
 
+#ifndef NDEBUG
+
+#define vigra_assert(PREDICATE, MESSAGE) \
+    vigra_invariant(PREDICATE, MESSAGE)
+
 #else // NDEBUG
 
-inline
-void throw_contract_error(char const * message)
-{
-    throw vigra::ContractViolation(message);
-}
-
-#define vigra_precondition(PREDICATE, MESSAGE) \
-    if((PREDICATE)) {} else \
-        vigra::throw_contract_error("Precondition violation!", MESSAGE)
-
 #define vigra_assert(PREDICATE, MESSAGE)
-
-#define vigra_postcondition(PREDICATE, MESSAGE) \
-    if((PREDICATE)) {} else \
-        vigra::throw_contract_error("Postcondition violation!", MESSAGE)
-
-#define vigra_invariant(PREDICATE, MESSAGE) \
-    if((PREDICATE)) {} else \
-        vigra::throw_contract_error("Invariant violation!", MESSAGE)
-
-#define vigra_fail(MESSAGE) \
-    throw std::runtime_error(MESSAGE)
 
 #endif // NDEBUG
 

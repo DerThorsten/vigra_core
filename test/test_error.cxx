@@ -65,7 +65,7 @@ struct ErrorTest
         }
         catch(vigra::ContractViolation & c)
         {
-            std::string expected("\nPrecondition violation!\nIntentional error");
+            std::string expected("\nInvariant violation!\nIntentional error");
             std::string message(c.what());
             should(0 == expected.compare(message.substr(0,expected.size())));
         }
