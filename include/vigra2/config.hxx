@@ -48,8 +48,9 @@
 ///////////////////////////////////////////////////////////
 
 #ifdef _MSC_VER
+    #define NOMINMAX
     // make sure that we use vigra/windows.h so that incompatibilities are fixed
-    #include "windows.h"
+    // #include "windows.h"
 
     #if(_MSC_VER < 1100)    // before VisualC++ 5.0
         #error "Need VisualC++ 5.0, Service Pack 2, or later"
