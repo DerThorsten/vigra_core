@@ -135,8 +135,8 @@ struct NumericTraitsTest
             shouldEqual(T::fromPromote(-FLT_MAX), T::min());
             shouldEqual(T::fromPromote(FLT_MAX), T::max());
             shouldEqual(T::fromPromote(1.25f), 1.25f);
-            shouldEqual(T::fromRealPromote(-DBL_MAX), T::min());
-            shouldEqual(T::fromRealPromote(DBL_MAX), T::max());
+            shouldEqual(T::fromRealPromote(-FLT_MAX), T::min());
+            shouldEqual(T::fromRealPromote(FLT_MAX), T::max());
             shouldEqual(T::fromRealPromote(1.25), 1.25f);
         }
     }
