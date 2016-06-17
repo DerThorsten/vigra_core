@@ -85,28 +85,16 @@ using RealPromoteType = typename PromoteTraits<T1, T2>::RealPromote;
 template<class T>
 struct NumericTraits
 {
+    static_assert(!std::is_same<T, char>::value,
+       "'char' is not a numeric type, use 'signed char' or 'unsigned char'.");
+
     typedef T                                          Type;
     typedef typename PromoteTraits<T>::Promote         Promote;
     typedef typename PromoteTraits<T>::RealPromote     RealPromote;
+    typedef Promote                                    UnsignedPromote;
     typedef std::complex<RealPromote>                  ComplexPromote;
     typedef T                                          ValueType;
 };
-
-///////////////////////////////////////////////////////////////
-// NormTraits
-
-template<class T>
-struct NormTraits
-{
-    typedef PromoteType<T>                    SquaredNormType;
-    typedef RealPromoteType<SquaredNormType>  NormType;
-};
-
-template <class T>
-using SquaredNormType = typename NormTraits<T>::SquaredNormType;
-
-template <class T>
-using NormType = typename NormTraits<T>::NormType;
 
 ////////////////////////////////////////////////////////////////
 // PromoteTraits specializations
@@ -125,22 +113,8 @@ struct PromoteTraits<long double, long double>
     typedef long double RealPromote;
 };
 
-
 //////////////////////////////////////////////////////
 // NumericTraits specializations
-
-struct Error_NumericTraits_char_is_not_a_numeric_type__use_signed_char_or_unsigned_char { };
-
-template<>
-struct NumericTraits<char>
-{
-    typedef Error_NumericTraits_char_is_not_a_numeric_type__use_signed_char_or_unsigned_char Type;
-    typedef Error_NumericTraits_char_is_not_a_numeric_type__use_signed_char_or_unsigned_char Promote;
-    typedef Error_NumericTraits_char_is_not_a_numeric_type__use_signed_char_or_unsigned_char UnsignedPromote;
-    typedef Error_NumericTraits_char_is_not_a_numeric_type__use_signed_char_or_unsigned_char RealPromote;
-    typedef Error_NumericTraits_char_is_not_a_numeric_type__use_signed_char_or_unsigned_char ComplexPromote;
-    typedef Error_NumericTraits_char_is_not_a_numeric_type__use_signed_char_or_unsigned_char ValueType;
-};
 
 template<>
 struct NumericTraits<bool>
@@ -338,42 +312,148 @@ struct NumericTraits<std::complex<T> >
     static Type    fromRealPromote(RealPromote v) { return Type(v); }
 };
 
-////////////////////////////////////////////////
-// NormTraits specializations
+///////////////////////////////////////////////////////////////
+// NormTraits
+
+template<class T>
+struct NormTraits;
+
+namespace detail {
+
+template <class T, bool scalar = std::is_arithmetic<T>::value>
+struct NormOfScalarImpl;
 
 template <class T>
-struct FundamentalNormTraits
+struct NormOfScalarImpl<T, false>
 {
-    typedef PromoteType<T>  SquaredNormType;
-    typedef T               NormType;
+    static const bool value = false;
+    typedef void *            NormType;
+    typedef void *            SquaredNormType;
 };
 
-template<>
-struct NormTraits<signed char> : public FundamentalNormTraits<signed char> {};
-template<>
-struct NormTraits<signed short> : public FundamentalNormTraits<signed short> {};
-template<>
-struct NormTraits<signed int> : public FundamentalNormTraits<signed int> {};
-template<>
-struct NormTraits<signed long> : public FundamentalNormTraits<signed long> {};
-template<>
-struct NormTraits<signed long long> : public FundamentalNormTraits<signed long long> {};
-template<>
-struct NormTraits<unsigned char> : public FundamentalNormTraits<unsigned char> {};
-template<>
-struct NormTraits<unsigned short> : public FundamentalNormTraits<unsigned short> {};
-template<>
-struct NormTraits<unsigned int> : public FundamentalNormTraits<unsigned int> {};
-template<>
-struct NormTraits<unsigned long> : public FundamentalNormTraits<unsigned long> {};
-template<>
-struct NormTraits<unsigned long long> : public FundamentalNormTraits<unsigned long long> {};
-template<>
-struct NormTraits<float> : public FundamentalNormTraits<float> {};
-template<>
-struct NormTraits<double> : public FundamentalNormTraits<double> {};
-template<>
-struct NormTraits<long double> : public FundamentalNormTraits<long double> {};
+template <class T>
+struct NormOfScalarImpl<T, true>
+{
+    static const bool value = true;
+    typedef T                 NormType;
+    typedef typename
+        std::conditional<sizeof(T) == 4 && std::is_integral<T>::value,
+                unsigned long long,
+                typename NumericTraits<T>::UnsignedPromote>::type
+        SquaredNormType;
+};
+
+template <class T, bool integral = std::is_integral<T>::value,
+                   bool floating = std::is_floating_point<T>::value>
+struct NormOfArrayElementsImpl;
+
+template <>
+struct NormOfArrayElementsImpl<void *, false, false>
+{
+    typedef void *  NormType;
+    typedef void *  SquaredNormType;
+};
+
+template <class T>
+struct NormOfArrayElementsImpl<T, false, false>
+{
+    typedef typename NormTraits<T>::NormType         NormType;
+    typedef typename NormTraits<T>::SquaredNormType  SquaredNormType;
+};
+
+template <class T>
+struct NormOfArrayElementsImpl<T, true, false>
+{
+    static_assert(!std::is_same<T, char>::value,
+       "'char' is not a numeric type, use 'signed char' or 'unsigned char'.");
+
+    typedef double              NormType;
+    typedef unsigned long long  SquaredNormType;
+};
+
+template <class T>
+struct NormOfArrayElementsImpl<T, false, true>
+{
+    typedef double              NormType;
+    typedef double              SquaredNormType;
+};
+
+template <>
+struct NormOfArrayElementsImpl<long double, false, true>
+{
+    typedef long double         NormType;
+    typedef long double         SquaredNormType;
+};
+
+template <class ARRAY>
+struct NormOfVectorImpl
+{
+    static void * test(...);
+
+    template <class U>
+    static typename U::value_type test(U*, typename U::value_type * = 0);
+
+    typedef decltype(test((ARRAY*)0)) T;
+
+    static const bool value = !std::is_same<T, void*>::value;
+
+    typedef typename NormOfArrayElementsImpl<T>::NormType         NormType;
+    typedef typename NormOfArrayElementsImpl<T>::SquaredNormType  SquaredNormType;
+};
+
+
+} // namespace detail
+
+    /* NormTraits<T> implement the following default rules, which are
+       designed to minimize the possibility of overflow:
+        * T is a 32-bit integer type:
+               NormType is T itself,
+               SquaredNormType is 'unsigned long long'
+        * T is another built-in arithmetic type:
+               NormType is T itself,
+               SquaredNormType is the NumericTraits<T>::UnsignedPromote
+        * T is a container of 'long double':
+               NormType and SquaredNormType are 'long double'
+        * T is a container of another built-in arithmetic type:
+               NormType is 'double',
+               SquaredNormType is 'unsigned long long'
+        * T is a container of some other type:
+               NormType is the element's norm type,
+               SquaredNormType is the element's squared norm type
+       Containers are recognized by having an embedded typedef 'value_type'.
+
+       To change the behavior for a particular case or extend it to cases
+       not covered here, simply specialize the NormTraits template.
+    */
+template<class T>
+struct NormTraits
+{
+    static_assert(!std::is_same<T, char>::value,
+       "'char' is not a numeric type, use 'signed char' or 'unsigned char'.");
+
+    typedef detail::NormOfScalarImpl<T>   NormOfScalar;
+    typedef detail::NormOfVectorImpl<T>   NormOfVector;
+
+    static const bool value = NormOfScalar::value || NormOfVector::value;
+
+    static_assert(value, "NormTraits<T> are undefined for type T.");
+
+    typedef typename std::conditional<NormOfVector::value,
+                typename NormOfVector::NormType,
+                typename NormOfScalar::NormType>::type
+            NormType;
+
+    typedef typename std::conditional<NormOfVector::value,
+                typename NormOfVector::SquaredNormType,
+                typename NormOfScalar::SquaredNormType>::type
+            SquaredNormType;
+};
+
+template <class T>
+using SquaredNormType = typename NormTraits<T>::SquaredNormType;
+
+template <class T>
+using NormType = typename NormTraits<T>::NormType;
 
 ///////////////////////////////////////////////////////////////
 // RequiresExplicitCast

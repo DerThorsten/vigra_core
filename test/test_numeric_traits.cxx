@@ -58,9 +58,9 @@ struct NumericTraitsTest
         should((std::is_same<float, RealPromoteType<float> >::value));
         should((std::is_same<float, RealPromoteType<float, int> >::value));
         
-        should((std::is_same<int, SquaredNormType<int> >::value));
-        should((std::is_same<unsigned int, SquaredNormType<unsigned int> >::value));
-        should((std::is_same<int, SquaredNormType<unsigned char> >::value));
+        should((std::is_same<unsigned long long, SquaredNormType<int> >::value));
+        should((std::is_same<unsigned long long, SquaredNormType<unsigned int> >::value));
+        should((std::is_same<unsigned int, SquaredNormType<unsigned char> >::value));
         should((std::is_same<float, SquaredNormType<float> >::value));
         should((std::is_same<long double, SquaredNormType<long double> >::value));
         
