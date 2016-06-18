@@ -36,6 +36,7 @@
 #include <typeinfo>
 #include <iostream>
 #include <string>
+#include <initializer_list>
 #include <vigra2/unittest.hxx>
 #include <vigra2/concepts.hxx>
 
@@ -77,6 +78,15 @@ struct ConceptTest
         shouldEqual(checkEnableIfArray((std::string*)0), 1);
         shouldEqual(checkEnableIfArray((ThisIsNoArrayND*)0), 1);
         shouldEqual(checkEnableIfArray((ThisIsAnArrayND*)0), 2);
+
+        shouldEqual(IsIterator<int>::value, false);
+        shouldEqual(IsIterator<int*>::value, true);
+        shouldEqual(IsIterator<std::string>::value, false);
+        shouldEqual(IsIterator<decltype(std::string().begin())>::value, true);
+
+        typedef int IntArray[3];
+        shouldEqual(IsIterator<IntArray>::value, true);
+        shouldEqual(IsIterator<std::initializer_list<int>::iterator>::value, true);
     }
 };
 

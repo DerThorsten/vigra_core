@@ -56,7 +56,7 @@ using EnableIf = typename std::enable_if<CONCEPTS, RETURN>::type;
 /*                                                        */
 /**********************************************************/
 
-struct ArrayNDTag;
+struct ArrayNDTag {};
 
     // By default, 'ARRAY' fulfills the ArrayNDConcept if it contains
     // an embedded type 'typedef ArrayNDTag array_concept'.
@@ -77,6 +77,34 @@ struct ArrayNDConcept
 template <class ARRAY, class RETURN=void>
 using EnableIfArrayND =
       typename std::enable_if<ArrayNDConcept<ARRAY>::value, RETURN>::type;
+
+/**********************************************************/
+/*                                                        */
+/*            check if a class is an iterator             */
+/*                                                        */
+/**********************************************************/
+
+    // currently, we apply ony the simple rule that class T
+    // must be a pointer or array or has an embedded typedef
+    // 'iterator_category'. More sophisticated checks should
+    // be added when needed.
+template <class T>
+struct IsIterator
+{
+    static char test(...);
+
+    template <class U>
+    static int test(U*, typename U::iterator_category * = 0);
+
+    static const bool value =
+        std::is_array<T>::value ||
+        std::is_pointer<T>::value ||
+        std::is_same<decltype(test((T*)0)), int>::value;
+};
+
+template <class T, class RETURN=void>
+using EnableIfIterator =
+      typename std::enable_if<IsIterator<T>::value, RETURN>::type;
 
 } // namespace vigra
 
