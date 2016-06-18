@@ -313,6 +313,16 @@ struct NumericTraits<std::complex<T> >
 };
 
 ///////////////////////////////////////////////////////////////
+// UninitializedMemoryTraits
+
+template<class T>
+struct UninitializedMemoryTraits
+{
+    static const bool value = std::is_scalar<T>::value;
+};
+
+
+///////////////////////////////////////////////////////////////
 // NormTraits
 
 template<class T>
