@@ -45,14 +45,11 @@ using namespace vigra;
 struct ConceptTest
 {
     struct ThisIsAnArrayND
-    {
-        typedef ArrayNDTag array_concept;
-    };
+    : public ArrayNDTag
+    {};
 
     struct ThisIsNoArrayND
-    {
-        typedef int array_concept;
-    };
+    {};
 
     int
     checkEnableIfArray(...)
