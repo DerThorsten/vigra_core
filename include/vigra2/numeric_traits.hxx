@@ -318,7 +318,7 @@ struct NumericTraits<std::complex<T> >
 template<class T>
 struct UninitializedMemoryTraits
 {
-    static const bool value = std::is_scalar<T>::value;
+    static const bool value = std::is_scalar<T>::value || std::is_pod<T>::value;
 };
 
 
