@@ -58,20 +58,14 @@ using EnableIf = typename std::enable_if<CONCEPTS, RETURN>::type;
 
 struct ArrayNDTag {};
 
-    // By default, 'ARRAY' fulfills the ArrayNDConcept if it contains
-    // an embedded type 'typedef ArrayNDTag array_concept'.
+    // By default, 'ARRAY' fulfills the ArrayNDConcept if it is derived
+    // from 'ArrayNDTag'.
     //
     // Alternatively, one can partially specialize ArrayNDConcept.
 template <class ARRAY>
 struct ArrayNDConcept
 {
-    static void * test(...);
-
-    template <class U>
-    static typename U::array_concept * test(U*, typename U::array_concept * = 0);
-
-    static const bool value =
-        std::is_same<decltype(test((ARRAY*)0)), ArrayNDTag*>::value;
+    static const bool value =std::is_base_of<ArrayNDTag, ARRAY>::value;
 };
 
 template <class ARRAY, class RETURN=void>
