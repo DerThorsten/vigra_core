@@ -56,6 +56,33 @@ using EnableIf = typename std::enable_if<CONCEPTS, RETURN>::type;
 /*                                                        */
 /**********************************************************/
 
+struct TinyArrayTag {};
+
+    // TinyArrayConcept refers to TinyArrayBase and TinyArray.
+    // By default, 'ARRAY' fulfills the TinyArrayConcept if it is derived
+    // from TinyArrayTag.
+    //
+    // Alternatively, one can partially specialize HandleNDConcept.
+template <class ARRAY>
+struct TinyArrayConcept
+{
+    static const bool value =std::is_base_of<TinyArrayTag, ARRAY>::value;
+};
+
+template <class ARRAY, class RETURN=void>
+using EnableIfTinyArray =
+      typename std::enable_if<TinyArrayConcept<ARRAY>::value, RETURN>::type;
+
+template <class ARRAY, class RETURN=void>
+using EnableIfNotTinyArray =
+      typename std::enable_if<!TinyArrayConcept<ARRAY>::value, RETURN>::type;
+
+/**********************************************************/
+/*                                                        */
+/*            multi-dimensional array concept             */
+/*                                                        */
+/**********************************************************/
+
 struct HandleNDTag {};
 
     // HandleNDConcept refers to the low-level multi-dimensional array API.
