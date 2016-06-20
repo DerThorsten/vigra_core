@@ -46,38 +46,138 @@
 
 namespace vigra {
 
+namespace numeric_traits_detail {
+
+using std::sqrt;
+
+struct Unsupported {};
+
+struct MatchesAnything
+{
+    template <class T>
+    MatchesAnything(T const &);
+};
+
+Unsupported operator+(MatchesAnything const &, MatchesAnything const &);
+Unsupported operator-(MatchesAnything const &, MatchesAnything const &);
+Unsupported operator*(MatchesAnything const &, MatchesAnything const &);
+Unsupported operator/(MatchesAnything const &, MatchesAnything const &);
+Unsupported sqrt(MatchesAnything const &);
+
+Unsupported * check(Unsupported);
+
+template <class T>
+T * check(T const &);
+
+template <class T1, class T2>
+struct OperatorSupport
+{
+    typedef decltype(check(*(T1*)0 + *(T2*)0)) AddResult;
+    typedef decltype(check(*(T1*)0 - *(T2*)0)) SubtractResult;
+    typedef decltype(check(*(T1*)0 * *(T2*)0)) MultiplyResult;
+    typedef decltype(check(*(T1*)0 / *(T2*)0)) DivideResult;
+};
+
+template <>
+struct OperatorSupport<bool, bool>
+{
+    typedef int AddResult;
+    typedef int SubtractResult;
+    typedef int MultiplyResult;
+    typedef int DivideResult;
+};
+
+template <class T>
+struct FunctionSupport
+{
+    typedef decltype(check(sqrt(*(T*)0))) SqrtResult;
+};
+
+template <class T1, class T2, class Result>
+struct OperatorTraits
+{
+    static const bool value = true;
+    using             type  = typename std::remove_pointer<Result>::type;
+};
+
+template <class T1, class T2>
+struct OperatorTraits<T1, T2, Unsupported *>
+{
+    static const bool value = false;
+};
+
+template <class T, class Result>
+struct FunctionTraits
+{
+    static const bool value = true;
+    using             type  = typename std::remove_pointer<Result>::type;
+};
+
+template <class T>
+struct FunctionTraits<T, Unsupported *>
+{
+    static const bool value = false;
+};
+
+} // namespace numeric_traits_detail
+
 /////////////////////////////////////////////////////////
 // PromoteTraits
 
-template <class T1, class T2=T1>
+
+template <class T1, class T2 = T1>
+struct AddTraits
+: public numeric_traits_detail::OperatorTraits<T1, T2,
+            typename numeric_traits_detail::OperatorSupport<T1, T2>::AddResult>
+{};
+
+template <class T1, class T2 = T1>
+struct SubtractTraits
+: public numeric_traits_detail::OperatorTraits<T1, T2,
+            typename numeric_traits_detail::OperatorSupport<T1, T2>::SubtractResult>
+{};
+
+template <class T1, class T2 = T1>
+struct MultiplyTraits
+: public numeric_traits_detail::OperatorTraits<T1, T2,
+            typename numeric_traits_detail::OperatorSupport<T1, T2>::MultiplyResult>
+{};
+
+template <class T1, class T2 = T1>
+struct DivideTraits
+: public numeric_traits_detail::OperatorTraits<T1, T2,
+            typename numeric_traits_detail::OperatorSupport<T1, T2>::DivideResult>
+{};
+
+template <class T1, class T2 = T1>
 struct PromoteTraits
-{
-    typedef decltype(*(T1*)0 + *(T2*)0)   Promote;
-    typedef decltype(sqrt(*(Promote*)0))  RealPromote;
-};
+: public AddTraits<T1, T2>
+{};
 
-template <class T>
-struct PromoteTraits<T, T>
-{
-    typedef decltype(*(T*)0 + *(T*)0)  Promote;
-    typedef decltype(sqrt(*(T*)0))     RealPromote;
-};
-
-template <class T>
-struct PromoteTraits<T *, T *>
-{
-    typedef T *  Promote;
-    typedef T *  RealPromote;
-};
-
-template <class T1, class T2=T1>
-using PromoteType = typename PromoteTraits<T1, T2>::Promote;
+template <class T1, class T2 = T1>
+using PromoteType = typename PromoteTraits<T1, T2>::type;
 
 template <bool Cond, class T1, class T2 = T1>
 using PromoteTypeIf = typename std::enable_if<Cond, PromoteType<T1, T2> >::type;
 
-template <class T1, class T2=T1>
-using RealPromoteType = typename PromoteTraits<T1, T2>::RealPromote;
+
+///////////////////////////////////////////////////////////////
+// RealPromoteTraits
+
+template <class T>
+struct SqrtTraits
+: numeric_traits_detail::FunctionTraits<T,
+            typename numeric_traits_detail::FunctionSupport<T>::SqrtResult>
+{};
+
+template <class T1, class T2 = T1>
+struct RealPromoteTraits
+: public SqrtTraits<PromoteType<T1, T2> >
+{};
+
+template <class T1, class T2 = T1>
+using RealPromoteType = typename RealPromoteTraits<T1, T2>::type;
+
 
 ///////////////////////////////////////////////////////////////
 // NumericTraits
@@ -88,29 +188,12 @@ struct NumericTraits
     static_assert(!std::is_same<T, char>::value,
        "'char' is not a numeric type, use 'signed char' or 'unsigned char'.");
 
-    typedef T                                          Type;
-    typedef typename PromoteTraits<T>::Promote         Promote;
-    typedef typename PromoteTraits<T>::RealPromote     RealPromote;
-    typedef Promote                                    UnsignedPromote;
-    typedef std::complex<RealPromote>                  ComplexPromote;
-    typedef T                                          ValueType;
-};
-
-////////////////////////////////////////////////////////////////
-// PromoteTraits specializations
-
-template <>
-struct PromoteTraits<float, float>
-{
-    typedef float Promote;
-    typedef float RealPromote;
-};
-
-template <>
-struct PromoteTraits<long double, long double>
-{
-    typedef long double Promote;
-    typedef long double RealPromote;
+    typedef T                           Type;
+    typedef PromoteType<T>              Promote;
+    typedef RealPromoteType<T>          RealPromote;
+    typedef Promote                     UnsignedPromote;
+    typedef std::complex<RealPromote>   ComplexPromote;
+    typedef T                           ValueType;
 };
 
 //////////////////////////////////////////////////////
