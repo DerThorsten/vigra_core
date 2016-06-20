@@ -56,8 +56,26 @@ using EnableIf = typename std::enable_if<CONCEPTS, RETURN>::type;
 /*                                                        */
 /**********************************************************/
 
+struct HandleNDTag {};
+
+    // HandleNDConcept refers to the low-level multi-dimensional array API.
+    // By default, 'ARRAY' fulfills the HandleNDConcept if it is derived
+    // from HandleNDTag.
+    //
+    // Alternatively, one can partially specialize HandleNDConcept.
+template <class ARRAY>
+struct HandleNDConcept
+{
+    static const bool value =std::is_base_of<HandleNDTag, ARRAY>::value;
+};
+
+template <class ARRAY, class RETURN=void>
+using EnableIfHandleND =
+      typename std::enable_if<HandleNDConcept<ARRAY>::value, RETURN>::type;
+
 struct ArrayNDTag {};
 
+    // ArrayNDConcept refers to the high-level multi-dimensional array API.
     // By default, 'ARRAY' fulfills the ArrayNDConcept if it is derived
     // from 'ArrayNDTag'.
     //
