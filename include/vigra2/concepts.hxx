@@ -1,6 +1,6 @@
 /************************************************************************/
 /*                                                                      */
-/*               Copyright 2014-2015 by Ullrich Koethe                  */
+/*               Copyright 2014-2016 by Ullrich Koethe                  */
 /*                                                                      */
 /*    This file is part of the VIGRA2 computer vision library.          */
 /*    The VIGRA2 Website is                                             */
@@ -42,6 +42,13 @@
 #include <type_traits>
 
 namespace vigra {
+
+struct require_ok {};
+
+template <bool CONCEPTS>
+using ConceptCheck = typename std::enable_if<CONCEPTS, require_ok>::type;
+
+#define VIGRA_REQUIRE typename Require = ConceptCheck
 
 enum SkipInitialization { DontInit };
 enum ReverseCopyTag { ReverseCopy };
