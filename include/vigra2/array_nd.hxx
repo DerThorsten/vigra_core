@@ -35,8 +35,8 @@
 
 #pragma once
 
-#ifndef VIGRA2_ARRAYND_HXX
-#define VIGRA2_ARRAYND_HXX
+#ifndef VIGRA2_ARRAY_ND_HXX
+#define VIGRA2_ARRAY_ND_HXX
 
 #include <vector>
 #include <utility>
@@ -2150,4 +2150,4 @@ swap(ArrayND<N,T,A> & array1, ArrayND<N,T,A> & array2)
 
 } // namespace vigra
 
-#endif // VIGRA2_ARRAYND_HXX
+#endif // VIGRA2_ARRAY_ND_HXX

@@ -35,8 +35,8 @@
 
 #pragma once
 
-#ifndef VIGRA2_HANDLE_HXX
-#define VIGRA2_HANDLE_HXX
+#ifndef VIGRA2_HANDLE_ND_HXX
+#define VIGRA2_HANDLE_ND_HXX
 
 #include <vector>
 #include <utility>
@@ -125,6 +125,11 @@ class HandleND
     void move(int axis, difference_type_1 diff) const
     {
         const_cast<pointer>(data_) += strides_[axis]*diff;
+    }
+
+    void move(difference_type const & diff) const
+    {
+        const_cast<pointer>(data_) += dot(strides_, diff);
     }
 
     reference operator*()
@@ -257,7 +262,7 @@ class HandleND<0, T>
   /**
      Handle class, used by CoupledScanOrderIterator as the value type to simultaneously itearate over multiple images.
   */
-template <class T, class NEXT>
+template <class T, class NEXT=void>
 class HandleNDChain;
 #if 0
 : public NEXT
@@ -443,14 +448,14 @@ public:
     typedef value_type const &             reference;
     typedef value_type const &             const_reference;
     typedef value_type                     shape_type;
+    typedef value_type                     difference_type;
     typedef HandleNDChain<Shape<N>, void>  self_type;
 
-    HandleNDChain()
-    : point_()
-    , shape_()
-    {}
+    HandleNDChain() = default;
 
-    HandleNDChain(value_type const & shape)
+    template <class SHAPE,
+              VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value> >
+    explicit HandleNDChain(SHAPE const & shape)
     : point_(tags::size = shape.size())
     , shape_(shape)
     {}
@@ -471,9 +476,14 @@ public:
         --point_[dim];
     }
 
-    void move(int axis, ArrayIndex diff)
+    void move(int dim, ArrayIndex diff)
     {
         point_[dim] += diff;
+    }
+
+    void move(difference_type const & diff)
+    {
+        point_ += diff;
     }
 
     // void restrictToSubarray(shape_type const & start, shape_type const & end)
@@ -482,17 +492,24 @@ public:
         // shape_ = end - start;
     // }
 
-
-    // access
-    const_reference point() const
+    const_reference coord() const
     {
         return point_;
     }
 
-    // access
+    ArrayIndex coord(int dim) const
+    {
+        return point_[dim];
+    }
+
     const_reference shape() const
     {
         return shape_;
+    }
+
+    ArrayIndex shape(int dim) const
+    {
+        return shape_[dim];
     }
 
     const_reference operator*() const
@@ -505,7 +522,8 @@ public:
         return &point_;
     }
 
-    template <class SHAPE>
+    template <class SHAPE,
+              VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value> >
     value_type operator[](SHAPE const & diff) const
     {
         return point_ + diff;
@@ -733,4 +751,4 @@ genericArrayFunction(ARRAY1 & a1, ARRAY2 const & h2, FCT f)
 
 } // namespace vigra
 
-#endif // VIGRA2_HANDLE_HXX
+#endif // VIGRA2_HANDLE_ND_HXX
