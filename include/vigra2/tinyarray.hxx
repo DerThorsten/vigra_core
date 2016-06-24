@@ -1,6 +1,6 @@
 /************************************************************************/
 /*                                                                      */
-/*               Copyright 2014-2015 by Ullrich Koethe                  */
+/*               Copyright 2014-2016 by Ullrich Koethe                  */
 /*                                                                      */
 /*    This file is part of the VIGRA2 computer vision library.          */
 /*    The VIGRA2 Website is                                             */
@@ -33,8 +33,8 @@
 /*                                                                      */
 /************************************************************************/
 
-#ifndef VIGRA2_ARRAY_TINYARRAY_HXX
-#define VIGRA2_ARRAY_TINYARRAY_HXX
+#ifndef VIGRA2_TINYARRAY_HXX
+#define VIGRA2_TINYARRAY_HXX
 
 #include "config.hxx"
 #include "numeric_traits.hxx"
@@ -1208,19 +1208,22 @@ class TinyArray
     : BaseType(v)
     {}
 
-    template <class U>
-    explicit TinyArray(U u, U end = U(), EnableIfIterator<U, bool> = true)
+    template <class U,
+              VIGRA_REQUIRE<IsIterator<U>::value> >
+    explicit TinyArray(U u, U end = U())
     : BaseType(u)
     {}
 
-    template <class U>
-    TinyArray(U u, ReverseCopyTag, EnableIfIterator<U, bool> = true)
+    template <class U,
+              VIGRA_REQUIRE<IsIterator<U>::value> >
+    TinyArray(U u, ReverseCopyTag)
     : BaseType(u, ReverseCopy)
     {}
 
         // for compatibility with TinyArray<..., runtime_size>
-    template <class U>
-    TinyArray(U u, U end, ReverseCopyTag, EnableIfIterator<U, bool> = true)
+    template <class U,
+              VIGRA_REQUIRE<IsIterator<U>::value> >
+    TinyArray(U u, U end, ReverseCopyTag)
     : BaseType(u, ReverseCopy)
     {}
 
@@ -1338,8 +1341,9 @@ class TinyArray<VALUETYPE, runtime_size>
     : TinyArray(other.begin(), other.end())
     {}
 
-    template <class U>
-    TinyArray(U begin, U end, EnableIfIterator<U, bool> = true)
+    template <class U,
+              VIGRA_REQUIRE<IsIterator<U>::value> >
+    TinyArray(U begin, U end)
     : BaseType(std::distance(begin, end))
     {
         this->data_ = alloc_.allocate(this->size_);
@@ -1347,8 +1351,9 @@ class TinyArray<VALUETYPE, runtime_size>
             new(this->data_+i) value_type(detail::RequiresExplicitCast<value_type>::cast(*begin));
     }
 
-    template <class U>
-    TinyArray(U begin, U end, ReverseCopyTag, EnableIfIterator<U, bool> = true)
+    template <class U,
+              VIGRA_REQUIRE<IsIterator<U>::value> >
+    TinyArray(U begin, U end, ReverseCopyTag)
     : BaseType(std::distance(begin, end))
     {
         this->data_ = alloc_.allocate(this->size_);
@@ -1945,8 +1950,9 @@ closeAtTolerance(TinyArrayBase<V1, D1, N...> const & l,
 // the implementations are provided by a macro below.
 
     /// scalar add-assignment
-template <class V1, class DERIVED, int ... N, class V2>
-EnableIf<std::is_convertible<V2, V1>::value, DERIVED &>
+template <class V1, class DERIVED, int ... N, class V2,
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+DERIVED &
 operator+=(TinyArrayBase<V1, DERIVED, N...> & l,
            V2 r);
 
@@ -1975,8 +1981,9 @@ operator+(V1 l,
           TinyArrayBase<V2, D2, N...> const & r);
 
     /// scalar subtract-assignment
-template <class V1, class DERIVED, int ... N, class V2>
-EnableIf<std::is_convertible<V2, V1>::value, DERIVED &>
+template <class V1, class DERIVED, int ... N, class V2,
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+DERIVED &
 operator-=(TinyArrayBase<V1, DERIVED, N...> & l,
            V2 r);
 
@@ -2005,8 +2012,9 @@ operator-(V1 l,
           TinyArrayBase<V2, D2, N...> const & r);
 
     /// scalar multiply-assignment
-template <class V1, class DERIVED, int ... N, class V2>
-EnableIf<std::is_convertible<V2, V1>::value, DERIVED &>
+template <class V1, class DERIVED, int ... N, class V2,
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+DERIVED &
 operator*=(TinyArrayBase<V1, DERIVED, N...> & l,
            V2 r);
 
@@ -2035,8 +2043,9 @@ operator*(V1 l,
           TinyArrayBase<V2, D2, N...> const & r);
 
     /// scalar divide-assignment
-template <class V1, class DERIVED, int ... N, class V2>
-EnableIf<std::is_convertible<V2, V1>::value, DERIVED &>
+template <class V1, class DERIVED, int ... N, class V2,
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+DERIVED &
 operator/=(TinyArrayBase<V1, DERIVED, N...> & l,
            V2 r);
 
@@ -2065,8 +2074,9 @@ operator/(V1 l,
           TinyArrayBase<V2, D2, N...> const & r);
 
     /// scalar modulo-assignment
-template <class V1, class DERIVED, int ... N, class V2>
-EnableIf<std::is_convertible<V2, V1>::value, DERIVED &>
+template <class V1, class DERIVED, int ... N, class V2,
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+DERIVED &
 operator%=(TinyArrayBase<V1, DERIVED, N...> & l,
            V2 r);
 
@@ -2097,8 +2107,9 @@ operator%(V1 l,
 #else
 
 #define VIGRA_TINYARRAY_OPERATORS(op) \
-template <class V1, class DERIVED, int ... N, class V2> \
-inline EnableIf<std::is_convertible<V2, V1>::value, DERIVED &> \
+template <class V1, class DERIVED, int ... N, class V2, \
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> > \
+DERIVED & \
 operator op##=(TinyArrayBase<V1, DERIVED, N...> & l, \
                V2 r) \
 { \
@@ -2128,10 +2139,10 @@ operator op(TinyArrayBase<V1, D1, N...> const & l, \
     return res op##= r; \
 } \
  \
-template <class V1, class D1, class V2, int ... N> \
+template <class V1, class D1, class V2, int ... N, \
+          VIGRA_REQUIRE<!TinyArrayConcept<V2>::value> >\
 inline \
-EnableIfNotTinyArray<V2, \
-    TinyArray<PromoteType<V1, V2>, N...> > \
+TinyArray<PromoteType<V1, V2>, N...> \
 operator op(TinyArrayBase<V1, D1, N...> const & l, \
             V2 r) \
 { \
@@ -2139,10 +2150,10 @@ operator op(TinyArrayBase<V1, D1, N...> const & l, \
     return res op##= r; \
 } \
  \
-template <class V1, class V2, class D2, int ... N> \
+template <class V1, class V2, class D2, int ... N, \
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value> >\
 inline \
-EnableIfNotTinyArray<V1, \
-    TinyArray<PromoteType<V1, V2>, N...> > \
+TinyArray<PromoteType<V1, V2>, N...> \
 operator op(V1 l, \
             TinyArrayBase<V2, D2, N...> const & r) \
 { \
@@ -2150,10 +2161,10 @@ operator op(V1 l, \
     return res op##= r; \
 } \
  \
-template <class V1, class V2, class D2> \
+template <class V1, class V2, class D2, \
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value> >\
 inline \
-EnableIfNotTinyArray<V1, \
-    TinyArray<PromoteType<V1, V2>, runtime_size> > \
+TinyArray<PromoteType<V1, V2>, runtime_size> \
 operator op(V1 l, \
             TinyArrayBase<V2, D2, runtime_size> const & r) \
 { \
@@ -2286,10 +2297,10 @@ pow(TinyArrayBase<V, D, N...> const & v, E exponent)
 }
 
     /// cross product
-template <class V1, class D1, class V2, class D2, int N>
+template <class V1, class D1, class V2, class D2, int N,
+          VIGRA_REQUIRE<N == 3 || N == runtime_size> >
 inline
-EnableIf<N == 3 || N == runtime_size,
-         TinyArray<PromoteType<V1, V2>, N> >
+TinyArray<PromoteType<V1, V2>, N>
 cross(TinyArrayBase<V1, D1, N> const & r1,
       TinyArrayBase<V2, D2, N> const & r2)
 {
@@ -2794,4 +2805,4 @@ using TinyVectorView = vigra::TinyArray<T, SIZE>;
 
 #undef VIGRA_ASSERT_INSIDE
 
-#endif // VIGRA2_ARRAY_TINYARRAY_HXX
+#endif // VIGRA2_TINYARRAY_HXX
