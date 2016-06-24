@@ -43,7 +43,7 @@
 #include <vector>
 #include <numeric>
 #include <vigra2/unittest.hxx>
-#include <vigra2/arraynd.hxx>
+#include <vigra2/array_nd.hxx>
 
 using namespace vigra;
 

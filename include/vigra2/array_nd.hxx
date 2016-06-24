@@ -45,7 +45,7 @@
 #include "tinyarray.hxx"
 #include "shape.hxx"
 #include "box.hxx"
-#include "handle.hxx"
+#include "handle_nd.hxx"
 #include "array_math.hxx"
 #include "axistags.hxx"
 

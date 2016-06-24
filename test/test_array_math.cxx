@@ -36,8 +36,7 @@
 #include <vigra2/config.hxx>
 #include <vigra2/unittest.hxx>
 #include <vigra2/mathutil.hxx>
-// #include <vigra2/math/algorithm.hxx>
-#include <vigra2/arraynd.hxx>
+#include <vigra2/array_nd.hxx>
 #include <vigra2/array_math.hxx>
 #include <numeric>  // std::iota()
 #include <typeinfo>
