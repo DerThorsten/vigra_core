@@ -76,14 +76,14 @@ struct ConceptTest
         shouldEqual(checkEnableIfArray((ThisIsNoArrayND*)0), 1);
         shouldEqual(checkEnableIfArray((ThisIsAnArrayND*)0), 2);
 
-        shouldEqual(IsIterator<int>::value, false);
-        shouldEqual(IsIterator<int*>::value, true);
-        shouldEqual(IsIterator<std::string>::value, false);
-        shouldEqual(IsIterator<decltype(std::string().begin())>::value, true);
+        shouldEqual(IteratorConcept<int>::value, false);
+        shouldEqual(IteratorConcept<int*>::value, true);
+        shouldEqual(IteratorConcept<std::string>::value, false);
+        shouldEqual(IteratorConcept<decltype(std::string().begin())>::value, true);
 
         typedef int IntArray[3];
-        shouldEqual(IsIterator<IntArray>::value, true);
-        shouldEqual(IsIterator<std::initializer_list<int>::iterator>::value, true);
+        shouldEqual(IteratorConcept<IntArray>::value, true);
+        shouldEqual(IteratorConcept<std::initializer_list<int>::iterator>::value, true);
     }
 };
 

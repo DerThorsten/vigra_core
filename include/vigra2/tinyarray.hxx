@@ -1209,20 +1209,20 @@ class TinyArray
     {}
 
     template <class U,
-              VIGRA_REQUIRE<IsIterator<U>::value> >
+              VIGRA_REQUIRE<IteratorConcept<U>::value> >
     explicit TinyArray(U u, U end = U())
     : BaseType(u)
     {}
 
     template <class U,
-              VIGRA_REQUIRE<IsIterator<U>::value> >
+              VIGRA_REQUIRE<IteratorConcept<U>::value> >
     TinyArray(U u, ReverseCopyTag)
     : BaseType(u, ReverseCopy)
     {}
 
         // for compatibility with TinyArray<..., runtime_size>
     template <class U,
-              VIGRA_REQUIRE<IsIterator<U>::value> >
+              VIGRA_REQUIRE<IteratorConcept<U>::value> >
     TinyArray(U u, U end, ReverseCopyTag)
     : BaseType(u, ReverseCopy)
     {}
@@ -1342,7 +1342,7 @@ class TinyArray<VALUETYPE, runtime_size>
     {}
 
     template <class U,
-              VIGRA_REQUIRE<IsIterator<U>::value> >
+              VIGRA_REQUIRE<IteratorConcept<U>::value> >
     TinyArray(U begin, U end)
     : BaseType(std::distance(begin, end))
     {
@@ -1352,7 +1352,7 @@ class TinyArray<VALUETYPE, runtime_size>
     }
 
     template <class U,
-              VIGRA_REQUIRE<IsIterator<U>::value> >
+              VIGRA_REQUIRE<IteratorConcept<U>::value> >
     TinyArray(U begin, U end, ReverseCopyTag)
     : BaseType(std::distance(begin, end))
     {

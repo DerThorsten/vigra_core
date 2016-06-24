@@ -135,7 +135,7 @@ struct ArrayMathConcept
     // 'iterator_category'. More sophisticated checks should
     // be added when needed.
 template <class T>
-struct IsIterator
+struct IteratorConcept
 {
     static char test(...);
 
