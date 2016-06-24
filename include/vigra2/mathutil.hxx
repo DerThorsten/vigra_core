@@ -1,6 +1,6 @@
 /************************************************************************/
 /*                                                                      */
-/*               Copyright 2014-2015 by Ullrich Koethe                  */
+/*               Copyright 2014-2016 by Ullrich Koethe                  */
 /*                                                                      */
 /*    This file is part of the VIGRA2 computer vision library.          */
 /*    The VIGRA2 Website is                                             */
@@ -56,7 +56,7 @@
 
     <TT>M_PI, M_SQRT2 etc.</TT>
 
-    <b>\#include</b> \<vigra/mathutil.hxx\>
+    <b>\#include</b> \<vigra2/mathutil.hxx\>
 
     Since mathematical constants such as <TT>M_PI</TT> and <TT>M_SQRT2</TT>
     are not officially standardized, we provide definitions here for those
@@ -124,21 +124,34 @@ namespace vigra {
 */
 //@{
 
+using std::exp;
+
+/**********************************************************/
+/*                                                        */
+/*                          sq()                          */
+/*                                                        */
+/**********************************************************/
 
     /** \brief The square function.
 
         <tt>sq(x) = x*x</tt> is needed so often that it makes sense to define it as a function.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
-template <class T>
-inline EnableIf<std::is_arithmetic<T>::value,
-                PromoteType<T>>
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline PromoteType<T>
 sq(T t)
 {
     return t*t;
 }
+
+/**********************************************************/
+/*                                                        */
+/*                         min()                          */
+/*                                                        */
+/**********************************************************/
 
     /** \brief A proper minimum function.
 
@@ -148,24 +161,30 @@ sq(T t)
         else. Moreover, VIGRA's <tt>min</tt> function also computes the minimum
         between two different types, as long as they have a <tt>std::common_type</tt>.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
-template <class T1, class T2>
-typename std::common_type<EnableIf<std::is_arithmetic<T1>::value, T1>,
-                          EnableIf<std::is_arithmetic<T2>::value, T2> >::type
+template <class T1, class T2,
+          VIGRA_REQUIRE<std::is_arithmetic<T1>::value && std::is_arithmetic<T2>::value> >
+inline std::common_type_t<T1, T2>
 min(T1 const & t1, T2 const & t2)
 {
-    return std::min<typename std::common_type<T1, T2>::type>(t1, t2);
+    return std::min<std::common_type_t<T1, T2>>(t1, t2);
 }
 
-template <class T>
-EnableIf<std::is_arithmetic<T>::value,
-         T const &>
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline T const &
 min(T const & t1, T const & t2)
 {
     return std::min(t1, t2);
 }
+
+/**********************************************************/
+/*                                                        */
+/*                         max()                          */
+/*                                                        */
+/**********************************************************/
 
     /** \brief A proper maximum function.
 
@@ -175,35 +194,40 @@ min(T const & t1, T const & t2)
         else. Moreover, VIGRA's <tt>max</tt> function also computes the maximum
         between two different types, as long as they have a <tt>std::common_type</tt>.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
-template <class T1, class T2>
-typename std::common_type<EnableIf<std::is_arithmetic<T1>::value, T1>,
-                          EnableIf<std::is_arithmetic<T2>::value, T2> >::type
+template <class T1, class T2,
+          VIGRA_REQUIRE<std::is_arithmetic<T1>::value && std::is_arithmetic<T2>::value> >
+inline std::common_type_t<T1, T2>
 max(T1 const & t1, T2 const & t2)
 {
     return std::max<typename std::common_type<T1, T2>::type>(t1, t2);
 }
 
-template <class T>
-EnableIf<std::is_arithmetic<T>::value,
-         T const &>
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline T const &
 max(T const & t1, T const & t2)
 {
     return std::max(t1, t2);
 }
 
-using std::sqrt;
-using std::pow;
+/**********************************************************/
+/*                                                        */
+/*                   floor(), ceil()                      */
+/*                                                        */
+/**********************************************************/
+
 using std::floor;
 using std::ceil;
-using std::exp;
+
+    // add missing floor() and ceil() overloads for integral types
 
 #define VIGRA_DEFINE_INTEGER_FLOOR_CEIL(T) \
-    inline T floor(T t) { return t; } \
+    inline T floor(signed T t) { return t; } \
     inline T floor(unsigned T t) { return t; } \
-    inline T ceil(T t) { return t; } \
+    inline T ceil(signed T t) { return t; } \
     inline T ceil(unsigned T t) { return t; }
 
 VIGRA_DEFINE_INTEGER_FLOOR_CEIL(char)
@@ -213,6 +237,12 @@ VIGRA_DEFINE_INTEGER_FLOOR_CEIL(long)
 VIGRA_DEFINE_INTEGER_FLOOR_CEIL(long long)
 
 #undef VIGRA_DEFINE_INTEGER_FLOOR_CEIL
+
+/**********************************************************/
+/*                                                        */
+/*                         abs()                          */
+/*                                                        */
+/**********************************************************/
 
 // import abs(float), abs(double), abs(long double) from <cmath>
 //        abs(int), abs(long), abs(long long) from <cstdlib>
@@ -245,6 +275,12 @@ VIGRA_DEFINE_MISSING_ABS(signed long long)
 
 #undef VIGRA_DEFINE_MISSING_ABS
 
+/**********************************************************/
+/*                                                        */
+/*                     squaredNorm()                      */
+/*                                                        */
+/**********************************************************/
+
 template <class T>
 inline SquaredNormType<std::complex<T> >
 squaredNorm(std::complex<T> const & t)
@@ -266,12 +302,18 @@ SquaredNormType<T> squaredNorm(T const & t);
 
 #endif
 
+/**********************************************************/
+/*                                                        */
+/*                          norm()                        */
+/*                                                        */
+/**********************************************************/
+
     /** \brief The norm of a numerical object.
 
         For scalar types: implemented as <tt>abs(t)</tt><br>
         otherwise: implemented as <tt>sqrt(squaredNorm(t))</tt>.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 template <class T>
@@ -283,9 +325,10 @@ norm(T const & t) -> decltype(sqrt(squaredNorm(t)))
 
 #define VIGRA_DEFINE_NORM(T) \
     inline SquaredNormType<T> squaredNorm(T t) { return sq(t); } \
-    inline NormType<T> norm(T t) { return abs(t); }
+    inline NormType<T> norm(T t) { return abs(t); } \
+    inline SquaredNormType<T> sizeDividedSquaredNorm(T t) { return sq(t); } \
+    inline NormType<T> sizeDividedNorm(T t) { return abs(t); }
 
-VIGRA_DEFINE_NORM(bool)
 VIGRA_DEFINE_NORM(signed char)
 VIGRA_DEFINE_NORM(unsigned char)
 VIGRA_DEFINE_NORM(short)
@@ -301,6 +344,12 @@ VIGRA_DEFINE_NORM(double)
 VIGRA_DEFINE_NORM(long double)
 
 #undef VIGRA_DEFINE_NORM
+
+/**********************************************************/
+/*                                                        */
+/*                     isinf(), isnan()                   */
+/*                                                        */
+/**********************************************************/
 
 #ifndef _MSC_VER
 
@@ -322,6 +371,12 @@ inline bool isnan(REAL v)
 }
 
 #endif
+
+/**********************************************************/
+/*                                                        */
+/*                           dot()                        */
+/*                                                        */
+/**********************************************************/
 
 // scalar dot is needed for generic functions that should work with
 // scalars and vectors alike
@@ -345,8 +400,15 @@ VIGRA_DEFINE_SCALAR_DOT(long double)
 
 #undef VIGRA_DEFINE_SCALAR_DOT
 
-// support 'double' exponents for all floating point versions of pow()
+/**********************************************************/
+/*                                                        */
+/*                           pow()                        */
+/*                                                        */
+/**********************************************************/
 
+using std::pow;
+
+// support 'double' exponents for all floating point versions of pow()
 inline float pow(float v, double e)
 {
     return std::pow(v, (float)e);
@@ -357,12 +419,18 @@ inline long double pow(long double v, double e)
     return std::pow(v, (long double)e);
 }
 
+/**********************************************************/
+/*                                                        */
+/*                         round()                        */
+/*                                                        */
+/**********************************************************/
+
     // /** \brief The rounding function.
 
         // Defined for all floating point types. Rounds towards the nearest integer
         // such that <tt>abs(round(t)) == round(abs(t))</tt> for all <tt>t</tt>.
 
-        // <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        // <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         // Namespace: vigra
     // */
 // #ifdef DOXYGEN // only for documentation
@@ -396,7 +464,7 @@ inline long double pow(long double v, double e)
         Rounds to the nearest integer like round(), but casts the result to
         <tt>int</tt> (this will be faster and is usually needed anyway).
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 inline int roundi(double t)
@@ -406,6 +474,12 @@ inline int roundi(double t)
                 : int(t - 0.5);
 }
 
+/**********************************************************/
+/*                                                        */
+/*                       ceilPower2()                     */
+/*                                                        */
+/**********************************************************/
+
     /** \brief Round up to the nearest power of 2.
 
         Efficient algorithm for finding the smallest power of 2 which is not smaller than \a x
@@ -413,7 +487,7 @@ inline int roundi(double t)
          see http://www.hackersdelight.org/).
         If \a x > 2^31, the function will return 0 because integer arithmetic is defined modulo 2^32.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 inline uint32_t ceilPower2(uint32_t x)
@@ -429,13 +503,19 @@ inline uint32_t ceilPower2(uint32_t x)
     return x + 1;
 }
 
+/**********************************************************/
+/*                                                        */
+/*                       floorPower2()                    */
+/*                                                        */
+/**********************************************************/
+
     /** \brief Round down to the nearest power of 2.
 
         Efficient algorithm for finding the largest power of 2 which is not greater than \a x
         (function flp2() from Henry Warren: "Hacker's Delight", Addison-Wesley, 2003,
          see http://www.hackersdelight.org/).
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 inline uint32_t floorPower2(uint32_t x)
@@ -447,6 +527,12 @@ inline uint32_t floorPower2(uint32_t x)
     x = x | (x >>16);
     return x - (x >> 1);
 }
+
+/**********************************************************/
+/*                                                        */
+/*                          log2i()                       */
+/*                                                        */
+/**********************************************************/
 
 namespace detail {
 
@@ -479,7 +565,7 @@ int32_t IntLog2<T>::table[64] = {
         in \a x (algorithm nlz10() at http://www.hackersdelight.org/). But note that the functions
         \ref floorPower2() or \ref ceilPower2() are more efficient and should be preferred when possible.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 inline int32_t log2i(uint32_t x)
@@ -493,6 +579,12 @@ inline int32_t log2i(uint32_t x)
     x = x*0x06EB14F9; // Multiplier is 7*255**3.
     return detail::IntLog2<int32_t>::table[x >> 26];
 }
+
+/**********************************************************/
+/*                                                        */
+/*                         power()                        */
+/*                                                        */
+/**********************************************************/
 
 namespace detail {
 
@@ -517,6 +609,7 @@ struct power_static
             : n & 1 ? x : V();
     }
 };
+
 template <class V>
 struct power_static<V, 0>
 {
@@ -530,7 +623,7 @@ struct power_static<V, 0>
 
     /** \brief Exponentiation to a positive integer power by squaring.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 template <unsigned n, class V>
@@ -538,7 +631,12 @@ inline V power(const V & x)
 {
     return detail::power_static<V, n>::call(x);
 }
-//doxygen_overloaded_function(template <unsigned n, class V> power(const V & x))
+
+/**********************************************************/
+/*                                                        */
+/*                          sqrti()                       */
+/*                                                        */
+/**********************************************************/
 
 namespace detail {
 
@@ -642,7 +740,7 @@ using std::sqrt;
 
         Useful for fast fixed-point computations.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 inline int32_t sqrti(int32_t v)
@@ -656,7 +754,7 @@ inline int32_t sqrti(int32_t v)
 
         Useful for fast fixed-point computations.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 inline uint32_t sqrti(uint32_t v)
@@ -664,24 +762,30 @@ inline uint32_t sqrti(uint32_t v)
     return detail::IntSquareRoot<uint32_t>::exec(v);
 }
 
+/**********************************************************/
+/*                                                        */
+/*                          hypot()                       */
+/*                                                        */
+/**********************************************************/
+
 #ifdef VIGRA_NO_HYPOT
     /** \brief Compute the Euclidean distance (length of the hypotenuse of a right-angled triangle).
 
         The  hypot()  function  returns  the  sqrt(a*a  +  b*b).
         It is implemented in a way that minimizes round-off error.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 inline double hypot(double a, double b)
 {
-    double absa = VIGRA_CSTD::fabs(a), absb = VIGRA_CSTD::fabs(b);
+    double absa = std::fabs(a), absb = std::fabs(b);
     if (absa > absb)
-        return absa * VIGRA_CSTD::sqrt(1.0 + sq(absb/absa));
+        return absa * std::sqrt(1.0 + sq(absb/absa));
     else
         return absb == 0.0
                    ? 0.0
-                   : absb * VIGRA_CSTD::sqrt(1.0 + sq(absa/absb));
+                   : absb * std::sqrt(1.0 + sq(absa/absb));
 }
 
 #else
@@ -690,11 +794,17 @@ using std::hypot;
 
 #endif
 
+/**********************************************************/
+/*                                                        */
+/*                    sign(), signi()                     */
+/*                                                        */
+/**********************************************************/
+
     /** \brief The sign function.
 
         Returns 1, 0, or -1 depending on the sign of \a t, but with the same type as \a t.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 template <class T>
@@ -713,7 +823,7 @@ sign(T t)
 
         Returns 1, 0, or -1 depending on the sign of \a t, converted to int.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 template <class T>
@@ -732,7 +842,7 @@ signi(T t)
 
         Transfers the sign of \a t2 to \a t1.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 template <class T1, class T2>
@@ -744,37 +854,33 @@ inline T1 sign(T1 t1, T2 t2)
 }
 
 
-#ifdef DOXYGEN // only for documentation
-    /** \brief Check if an integer is even.
+/**********************************************************/
+/*                                                        */
+/*                       even(), odd()                    */
+/*                                                        */
+/**********************************************************/
 
-        Defined for all integral types.
-    */
-bool even(int t);
+template <class T,
+          VIGRA_REQUIRE<std::is_integral<T>::value> >
+inline bool
+even(T const t)
+{
+    return (t&1) == 0;
+}
 
-    /** \brief Check if an integer is odd.
+template <class T,
+          VIGRA_REQUIRE<std::is_integral<T>::value> >
+inline bool
+odd(T const t)
+{
+    return (t&1) != 0;
+}
 
-        Defined for all integral types.
-    */
-bool odd(int t);
-
-#endif
-
-#define VIGRA_DEFINE_ODD_EVEN(T) \
-    inline bool even(T t) { return (t&1) == 0; } \
-    inline bool odd(T t)  { return (t&1) == 1; }
-
-VIGRA_DEFINE_ODD_EVEN(char)
-VIGRA_DEFINE_ODD_EVEN(short)
-VIGRA_DEFINE_ODD_EVEN(int)
-VIGRA_DEFINE_ODD_EVEN(long)
-VIGRA_DEFINE_ODD_EVEN(long long)
-VIGRA_DEFINE_ODD_EVEN(unsigned char)
-VIGRA_DEFINE_ODD_EVEN(unsigned short)
-VIGRA_DEFINE_ODD_EVEN(unsigned int)
-VIGRA_DEFINE_ODD_EVEN(unsigned long)
-VIGRA_DEFINE_ODD_EVEN(unsigned long long)
-
-#undef VIGRA_DEFINE_ODD_EVEN
+/**********************************************************/
+/*                                                        */
+/*                           erf()                        */
+/*                                                        */
+/**********************************************************/
 
 #if defined(_MSC_VER) && _MSC_VER < 1800
 
@@ -783,8 +889,8 @@ namespace detail {
 template <class T>
 double erfImpl(T x)
 {
-    double t = 1.0/(1.0+0.5*VIGRA_CSTD::fabs(x));
-    double ans = t*VIGRA_CSTD::exp(-x*x-1.26551223+t*(1.00002368+t*(0.37409196+
+    double t = 1.0/(1.0+0.5*std::fabs(x));
+    double ans = t*std::exp(-x*x-1.26551223+t*(1.00002368+t*(0.37409196+
                                     t*(0.09678418+t*(-0.18628806+t*(0.27886807+
                                     t*(-1.13520398+t*(1.48851587+t*(-0.82215223+
                                     t*0.17087277)))))))));
@@ -808,7 +914,7 @@ double erfImpl(T x)
 
         according to the formula given in Press et al. "Numerical Recipes".
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 inline double erf(double x)
@@ -822,18 +928,24 @@ using std::erf;
 
 #endif
 
+/**********************************************************/
+/*                                                        */
+/*                   sin_pi(), cos_pi()                   */
+/*                                                        */
+/**********************************************************/
+
     /** \brief sin(pi*x).
 
         Essentially calls <tt>std::sin(M_PI*x)</tt> but uses a more accurate implementation
         to make sure that <tt>sin_pi(1.0) == 0.0</tt> (which does not hold for
         <tt>std::sin(M_PI)</tt> due to round-off error), and <tt>sin_pi(0.5) == 1.0</tt>.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
-template <class REAL>
-EnableIf<std::is_floating_point<REAL>::value, REAL>
-sin_pi(REAL x)
+template <class REAL,
+          VIGRA_REQUIRE<std::is_floating_point<REAL>::value> >
+REAL sin_pi(REAL x)
 {
     if(x < 0.0)
         return -sin_pi(-x);
@@ -867,15 +979,21 @@ sin_pi(REAL x)
         Essentially calls <tt>std::cos(M_PI*x)</tt> but uses a more accurate implementation
         to make sure that <tt>cos_pi(1.0) == -1.0</tt> and <tt>cos_pi(0.5) == 0.0</tt>.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
-template <class REAL>
-EnableIf<std::is_floating_point<REAL>::value, REAL>
-cos_pi(REAL x)
+template <class REAL,
+          VIGRA_REQUIRE<std::is_floating_point<REAL>::value> >
+REAL cos_pi(REAL x)
 {
     return sin_pi(x+0.5);
 }
+
+/**********************************************************/
+/*                                                        */
+/*                     gamma(), loggamma()                */
+/*                                                        */
+/**********************************************************/
 
 namespace detail {
 
@@ -1214,7 +1332,7 @@ REAL GammaImpl<REAL>::loggamma(REAL x)
         The argument must be <= 171.0 and cannot be zero or a negative integer. An
         exception is thrown when these conditions are violated.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 inline double gamma(double x)
@@ -1230,7 +1348,7 @@ inline double gamma(double x)
 
         The argument must be positive and < 1e30. An exception is thrown when these conditions are violated.
 
-        <b>\#include</b> \<vigra/mathutil.hxx\><br>
+        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
 inline double loggamma(double x)
@@ -1238,65 +1356,87 @@ inline double loggamma(double x)
     return detail::GammaImpl<double>::loggamma(x);
 }
 
+/**********************************************************/
+/*                                                        */
+/*                        clipping                        */
+/*                                                        */
+/**********************************************************/
+
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline T
+clipLower(T const t, T const lowerBound = T())
+{
+    return t < lowerBound ? lowerBound : t;
+}
+
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline T
+clipUpper(T const t, T const upperBound)
+{
+    return t > upperBound ? upperBound : t;
+}
+
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline T
+clip(T const t, T const lowerBound, T const upperBound)
+{
+    return t < lowerBound
+              ?lowerBound
+              : t > upperBound
+                  ? upperBound
+                  : t;
+}
+
+/**********************************************************/
+/*                                                        */
+/*            scalar overloads of array functions         */
+/*                                                        */
+/**********************************************************/
+
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline T
+sum(T const t)
+{
+    return t;
+}
+
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline T
+prod(T const t)
+{
+    return t;
+}
+
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline T
+mean(T const t)
+{
+    return t;
+}
+
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline bool
+any(T const t)
+{
+    return t != T();
+}
+
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline bool
+all(T const t)
+{
+    return t != T();
+}
 
 //@}
-
-#if 1
-
-#define VIGRA_MATH_FUNC_HELPER(TYPE) \
-    inline TYPE clipLower(const TYPE t){ \
-        return t < static_cast<TYPE>(0.0) ? static_cast<TYPE>(0.0) : t; \
-    } \
-    inline TYPE clipLower(const TYPE t,const TYPE valLow){ \
-        return t < static_cast<TYPE>(valLow) ? static_cast<TYPE>(valLow) : t; \
-    } \
-    inline TYPE clipUpper(const TYPE t,const TYPE valHigh){ \
-        return t > static_cast<TYPE>(valHigh) ? static_cast<TYPE>(valHigh) : t; \
-    } \
-    inline TYPE clip(const TYPE t,const TYPE valLow, const TYPE valHigh){ \
-        if(t<valLow) \
-            return valLow; \
-        else if(t>valHigh) \
-            return valHigh; \
-        else  \
-            return t; \
-    } \
-    inline TYPE sum(const TYPE t){ \
-        return t; \
-    }\
-    inline RealPromoteType<TYPE> mean(const TYPE t){ \
-        return t; \
-    }\
-    inline TYPE isZero(const TYPE t){ \
-        return t==static_cast<TYPE>(0.0); \
-    } \
-    inline RealPromoteType<TYPE> sizeDividedSquaredNorm(const TYPE t){ \
-        return  squaredNorm(t); \
-    } \
-    inline RealPromoteType<TYPE> sizeDividedNorm(const TYPE t){ \
-        return  norm(t); \
-    }
-
-
-VIGRA_MATH_FUNC_HELPER(unsigned char)
-VIGRA_MATH_FUNC_HELPER(unsigned short)
-VIGRA_MATH_FUNC_HELPER(unsigned int)
-VIGRA_MATH_FUNC_HELPER(unsigned long)
-VIGRA_MATH_FUNC_HELPER(unsigned long long)
-VIGRA_MATH_FUNC_HELPER(signed char)
-VIGRA_MATH_FUNC_HELPER(signed short)
-VIGRA_MATH_FUNC_HELPER(signed int)
-VIGRA_MATH_FUNC_HELPER(signed long)
-VIGRA_MATH_FUNC_HELPER(signed long long)
-VIGRA_MATH_FUNC_HELPER(float)
-VIGRA_MATH_FUNC_HELPER(double)
-VIGRA_MATH_FUNC_HELPER(long double)
-
-
-
-#undef VIGRA_MATH_FUNC_HELPER
-
-#endif
 
 } // namespace vigra
 
