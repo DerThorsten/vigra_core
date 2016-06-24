@@ -807,16 +807,16 @@ using std::hypot;
         <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
-template <class T>
-inline
-EnableIf<std::is_arithmetic<T>::value, T>
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline T
 sign(T t)
 {
-    return t > NumericTraits<T>::zero()
-               ? NumericTraits<T>::one()
-               : t < NumericTraits<T>::zero()
-                    ? -NumericTraits<T>::one()
-                    : NumericTraits<T>::zero();
+    return t > T()
+               ? T(1)
+               : t < T()
+                    ? T(-1)
+                    : T();
 }
 
     /** \brief The integer sign function.
@@ -826,14 +826,14 @@ sign(T t)
         <b>\#include</b> \<vigra2/mathutil.hxx\><br>
         Namespace: vigra
     */
-template <class T>
-inline
-EnableIf<std::is_arithmetic<T>::value, int>
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline int
 signi(T t)
 {
-    return t > NumericTraits<T>::zero()
+    return t > T()
                ? 1
-               : t < NumericTraits<T>::zero()
+               : t < T()
                     ? -1
                     : 0;
 }

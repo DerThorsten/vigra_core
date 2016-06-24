@@ -55,26 +55,6 @@
 
 namespace vigra {
 
-namespace array_math {
-
-struct ArrayMathTag
-: public HandleNDTag
-{};
-
-template <class ARRAY>
-struct ArrayMathConcept
-{
-    static const bool value =std::is_base_of<ArrayMathTag, ARRAY>::value;
-};
-
-} // namespace array_math
-
-template <class ARRAY, class RETURN=void>
-using EnableIfArrayMath = typename
-      std::enable_if<array_math::ArrayMathConcept<ARRAY>::value,
-                     RETURN>::type;
-
-
 template <int N, class T>
 class HandleND
 : public HandleNDTag
@@ -178,13 +158,14 @@ class HandleND
     }
 
     template <int M = N>
-    int ndim(EnableIf<M == runtime_size, bool> = true) const
+    int ndim(enable_if_t<M == runtime_size, bool> = true) const
     {
         return strides_.size();
     }
 
     template <int M = N>
-    constexpr int ndim(EnableIf<(M > runtime_size), bool> = true) const
+    constexpr
+    int ndim(enable_if_t<M != runtime_size, bool> = true) const
     {
         return N;
     }
@@ -536,13 +517,14 @@ public:
     }
 
     template <int M = N>
-    int ndim(EnableIf<M == runtime_size, bool> = true) const
+    int ndim(enable_if_t<M == runtime_size, bool> = true) const
     {
         return shape_.size();
     }
 
     template <int M = N>
-    constexpr int ndim(EnableIf<(M > runtime_size), bool> = true) const
+    constexpr
+    int ndim(enable_if_t<M != runtime_size, bool> = true) const
     {
         return N;
     }
@@ -597,8 +579,9 @@ permutationToOrder(SHAPE const & shape, SHAPE const & stride,
     return res;
 }
 
-template <class HANDLE, class SHAPE, class FCT>
-EnableIfHandleND<HANDLE>
+template <class HANDLE, class SHAPE, class FCT,
+          VIGRA_REQUIRE<HandleNDConcept<HANDLE>::value> >
+void
 genericArrayFunctionImpl(HANDLE & h, SHAPE const & shape, FCT f, int dim = 0)
 {
     vigra_assert(dim < shape.size(),
@@ -628,8 +611,9 @@ genericArrayFunctionImpl(HANDLE & h, SHAPE const & shape, FCT f, int dim = 0)
     }
 }
 
-template <class ARRAY, class FCT>
-EnableIfArrayND<ARRAY>
+template <class ARRAY, class FCT,
+          VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
+void
 genericArrayFunction(ARRAY & a, FCT f)
 {
     auto p = permutationToOrder(a.shape(), a.strides(), C_ORDER);
@@ -638,8 +622,9 @@ genericArrayFunction(ARRAY & a, FCT f)
     genericArrayFunctionImpl(h, s, f);
 }
 
-template <class HANDLE1, class HANDLE2, class SHAPE, class FCT>
-EnableIf<HandleNDConcept<HANDLE1>::value && HandleNDConcept<HANDLE2>::value>
+template <class HANDLE1, class HANDLE2, class SHAPE, class FCT,
+          VIGRA_REQUIRE<HandleNDConcept<HANDLE1>::value && HandleNDConcept<HANDLE2>::value> >
+void
 genericArrayFunctionImpl(HANDLE1 & h1, HANDLE2 & h2, SHAPE const & shape,
                          FCT f, int dim = 0)
 {
@@ -672,7 +657,7 @@ genericArrayFunctionImpl(HANDLE1 & h1, HANDLE2 & h2, SHAPE const & shape,
 }
 
 template <class ARRAY1, class ARRAY2, class FCT>
-EnableIf<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
+enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
 genericArrayFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f)
 {
     auto last = a1.shape() - 1;
@@ -704,7 +689,7 @@ genericArrayFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f)
 
     // if both arrays are read-only, we need not worry about overlapping memory
 template <class ARRAY1, class ARRAY2, class FCT>
-EnableIf<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
+enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
 genericArrayFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f)
 {
     auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
@@ -716,7 +701,7 @@ genericArrayFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f)
 }
 
 template <class ARRAY1, class ARRAY2, class FCT>
-EnableIf<ArrayNDConcept<ARRAY1>::value && array_math::ArrayMathConcept<ARRAY2>::value>
+enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayMathConcept<ARRAY2>::value>
 genericArrayFunction(ARRAY1 & a1, ARRAY2 const & h2, FCT f)
 {
     auto last = a1.shape() - 1;

@@ -543,8 +543,8 @@ public:
 
 #define VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(OP) \
     template <class ARG> \
-    EnableIf<ArrayNDConcept<ARG>::value || array_math::ArrayMathConcept<ARG>::value, \
-             ArrayViewND &> \
+    enable_if_t<ArrayNDConcept<ARG>::value || ArrayMathConcept<ARG>::value, \
+                ArrayViewND &> \
     operator OP(ARG const & rhs) \
     { \
         typedef typename typename ARG::value_type U; \
@@ -1310,13 +1310,13 @@ public:
         // Actually, we use some template magic to turn ndim() into a
         // constexpr when it is known at compile time.
     template <int M = N>
-    int ndim(EnableIf<M == runtime_size, bool> = true) const
+    int ndim(enable_if_t<M == runtime_size, bool> = true) const
     {
         return shape_.size();
     }
 
     template <int M = N>
-    constexpr int ndim(EnableIf<(M > runtime_size), bool> = true) const
+    constexpr int ndim(enable_if_t<(M > runtime_size), bool> = true) const
     {
         return N;
     }
@@ -1890,7 +1890,7 @@ class ArrayND
     ArrayND(Expression const & rhs,
             MemoryOrder order = C_ORDER,
             allocator_type const & alloc = allocator_type(),
-            EnableIfArrayMath<Expression, bool> = true)
+            enable_if_t<ArrayMathConcept<Expression>::value, bool> = true)
     : view_type(rhs.shape(), 0, order)
     , allocated_data_(alloc)
     {
@@ -2005,8 +2005,8 @@ class ArrayND
 #else
 
     template<class ARG>
-    EnableIf<ArrayNDConcept<ARG>::value || array_math::ArrayMathConcept<ARG>::value,
-             ArrayND &>
+    enable_if_t<ArrayNDConcept<ARG>::value || ArrayMathConcept<ARG>::value,
+                ArrayND &>
     operator=(ARG const & rhs)
     {
         static_assert(std::is_convertible<typename ARG::value_type, value_type>::value,
@@ -2020,8 +2020,8 @@ class ArrayND
 
 #define VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(OP) \
     template <class ARG> \
-    EnableIf<ArrayNDConcept<ARG>::value || array_math::ArrayMathConcept<ARG>::value, \
-             ArrayND &> \
+    enable_if_t<ArrayNDConcept<ARG>::value || ArrayMathConcept<ARG>::value, \
+                ArrayND &> \
     operator OP(ARG const & rhs) \
     { \
         static_assert(std::is_convertible<typename ARG::value_type, value_type>::value, \

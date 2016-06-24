@@ -58,7 +58,7 @@ struct ConceptTest
     }
 
     template <class A>
-    EnableIfArrayND<A, int>
+    enable_if_t<ArrayNDConcept<A>::value, int>
     checkEnableIfArray(A *)
     {
         return 2;

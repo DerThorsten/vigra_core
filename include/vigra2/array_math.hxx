@@ -298,8 +298,8 @@ struct ArrayMath##NAME \
 }; \
  \
 template <class ARG> \
-EnableIf<ArrayNDConcept<ARG>::value || ArrayMathConcept<ARG>::value, \
-         ArrayMath##NAME<ARG>> \
+enable_if_t<ArrayNDConcept<ARG>::value || ArrayMathConcept<ARG>::value, \
+            ArrayMath##NAME<ARG>> \
 FUNCTION(ARG const & arg) \
 { \
     return ArrayMath##NAME<ARG>(arg); \
@@ -546,8 +546,8 @@ struct ArrayMath##NAME \
 }; \
  \
 template <class ARG1, class ARG2> \
-EnableIf<ArrayMathBinaryTraits<ARG1, ARG2>::value, \
-         ArrayMath##NAME<ARG1, ARG2> > \
+enable_if_t<ArrayMathBinaryTraits<ARG1, ARG2>::value, \
+            ArrayMath##NAME<ARG1, ARG2> > \
 FUNCTION(ARG1 const & a1, ARG2 const & a2) \
 { \
     return ArrayMath##NAME<ARG1, ARG2>(a1, a2); \
@@ -620,8 +620,8 @@ struct ArrayMath##NAME \
 }; \
  \
 template <class ARG1, class ARG2> \
-EnableIf<ArrayMathBinaryTraits<ARG1, ARG2>::value, \
-         ArrayMath##NAME<ARG1, ARG2> > \
+enable_if_t<ArrayMathBinaryTraits<ARG1, ARG2>::value, \
+            ArrayMath##NAME<ARG1, ARG2> > \
 CALL(ARG1 const & a1, ARG2 const & a2) \
 { \
     return ArrayMath##NAME<ARG1, ARG2>(a1, a2); \
@@ -641,9 +641,9 @@ VIGRA_ARRAYMATH_MINMAX_FUNCTION(Max, max)
 using array_math::min;
 using array_math::max;
 
-template <class ARG>
-EnableIf<array_math::ArrayMathConcept<ARG>::value,
-         bool>
+template <class ARG,
+          VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
+inline bool
 all(ARG const & a)
 {
     typedef typename ARG::value_type value_type;
@@ -660,9 +660,9 @@ all(ARG const & a)
     return res;
 }
 
-template <class ARG>
-EnableIf<array_math::ArrayMathConcept<ARG>::value,
-         bool>
+template <class ARG,
+          VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
+inline bool
 any(ARG const & a)
 {
     typedef typename ARG::value_type value_type;
@@ -679,9 +679,10 @@ any(ARG const & a)
     return res;
 }
 
-template <class ARG, class U = PromoteType<typename ARG::value_type> >
-EnableIf<array_math::ArrayMathConcept<ARG>::value,
-         U>
+template <class ARG,
+          class U = PromoteType<typename ARG::value_type>,
+          VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
+inline U
 sum(ARG const & a, U res = {})
 {
     typedef typename ARG::value_type value_type;
@@ -694,9 +695,10 @@ sum(ARG const & a, U res = {})
     return res;
 }
 
-template <class ARG, class U = PromoteType<typename ARG::value_type> >
-EnableIf<array_math::ArrayMathConcept<ARG>::value,
-         U>
+template <class ARG,
+          class U = PromoteType<typename ARG::value_type>,
+          VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
+inline U
 prod(ARG const & a, U res = U{1})
 {
     typedef typename ARG::value_type value_type;
@@ -736,8 +738,8 @@ struct ArrayMathNotEqual
 };
 
 template <class ARG1, class ARG2>
-EnableIf<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
-         bool>
+enable_if_t<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
+            bool>
 operator==(ARG1 const & a1, ARG2 const & a2)
 {
     typedef ArrayMathNotEqual<ARG1, ARG2> Expression;
@@ -764,8 +766,8 @@ operator==(ARG1 const & a1, ARG2 const & a2)
 }
 
 template <class ARG1, class ARG2>
-EnableIf<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
-         bool>
+enable_if_t<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
+            bool>
 operator!=(ARG1 const & a1, ARG2 const & a2)
 {
     return !(a1 == a2);

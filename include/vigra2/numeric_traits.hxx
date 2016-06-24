@@ -38,11 +38,11 @@
 #ifndef VIGRA2_NUMERIC_TRAITS_HXX_HXX
 #define VIGRA2_NUMERIC_TRAITS_HXX_HXX
 
-#include <type_traits>
 #include <cmath>    // abs(double)
 #include <cstdlib>  // abs(int)
 #include <complex>
 #include "config.hxx"
+#include "concepts.hxx"
 
 namespace vigra {
 
@@ -158,7 +158,7 @@ template <class T1, class T2 = T1>
 using PromoteType = typename PromoteTraits<T1, T2>::type;
 
 template <bool Cond, class T1, class T2 = T1>
-using PromoteTypeIf = typename std::enable_if<Cond, PromoteType<T1, T2> >::type;
+using PromoteTypeIf = enable_if_t<Cond, PromoteType<T1, T2> >;
 
 
 ///////////////////////////////////////////////////////////////
@@ -699,7 +699,7 @@ FPT safeFloatDivision( FPT f1, FPT f2 )
         Namespace: vigra
     */
 template <class T1, class T2>
-typename std::enable_if<std::is_floating_point<PromoteType<T1, T2> >::value,
+typename enable_if<std::is_floating_point<PromoteType<T1, T2> >::value,
                         bool>::type
 closeAtTolerance(T1 l, T2 r, PromoteType<T1, T2> epsilon)
 {
@@ -718,7 +718,7 @@ closeAtTolerance(T1 l, T2 r, PromoteType<T1, T2> epsilon)
 
 template <class T1, class T2>
 inline
-typename std::enable_if<std::is_floating_point<PromoteType<T1, T2> >::value,
+typename enable_if<std::is_floating_point<PromoteType<T1, T2> >::value,
                         bool>::type
 closeAtTolerance(T1 l, T2 r)
 {
@@ -739,7 +739,7 @@ closeAtTolerance(T1 l, T2 r)
     */
 template <class T1, class T2>
 inline
-typename std::enable_if<std::is_floating_point<PromoteType<T1, T2> >::value,
+typename enable_if<std::is_floating_point<PromoteType<T1, T2> >::value,
                         bool>::type
 lessEqualAtTolerance(T1 l, T2 r, PromoteType<T1, T2> epsilon)
 {
@@ -748,7 +748,7 @@ lessEqualAtTolerance(T1 l, T2 r, PromoteType<T1, T2> epsilon)
 
 template <class T1, class T2>
 inline
-typename std::enable_if<std::is_floating_point<PromoteType<T1, T2> >::value,
+typename enable_if<std::is_floating_point<PromoteType<T1, T2> >::value,
                         bool>::type
 lessEqualAtTolerance(T1 l, T2 r)
 {
@@ -769,7 +769,7 @@ lessEqualAtTolerance(T1 l, T2 r)
     */
 template <class T1, class T2>
 inline
-typename std::enable_if<std::is_floating_point<PromoteType<T1, T2> >::value,
+typename enable_if<std::is_floating_point<PromoteType<T1, T2> >::value,
                         bool>::type
 greaterEqualAtTolerance(T1 l, T2 r, PromoteType<T1, T2> epsilon)
 {

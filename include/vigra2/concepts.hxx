@@ -43,19 +43,25 @@
 
 namespace vigra {
 
-struct require_ok {};
-
-template <bool CONCEPTS>
-using ConceptCheck = typename std::enable_if<CONCEPTS, require_ok>::type;
-
-#define VIGRA_REQUIRE typename Require = ConceptCheck
-
 enum SkipInitialization { DontInit };
 enum ReverseCopyTag { ReverseCopy };
 enum MemoryOrder { C_ORDER, F_ORDER };
 
-template <bool CONCEPTS, class RETURN=void>
-using EnableIf = typename std::enable_if<CONCEPTS, RETURN>::type;
+/**********************************************************/
+/*                                                        */
+/*                     concept checking                   */
+/*                                                        */
+/**********************************************************/
+
+using std::enable_if;
+using std::enable_if_t;
+
+struct require_ok {};
+
+template <bool CONCEPTS>
+using ConceptCheck = typename enable_if<CONCEPTS, require_ok>::type;
+
+#define VIGRA_REQUIRE typename Require = ConceptCheck
 
 /**********************************************************/
 /*                                                        */
@@ -76,14 +82,6 @@ struct TinyArrayConcept
     static const bool value =std::is_base_of<TinyArrayTag, ARRAY>::value;
 };
 
-template <class ARRAY, class RETURN=void>
-using EnableIfTinyArray =
-      typename std::enable_if<TinyArrayConcept<ARRAY>::value, RETURN>::type;
-
-template <class ARRAY, class RETURN=void>
-using EnableIfNotTinyArray =
-      typename std::enable_if<!TinyArrayConcept<ARRAY>::value, RETURN>::type;
-
 /**********************************************************/
 /*                                                        */
 /*            multi-dimensional array concept             */
@@ -100,12 +98,8 @@ struct HandleNDTag {};
 template <class ARRAY>
 struct HandleNDConcept
 {
-    static const bool value =std::is_base_of<HandleNDTag, ARRAY>::value;
+    static const bool value = std::is_base_of<HandleNDTag, ARRAY>::value;
 };
-
-template <class ARRAY, class RETURN=void>
-using EnableIfHandleND =
-      typename std::enable_if<HandleNDConcept<ARRAY>::value, RETURN>::type;
 
 struct ArrayNDTag {};
 
@@ -117,12 +111,18 @@ struct ArrayNDTag {};
 template <class ARRAY>
 struct ArrayNDConcept
 {
-    static const bool value =std::is_base_of<ArrayNDTag, ARRAY>::value;
+    static const bool value = std::is_base_of<ArrayNDTag, ARRAY>::value;
 };
 
-template <class ARRAY, class RETURN=void>
-using EnableIfArrayND =
-      typename std::enable_if<ArrayNDConcept<ARRAY>::value, RETURN>::type;
+struct ArrayMathTag
+: public HandleNDTag
+{};
+
+template <class ARRAY>
+struct ArrayMathConcept
+{
+    static const bool value = std::is_base_of<ArrayMathTag, ARRAY>::value;
+};
 
 /**********************************************************/
 /*                                                        */
@@ -147,10 +147,6 @@ struct IsIterator
         std::is_pointer<T>::value ||
         std::is_same<decltype(test((T*)0)), int>::value;
 };
-
-template <class T, class RETURN=void>
-using EnableIfIterator =
-      typename std::enable_if<IsIterator<T>::value, RETURN>::type;
 
 } // namespace vigra
 
