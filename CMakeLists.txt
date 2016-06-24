@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.2 FATAL_ERROR)
 
-project(foundation VERSION 1.0 LANGUAGES CXX)
+project(core VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/vigra_libs.cmake")
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/vigralibs_cmake")
 
-add_library(foundation INTERFACE)
+add_library(core INTERFACE)
 
-target_include_directories(foundation INTERFACE
+target_include_directories(core INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
