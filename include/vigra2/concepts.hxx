@@ -43,9 +43,17 @@
 
 namespace vigra {
 
+    /// use biggest signed type for array indexing
+using ArrayIndex = std::ptrdiff_t;
+
+    /// constants to specialize templates whose size/ndim is only known at runtime
+static const int runtime_size  = -1;
+static const int runtime_ndim  = -1;
+static const int runtime_order = -1;
+
 enum SkipInitialization { DontInit };
 enum ReverseCopyTag { ReverseCopy };
-enum MemoryOrder { C_ORDER, F_ORDER };
+enum MemoryOrder { C_ORDER = 1, F_ORDER = 2 };
 
 /**********************************************************/
 /*                                                        */
@@ -122,6 +130,12 @@ template <class ARRAY>
 struct ArrayMathConcept
 {
     static const bool value = std::is_base_of<ArrayMathTag, ARRAY>::value;
+};
+
+template <int N, int M>
+struct CompatibleDimensions
+{
+    static const bool value = N == M || N == runtime_size || M == runtime_size;
 };
 
 /**********************************************************/
