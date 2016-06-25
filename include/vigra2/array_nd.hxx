@@ -966,6 +966,8 @@ public:
             return *this;
         if(c < 0)
             return insertSingletonDimension(d, tags::axis_c);
+        vigra_precondition(d < ndim(),
+            "ArrayViewND::ensureChannelAxis(d): d < ndim() required.");
         auto permutation = Shape<>::range(ndim()).erase(c).insert(d, c);
         return transpose(permutation);
     }

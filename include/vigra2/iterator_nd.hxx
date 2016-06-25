@@ -600,11 +600,190 @@ class IteratorND<N, HANDLES, 0>
 };
 #endif // if 0
 
-template <int N, class HANDLES>
-class IteratorND
+template <int N, int ORDER>
+struct IteratorNDAxisInfo;
+
+template <int N>
+struct IteratorNDAxisInfo<N, C_ORDER>
 {
+    IteratorNDAxisInfo(int)
+    {}
+
+    static const int minor_ = 0;
+    static const int major_ = N-1;
+};
+
+template <>
+struct IteratorNDAxisInfo<runtime_size, C_ORDER>
+{
+    IteratorNDAxisInfo(int major)
+    : major_(major)
+    {}
+
+    static const int minor_ = 0;
+    int major_;
+};
+
+template <int N>
+struct IteratorNDAxisInfo<N, F_ORDER>
+{
+    IteratorNDAxisInfo(int)
+    {}
+
+    static const int minor_ = N-1;
+};
+
+template <>
+struct IteratorNDAxisInfo<runtime_size, F_ORDER>
+{
+    IteratorNDAxisInfo(int minor)
+    : minor_(minor)
+    {}
+
+    int minor_;
+};
+
+template <int N>
+struct IteratorNDAxisInfo<N, runtime_order>
+{
+    IteratorNDAxisInfo(int minor)
+    : minor_(minor)
+    {}
+
+    int minor_;
+};
+
+template <>
+struct IteratorNDAxisInfo<runtime_size, runtime_order>
+{
+    IteratorNDAxisInfo(int minor)
+    : minor_(minor)
+    {}
+
+    int minor_;
+};
+
+template <int N, class HANDLES, int ORDER>
+class IteratorNDBase;
+
+template <int N, class HANDLES>
+struct IteratorNDBase<N, HANDLES, F_ORDER>
+: protected IteratorNDAxisInfo<N, F_ORDER>
+{
+    IteratorNDBase(HANDLES const & h)
+    : IteratorNDAxisInfo<N, F_ORDER>(h.ndim()-1)
+    , handles_(h)
+    {}
+
+    void advance()
+    {
+        handles_.inc(0);
+        if(handles_.coord(0) == handles_.shape(0))
+        {
+            for(int k=1; k<=minor_; ++k)
+            {
+                handles_.move(k-1, -handles_.shape(k-1));
+                handles_.inc(k);
+                if(handles_.coord(k) < handles_.shape(k))
+                    break;
+            }
+        }
+    }
+
+    bool not_equal(HANDLES const & other) const
+    {
+        for(int k = minor_; k >= 0; --k)
+            if(handles_.coord(k) != other.coord(k))
+                return true;
+        return false;
+    }
+
+    HANDLES handles_;
+};
+
+template <int N, class HANDLES>
+struct IteratorNDBase<N, HANDLES, C_ORDER>
+: protected IteratorNDAxisInfo<N, C_ORDER>
+{
+    IteratorNDBase(HANDLES const & h)
+    : IteratorNDAxisInfo<N, C_ORDER>(h.ndim()-1)
+    , handles_(h)
+    {}
+
+    void advance()
+    {
+        handles_.inc(major_);
+        if(handles_.coord(major_) == handles_.shape(major_))
+        {
+            for(int k=major_-1; k>=0; --k)
+            {
+                handles_.move(k+1, -handles_.shape(k+1));
+                handles_.inc(k);
+                if(handles_.coord(k) < handles_.shape(k))
+                    break;
+            }
+        }
+    }
+
+    bool not_equal(HANDLES const & other) const
+    {
+        for(int k = 0; k <= major_; ++k)
+            if(handles_.coord(k) != other.coord(k))
+                return true;
+        return false;
+    }
+
+    HANDLES handles_;
+};
+
+
+template <int N, class HANDLES>
+struct IteratorNDBase<N, HANDLES, runtime_order>
+: protected IteratorNDAxisInfo<N, runtime_order>
+{
+    IteratorNDBase(HANDLES const & h,
+                   Shape<N> const & order)
+    : IteratorNDAxisInfo<N, runtime_order>(order.back())
+    , handles_(h)
+    , order_(order)
+    {}
+
+    void advance()
+    {
+        handles_.inc(order_[0]);
+        if(handles_.coord(order_[0]) == handles_.shape(order_[0]))
+        {
+            for(int k=1; k<order_.size(); ++k)
+            {
+                handles_.move(order_[k-1], -handles_.shape(order_[k-1]));
+                handles_.inc(order_[k]);
+                if(handles_.coord(order_[k]) < handles_.shape(order_[k]))
+                    break;
+            }
+        }
+    }
+
+    bool not_equal(HANDLES const & other) const
+    {
+        for(int k = order_.size()-1; k >= 0; --k)
+            if(handles_.coord(order_[k]) != other.coord(order_[k]))
+                return true;
+        return false;
+    }
+
+    HANDLES handles_;
+    Shape<N> order_;
+};
+
+template <int N, class HANDLES, int ORDER = runtime_order>
+class IteratorND
+: protected IteratorNDBase<N, HANDLES, ORDER>
+{
+    static_assert(ORDER == runtime_order || ORDER == C_ORDER || ORDER == F_ORDER,
+        "IteratorND<N, HANDLES, ORDER>: Order must be one of runtime_order, C_ORDER, F_ORDER.");
   public:
 
+    typedef IteratorNDBase<N, HANDLES, ORDER>        base_type;
     typedef IteratorND                               self_type;
     typedef HANDLES                                  value_type;
     typedef ArrayIndex                               difference_type;
@@ -629,15 +808,30 @@ class IteratorND
 
     IteratorND() = default;
 
+    // explicit
+    // IteratorND(value_type const & handles,
+               // enable_if_t<ORDER != runtime_order, bool> = true)
+    // : handles_(handles)
+    // , axes_(shape_type::range(ndim()))
+    // {
+        // if(order == C_ORDER)
+            // axes_ = reversed(axes_);
+    // }
+
+    template <int O = ORDER>
     explicit
     IteratorND(value_type const & handles,
-               MemoryOrder order = C_ORDER)
-    : handles_(handles)
-    , axes_(shape_type::range(ndim()))
-    {
-        if(order == C_ORDER)
-            axes_ = reversed(axes_);
-    }
+               enable_if_t<O != runtime_order, bool> = true)
+    : base_type(handles)
+    {}
+
+    template <int O = ORDER>
+    explicit
+    IteratorND(value_type const & handles, MemoryOrder order = C_ORDER,
+               enable_if_t<O == runtime_order, bool> = true)
+    : base_type(handles,
+                order == C_ORDER ? reversed(shape_type::range(ndim())) : shape_type::range(ndim()))
+    {}
 
     // template <unsigned int DIM>
     // typename IteratorND<N, HANDLES, DIM>::dimension_proxy &
@@ -691,17 +885,7 @@ class IteratorND
 
     IteratorND & operator++()
     {
-        inc(axes_[0]);
-        if(coord(axes_[0]) == shape(axes_[0]))
-        {
-            for(int k=1; k<ndim(); ++k)
-            {
-                move(axes_[k-1], -shape(axes_[k-1]));
-                inc(axes_[k]);
-                if(coord(axes_[k]) < shape(axes_[k]))
-                    break;
-            }
-        }
+        advance();
         return *this;
     }
 
@@ -730,18 +914,18 @@ class IteratorND
         // return *this;
     // }
 
-    IteratorND & operator--()
-    {
-        dec(dimension);
-        return *this;
-    }
+    // IteratorND & operator--()
+    // {
+        // dec(dimension);
+        // return *this;
+    // }
 
-    IteratorND operator--(int)
-    {
-        IteratorND res(*this);
-        --this;
-        return res;
-    }
+    // IteratorND operator--(int)
+    // {
+        // IteratorND res(*this);
+        // --this;
+        // return res;
+    // }
 
     // IteratorND & operator-=(ArrayIndex i)
     // {
@@ -793,12 +977,12 @@ class IteratorND
 
     bool operator==(IteratorND const & r) const
     {
-        return coord() == r.coord();
+        return !not_equal(r.handles_);
     }
 
     bool operator!=(IteratorND const & r) const
     {
-        return coord() != r.coord();
+        return not_equal(r.handles_);
     }
 
     // bool operator<(IteratorND const & r) const
@@ -823,12 +1007,12 @@ class IteratorND
 
     bool isValid() const
     {
-        return coord(axes_.back()) < shape(axes_.back());
+        return coord(minor_) < shape(minor_);
     }
 
     bool atEnd() const
     {
-        return coord(axes_.back()) >= shape(axes_.back());
+        return coord(minor_) >= shape(minor_);
     }
 
     shape_type const & coord() const
@@ -887,7 +1071,7 @@ class IteratorND
     {
         IteratorND res(*this);
         auto diff = -coord();
-        diff[axes_.back()] += shape(axes_.back());
+        diff[minor_] += shape(minor_);
         res.move(diff);
         return res;
     }
@@ -926,7 +1110,8 @@ class IteratorND
         return handles_;
     }
 
-  protected:
+  // protected:
+  public:
     // void reset()
     // {
         // handles_.template decrement<dimension>(shape()[dimension]);
@@ -936,9 +1121,6 @@ class IteratorND
     // {
         // handles_.template increment<dimension>(shape()[dimension]);
     // }
-
-    value_type handles_;
-    shape_type axes_;
 };
 
 
@@ -978,13 +1160,15 @@ class IteratorND
         // (2, 1, 0)
         \endcode
     */
-template <int N>
+template <int N, int ORDER = runtime_order>
 class CoordinateIterator
-: public IteratorND<N, HandleNDChain<Shape<N>>>
+: public IteratorND<N, HandleNDChain<Shape<N>>, ORDER>
 {
+    static_assert(ORDER == runtime_order || ORDER == C_ORDER || ORDER == F_ORDER,
+        "CoordinateIterator<N, ORDER>: Order must be one of runtime_order, C_ORDER, F_ORDER.");
   protected:
 
-    typedef IteratorND<N, HandleNDChain<Shape<N>>> base_type;
+    typedef IteratorND<N, HandleNDChain<Shape<N>>, ORDER> base_type;
     typedef HandleNDChain<Shape<N>>                handle_type;
 
   public:
@@ -1000,11 +1184,20 @@ class CoordinateIterator
 
     CoordinateIterator() = default;
 
-    template <class SHAPE,
-              VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value> >
+    template <class SHAPE, int O = ORDER,
+              VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value &&
+                            O == runtime_order> >
     CoordinateIterator(SHAPE const & shape,
                        MemoryOrder order = C_ORDER)
     : base_type(handle_type(shape), order)
+    // : base_type(handle_type(shape))
+    {}
+
+    template <class SHAPE, int O = ORDER,
+              VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value &&
+                            O != runtime_order> >
+    CoordinateIterator(SHAPE const & shape)
+    : base_type(handle_type(shape))
     {}
 
     // explicit CoordinateIterator(shape_type const & start, shape_type const & end)

@@ -43,6 +43,7 @@
 #include <vector>
 #include <numeric>
 #include <vigra2/unittest.hxx>
+#include <vigra2/timing.hxx>
 #include <vigra2/iterator_nd.hxx>
 
 using namespace vigra;
@@ -51,8 +52,11 @@ template <int N>
 struct IteratorNDTest
 {
     typedef Shape<N>                S;
-    typedef CoordinateIterator<N>   CI;
-    S s{ 4,3,2 };
+    typedef CoordinateIterator<N, F_ORDER>   CIF;
+    typedef CoordinateIterator<N, C_ORDER>   CIC;
+    typedef CoordinateIterator<N>   CIR;
+    //S s{ 4,3,2 };
+    S s{ 200,200,200 };
 
     IteratorNDTest()
     {
@@ -60,19 +64,32 @@ struct IteratorNDTest
 
     void testCoordinateIterator()
     {
-        CI iter(s), end(iter.getEndIterator());
+        //CIR iter(s, F_ORDER), end(iter.getEndIterator());
+        //CIF iter(s), end(iter.getEndIterator());
+        CIC iter(s), end(iter.getEndIterator());
 
         std::cerr << iter.shape() << " " << end.shape() << " " << end.coord() << "\n";
+        //std::cerr << iter.recursion_.axes_ << " " << iter.recursion_.minor() << "\n";
+        //return;
 
         // while(iter.isValid())
         // {
             // std::cerr << *iter << "\n";
             // ++iter;
         // }
-        for(; iter != end; ++iter)
+        USETICTOC;
+        TIC;
+        int count = 0;
+        for (; iter != end; ++iter)
         {
-            std::cerr << *iter << "\n";
+            count += (*iter)[0];
         }
+        //for (; iter.isValid(); ++iter)
+        //{
+        //    count += (*iter)[0];
+        //}
+        TOC;
+        std::cerr << count << "\n";
     }
 
 };
