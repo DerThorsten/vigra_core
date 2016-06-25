@@ -651,6 +651,28 @@ struct ArrayNDTest
         should(v1.bind(3, 0) == v2);
         should(v1.bind(3, 1) == v.bindElementChannel(1));
         should(v1.bindChannel(2) == v.bindElementChannel(2));
+
+        auto v3 = v1.ensureChannelAxis(3);
+        shouldEqual(v3.ndim(), v1.ndim());
+        shouldEqual(v3.channelAxis(), 3);
+
+        auto v4 = v1.ensureChannelAxis(0);
+        shouldEqual(v4.channelAxis(), 0);
+        shouldEqual(v4.ndim(), v1.ndim());
+
+        auto v5 = v.ensureChannelAxis(0);
+        shouldEqual(v5.channelAxis(), 0);
+        shouldEqual(v5.ndim(), v.ndim()+1);
+
+        View vs(s, &data1[0]);
+        shouldNot(vs.hasChannelAxis());
+        auto v6 = vs.ensureChannelAxis(3);
+        shouldEqual(v6.channelAxis(), 3);
+        shouldEqual(v6.ndim(), vs.ndim() + 1);
+
+        ArrayViewND<4, int> vsized = v6;
+        shouldEqual(vsized.channelAxis(), 3);
+        shouldEqual(vsized.ndim(), 4);
     }
 
     void testArray()

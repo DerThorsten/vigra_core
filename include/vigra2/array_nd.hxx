@@ -404,9 +404,7 @@ public:
     , data_(const_cast<pointer>(other.data()))
     , flags_(other.flags() & ~OwnsMemory)
     {
-        static_assert(N == runtime_size || M == runtime_size || N == M,
-            "ArrayViewND<N>(ArrayViewND<M>): ndim mismatch.");
-        vigra_precondition(N == runtime_size || M != runtime_size || N == other.ndim(),
+        static_assert(CompatibleDimensions<M, N>::value,
             "ArrayViewND<N>(ArrayViewND<M>): ndim mismatch.");
     }
 
@@ -905,11 +903,12 @@ public:
                 ArrayViewND<3, float> multiband_image = rgb_image.expandElements(2);
             \endcode
         */
-    ArrayViewND <(N == runtime_size ? runtime_size : N+1),
-                 typename array_detail::ExpandElementResult<T>::type>
+    template <class U=T,
+              VIGRA_REQUIRE<!std::is_scalar<U>::value> >
+    ArrayViewND<(N == runtime_size ? runtime_size : N+1), typename U::value_type>
     expandElements(difference_type_1 d) const
     {
-        using Value = typename array_detail::ExpandElementResult<T>::type;
+        using Value  = typename T::value_type;
         using Result = ArrayViewND <(N == runtime_size ? runtime_size : N + 1), Value>;
 
         vigra_precondition(0 <= d && d <= ndim(),
@@ -920,6 +919,55 @@ public:
                       (strides_ * s).insert(d, 1),
                       axistags_.insert(d, tags::axis_c),
                       reinterpret_cast<Value*>(data_));
+    }
+
+        /** Create a view with an explicit channel axis at index \a d.
+
+            There are three cases:
+            <ul>
+            <li> If the array's <tt>value_type</tt> is scalar, and the array already
+                 has an axis marked as channel axis, the array is transposed such
+                 that the channel axis is at index \a d.
+
+            <li> If the array's <tt>value_type</tt> is scalar, and the array does
+                 not have a channel axis, the function
+                 <tt>insertSingletonDimension(d, tags::axis_c)</tt> is called.
+
+            <li> If the array's <tt>value_type</tt> is  vectorial, the function
+                 <tt>expandElements(d)</tt> is called.
+            </ul>
+            Thus, the function can be called repeatedly without error.
+
+            <b>Usage:</b>
+            \code
+                ArrayND<2, TinyArray<float, 3> > rgb_image({h, w});
+
+                ArrayViewND<3, float> multiband_image = rgb_image.ensureChannelAxis(2);
+                assert(multiband_image.channelAxis() == 3);
+            \endcode
+        */
+    template <class U=T,
+              VIGRA_REQUIRE<!std::is_scalar<U>::value> >
+    ArrayViewND<runtime_size, typename U::value_type>
+    ensureChannelAxis(difference_type_1 d) const
+    {
+        return expandElements(d);
+    }
+
+    template <class U=T,
+              VIGRA_REQUIRE<std::is_scalar<U>::value> >
+    ArrayViewND<runtime_size, T>
+    ensureChannelAxis(difference_type_1 d) const
+    {
+        vigra_precondition(d >= 0,
+            "ArrayViewND::ensureChannelAxis(d): d >= 0 required.");
+        int c = channelAxis();
+        if(c == d)
+            return *this;
+        if(c < 0)
+            return insertSingletonDimension(d, tags::axis_c);
+        auto permutation = Shape<>::range(ndim()).erase(c).insert(d, c);
+        return transpose(permutation);
     }
 
         /** Add a singleton dimension (dimension of length 1).
