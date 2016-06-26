@@ -64,9 +64,9 @@ struct IteratorNDTest
 
     void testCoordinateIterator()
     {
-        //CIR iter(s, F_ORDER), end(iter.getEndIterator());
+        CIR iter(s, C_ORDER), end(iter.getEndIterator());
         //CIF iter(s), end(iter.getEndIterator());
-        CIC iter(s), end(iter.getEndIterator());
+        //CIC iter(s), end(iter.getEndIterator());
 
         std::cerr << iter.shape() << " " << end.shape() << " " << end.coord() << "\n";
         //std::cerr << iter.recursion_.axes_ << " " << iter.recursion_.minor() << "\n";
@@ -80,14 +80,11 @@ struct IteratorNDTest
         USETICTOC;
         TIC;
         int count = 0;
-        for (; iter != end; ++iter)
+        for (; iter.isValid(); ++iter)
+        //for (; iter != end; ++iter)
         {
             count += (*iter)[0];
         }
-        //for (; iter.isValid(); ++iter)
-        //{
-        //    count += (*iter)[0];
-        //}
         TOC;
         std::cerr << count << "\n";
     }

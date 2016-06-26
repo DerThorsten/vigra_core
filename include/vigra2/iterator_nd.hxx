@@ -675,7 +675,7 @@ struct IteratorNDBase<N, HANDLES, F_ORDER>
     , handles_(h)
     {}
 
-    void advance()
+    void operator++()
     {
         handles_.inc(0);
         if(handles_.coord(0) == handles_.shape(0))
@@ -690,7 +690,22 @@ struct IteratorNDBase<N, HANDLES, F_ORDER>
         }
     }
 
-    bool not_equal(HANDLES const & other) const
+    void operator--()
+    {
+        handles_.dec(0);
+        if(handles_.coord(0) < 0)
+        {
+            for(int k=1; k<=minor_; ++k)
+            {
+                handles_.move(k-1, handles_.shape(k-1));
+                handles_.dec(k);
+                if(handles_.coord(k) >= 0)
+                    break;
+            }
+        }
+    }
+
+    bool operator!=(HANDLES const & other) const
     {
         for(int k = minor_; k >= 0; --k)
             if(handles_.coord(k) != other.coord(k))
@@ -710,7 +725,7 @@ struct IteratorNDBase<N, HANDLES, C_ORDER>
     , handles_(h)
     {}
 
-    void advance()
+    void operator++()
     {
         handles_.inc(major_);
         if(handles_.coord(major_) == handles_.shape(major_))
@@ -725,7 +740,22 @@ struct IteratorNDBase<N, HANDLES, C_ORDER>
         }
     }
 
-    bool not_equal(HANDLES const & other) const
+    void operator--()
+    {
+        handles_.dec(major_);
+        if(handles_.coord(major_) < 0)
+        {
+            for(int k=major_-1; k>=0; --k)
+            {
+                handles_.move(k+1, handles_.shape(k+1));
+                handles_.dec(k);
+                if(handles_.coord(k) >= 0)
+                    break;
+            }
+        }
+    }
+
+    bool operator!=(HANDLES const & other) const
     {
         for(int k = 0; k <= major_; ++k)
             if(handles_.coord(k) != other.coord(k))
@@ -748,7 +778,7 @@ struct IteratorNDBase<N, HANDLES, runtime_order>
     , order_(order)
     {}
 
-    void advance()
+    void operator++()
     {
         handles_.inc(order_[0]);
         if(handles_.coord(order_[0]) == handles_.shape(order_[0]))
@@ -763,7 +793,22 @@ struct IteratorNDBase<N, HANDLES, runtime_order>
         }
     }
 
-    bool not_equal(HANDLES const & other) const
+    void operator--()
+    {
+        handles_.dec(order_[0]);
+        if(handles_.coord(order_[0]) < 0)
+        {
+            for(int k=1; k<order_.size(); ++k)
+            {
+                handles_.move(order_[k-1], handles_.shape(order_[k-1]));
+                handles_.dec(order_[k]);
+                if(handles_.coord(order_[k]) >= 0)
+                    break;
+            }
+        }
+    }
+
+    bool operator!=(HANDLES const & other) const
     {
         for(int k = order_.size()-1; k >= 0; --k)
             if(handles_.coord(order_[k]) != other.coord(order_[k]))
@@ -885,7 +930,7 @@ class IteratorND
 
     IteratorND & operator++()
     {
-        advance();
+        base_type::operator++();
         return *this;
     }
 
@@ -914,18 +959,18 @@ class IteratorND
         // return *this;
     // }
 
-    // IteratorND & operator--()
-    // {
-        // dec(dimension);
-        // return *this;
-    // }
+    IteratorND & operator--()
+    {
+        base_type::operator--();
+        return *this;
+    }
 
-    // IteratorND operator--(int)
-    // {
-        // IteratorND res(*this);
-        // --this;
-        // return res;
-    // }
+    IteratorND operator--(int)
+    {
+        IteratorND res(*this);
+        --*this;
+        return res;
+    }
 
     // IteratorND & operator-=(ArrayIndex i)
     // {
@@ -977,12 +1022,12 @@ class IteratorND
 
     bool operator==(IteratorND const & r) const
     {
-        return !not_equal(r.handles_);
+        return !base_type::operator!=(r.handles_);
     }
 
     bool operator!=(IteratorND const & r) const
     {
-        return not_equal(r.handles_);
+        return base_type::operator!=(r.handles_);
     }
 
     // bool operator<(IteratorND const & r) const
@@ -1007,12 +1052,12 @@ class IteratorND
 
     bool isValid() const
     {
-        return coord(minor_) < shape(minor_);
+        return coord(minor_) < shape(minor_) && coord(minor_) >= 0;
     }
 
     bool atEnd() const
     {
-        return coord(minor_) >= shape(minor_);
+        return coord(minor_) >= shape(minor_) || coord(minor_) < 0;
     }
 
     shape_type const & coord() const
