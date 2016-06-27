@@ -51,12 +51,12 @@ using namespace vigra;
 template <int N>
 struct IteratorNDTest
 {
-    typedef Shape<N>                S;
+    typedef Shape<N>                         S;
     typedef CoordinateIterator<N, F_ORDER>   CIF;
     typedef CoordinateIterator<N, C_ORDER>   CIC;
-    typedef CoordinateIterator<N>   CIR;
-    //S s{ 4,3,2 };
-    S s{ 200,200,200 };
+    typedef CoordinateIterator<N>            CID;
+    S s{ 4,3,2 };
+    S slarge{ 200,200,200 };
 
     IteratorNDTest()
     {
@@ -64,19 +64,160 @@ struct IteratorNDTest
 
     void testCoordinateIterator()
     {
-        CIR iter(s, C_ORDER), end(iter.getEndIterator());
-        //CIF iter(s), end(iter.getEndIterator());
-        //CIC iter(s), end(iter.getEndIterator());
+        {
+            CID diter(s, C_ORDER), dend(diter.end()), drend(diter.rend());
+            CIC citer(s), cend(citer.end()), crend(citer.rend());
 
-        std::cerr << iter.shape() << " " << end.shape() << " " << end.coord() << "\n";
-        //std::cerr << iter.recursion_.axes_ << " " << iter.recursion_.minor() << "\n";
-        //return;
+            shouldEqual(diter.shape(), s);
+            shouldEqual(citer.shape(), s);
+            shouldEqual(dend.coord(), (S{ 4,0,0 }));
+            shouldEqual(cend.coord(), (S{ 4,0,0 }));
+            shouldEqual(drend.coord(), (S{ -1, 2, 1 }));
+            shouldEqual(crend.coord(), (S{ -1, 2, 1 }));
 
-        // while(iter.isValid())
-        // {
-            // std::cerr << *iter << "\n";
-            // ++iter;
-        // }
+            for (int i = 0; i < s[0]; ++i)
+                for (int j = 0; j < s[1]; ++j)
+                    for (int k = 0; k < s[2]; ++k, ++diter, ++citer)
+                    {
+                        shouldEqual(*diter, (S{ i,j,k }));
+                        shouldEqual(*citer, (S{ i,j,k }));
+                        should(diter != dend);
+                        should(citer != cend);
+                        should(diter.isValid());
+                        should(citer.isValid());
+                        shouldNot(diter.atEnd());
+                        shouldNot(citer.atEnd());
+                    }
+
+            should(diter == dend);
+            should(citer == cend);
+            shouldNot(diter.isValid());
+            shouldNot(citer.isValid());
+            should(diter.atEnd());
+            should(citer.atEnd());
+
+            --diter;
+            --citer;
+            for (int i = s[0] - 1; i >= 0; --i)
+                for (int j = s[1] - 1; j >= 0; --j)
+                    for (int k = s[2] - 1; k >= 0; --k, --diter, --citer)
+                    {
+                        shouldEqual(*diter, (S{ i,j,k }));
+                        shouldEqual(*citer, (S{ i,j,k }));
+                        should(diter != drend);
+                        should(citer != crend);
+                        should(diter.isValid());
+                        should(citer.isValid());
+                        shouldNot(diter.atEnd());
+                        shouldNot(citer.atEnd());
+                    }
+            should(diter == drend);
+            should(citer == crend);
+            shouldNot(diter.isValid());
+            shouldNot(citer.isValid());
+            should(diter.atEnd());
+            should(citer.atEnd());
+        }
+
+        {
+            CID diter(s, F_ORDER), dend(diter.end()), drend(diter.rend());
+            CIF fiter(s), fend(fiter.end()), frend(fiter.rend());
+
+            shouldEqual(diter.shape(), s);
+            shouldEqual(fiter.shape(), s);
+            shouldEqual(dend.coord(), (S{ 0,0,2 }));
+            shouldEqual(fend.coord(), (S{ 0,0,2 }));
+            shouldEqual(drend.coord(), (S{ 3,2,-1 }));
+            shouldEqual(frend.coord(), (S{ 3,2,-1 }));
+
+            for (int i = 0; i < s[2]; ++i)
+                for (int j = 0; j < s[1]; ++j)
+                    for (int k = 0; k < s[0]; ++k, ++diter, ++fiter)
+                    {
+                        shouldEqual(*diter, (S{ k,j,i }));
+                        shouldEqual(*fiter, (S{ k,j,i }));
+                        should(diter != dend);
+                        should(fiter != fend);
+                        should(diter.isValid());
+                        should(fiter.isValid());
+                        shouldNot(diter.atEnd());
+                        shouldNot(fiter.atEnd());
+                    }
+
+            should(diter == dend);
+            should(fiter == fend);
+            shouldNot(diter.isValid());
+            shouldNot(fiter.isValid());
+            should(diter.atEnd());
+            should(fiter.atEnd());
+
+            --diter;
+            --fiter;
+            for (int i = s[2] - 1; i >= 0; --i)
+                for (int j = s[1] - 1; j >= 0; --j)
+                    for (int k = s[0] - 1; k >= 0; --k, --diter, --fiter)
+                    {
+                        shouldEqual(*diter, (S{ k,j,i }));
+                        shouldEqual(*fiter, (S{ k,j,i }));
+                        should(diter != drend);
+                        should(fiter != frend);
+                        should(diter.isValid());
+                        should(fiter.isValid());
+                        shouldNot(diter.atEnd());
+                        shouldNot(fiter.atEnd());
+                    }
+            should(diter == drend);
+            should(fiter == frend);
+            shouldNot(diter.isValid());
+            shouldNot(fiter.isValid());
+            should(diter.atEnd());
+            should(fiter.atEnd());
+        }
+
+        {
+            CID diter(s, S{ 2,0,1 }), dend(diter.end()), drend(diter.rend());
+
+            shouldEqual(diter.shape(), s);
+            shouldEqual(dend.coord(), (S{ 0,3,0 }));
+            shouldEqual(drend.coord(), (S{ 3,-1,1 }));
+
+            for (int i = 0; i < s[1]; ++i)
+                for (int j = 0; j < s[0]; ++j)
+                    for (int k = 0; k < s[2]; ++k, ++diter)
+                    {
+                        shouldEqual(*diter, (S{ j,i,k }));
+                        should(diter != dend);
+                        should(diter.isValid());
+                        shouldNot(diter.atEnd());
+                    }
+
+            should(diter == dend);
+            shouldNot(diter.isValid());
+            should(diter.atEnd());
+
+            --diter;
+            for (int i = s[1] - 1; i >= 0; --i)
+                for (int j = s[0] - 1; j >= 0; --j)
+                    for (int k = s[2] - 1; k >= 0; --k, --diter)
+                    {
+                        shouldEqual(*diter, (S{ j,i,k }));
+                        should(diter != drend);
+                        should(diter.isValid());
+                        shouldNot(diter.atEnd());
+                    }
+            should(diter == drend);
+            shouldNot(diter.isValid());
+            should(diter.atEnd());
+        }
+    }
+
+    void testSpeed()
+    {
+        //CID iter(slarge, C_ORDER), end(iter.end());
+        //CIF iter(slarge), end(iter.end());
+        CIC iter(slarge), end(iter.end());
+
+        //std::cerr << iter.shape() << " " << end.shape() << " " << end.coord() << "\n";
         USETICTOC;
         TIC;
         int count = 0;
@@ -98,13 +239,14 @@ struct IteratorNDTestSuite
     : vigra::test_suite("IteratorNDTest")
     {
         addTests<3>();
-        // addTests<runtime_size>();
+        addTests<runtime_size>();
     }
 
     template <int N>
     void addTests()
     {
         add(testCase(&IteratorNDTest<N>::testCoordinateIterator));
+        add(testCase(&IteratorNDTest<N>::testSpeed));
     }
 };
 

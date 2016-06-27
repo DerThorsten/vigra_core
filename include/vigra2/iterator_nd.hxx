@@ -874,8 +874,16 @@ class IteratorND
     explicit
     IteratorND(value_type const & handles, MemoryOrder order = C_ORDER,
                enable_if_t<O == runtime_order, bool> = true)
-    : base_type(handles,
-                order == C_ORDER ? reversed(shape_type::range(ndim())) : shape_type::range(ndim()))
+    : base_type(handles, order == C_ORDER
+                             ? reversed(shape_type::range(handles.ndim()))
+                             : shape_type::range(handles.ndim()))
+    {}
+
+    template <class SHAPE, int O = ORDER>
+    explicit
+    IteratorND(value_type const & handles, SHAPE const & order,
+               enable_if_t<O == runtime_order, bool> = true)
+    : base_type(handles, order)
     {}
 
     // template <unsigned int DIM>
@@ -1112,12 +1120,20 @@ class IteratorND
         // return *this;
     // }
 
-    IteratorND getEndIterator() const
+    IteratorND end() const
     {
         IteratorND res(*this);
         auto diff = -coord();
         diff[minor_] += shape(minor_);
         res.move(diff);
+        return res;
+    }
+
+    IteratorND rend() const
+    {
+        IteratorND res(*this);
+        res.move(-coord());
+        --res;
         return res;
     }
 
@@ -1235,7 +1251,14 @@ class CoordinateIterator
     CoordinateIterator(SHAPE const & shape,
                        MemoryOrder order = C_ORDER)
     : base_type(handle_type(shape), order)
-    // : base_type(handle_type(shape))
+    {}
+
+    template <class SHAPE, int O = ORDER,
+              VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value &&
+                            O == runtime_order> >
+    CoordinateIterator(SHAPE const & shape,
+                       SHAPE const & order)
+    : base_type(handle_type(shape), order)
     {}
 
     template <class SHAPE, int O = ORDER,
@@ -1338,9 +1361,14 @@ class CoordinateIterator
         // return operator+=(-coordOffset);
     // }
 
-    CoordinateIterator getEndIterator() const
+    CoordinateIterator end() const
     {
-       return CoordinateIterator(base_type::getEndIterator());
+       return CoordinateIterator(base_type::end());
+    }
+
+    CoordinateIterator rend() const
+    {
+       return CoordinateIterator(base_type::rend());
     }
 
     // CoordinateIterator operator+(ArrayIndex d) const
