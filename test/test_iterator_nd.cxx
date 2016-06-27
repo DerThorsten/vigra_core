@@ -65,8 +65,8 @@ struct IteratorNDTest
     void testCoordinateIterator()
     {
         {
-            CID diter(s, C_ORDER), dend(diter.end()), drend(diter.rend());
-            CIC citer(s), cend(citer.end()), crend(citer.rend());
+            CID diter(s, C_ORDER), dend(diter.end()), drend(diter.rend()), dbegin(dend.begin()), drbegin(diter.rbegin());
+            CIC citer(s), cend(citer.end()), crend(citer.rend()), cbegin(cend.begin()), crbegin(citer.rbegin());
 
             shouldEqual(diter.shape(), s);
             shouldEqual(citer.shape(), s);
@@ -74,6 +74,10 @@ struct IteratorNDTest
             shouldEqual(cend.coord(), (S{ 4,0,0 }));
             shouldEqual(drend.coord(), (S{ -1, 2, 1 }));
             shouldEqual(crend.coord(), (S{ -1, 2, 1 }));
+            shouldEqual(dbegin.coord(), (S{ 0,0,0 }));
+            shouldEqual(cbegin.coord(), (S{ 0,0,0 }));
+            shouldEqual(drbegin.coord(), (S{ 3,2,1 }));
+            shouldEqual(crbegin.coord(), (S{ 3,2,1 }));
 
             for (int i = 0; i < s[0]; ++i)
                 for (int j = 0; j < s[1]; ++j)
@@ -120,8 +124,8 @@ struct IteratorNDTest
         }
 
         {
-            CID diter(s, F_ORDER), dend(diter.end()), drend(diter.rend());
-            CIF fiter(s), fend(fiter.end()), frend(fiter.rend());
+            CID diter(s, F_ORDER), dend(diter.end()), drend(diter.rend()), dbegin(dend.begin()), drbegin(diter.rbegin());
+            CIF fiter(s), fend(fiter.end()), frend(fiter.rend()), fbegin(fend.begin()), frbegin(fiter.rbegin());
 
             shouldEqual(diter.shape(), s);
             shouldEqual(fiter.shape(), s);
@@ -129,6 +133,10 @@ struct IteratorNDTest
             shouldEqual(fend.coord(), (S{ 0,0,2 }));
             shouldEqual(drend.coord(), (S{ 3,2,-1 }));
             shouldEqual(frend.coord(), (S{ 3,2,-1 }));
+            shouldEqual(dbegin.coord(), (S{ 0,0,0 }));
+            shouldEqual(fbegin.coord(), (S{ 0,0,0 }));
+            shouldEqual(drbegin.coord(), (S{ 3,2,1 }));
+            shouldEqual(frbegin.coord(), (S{ 3,2,1 }));
 
             for (int i = 0; i < s[2]; ++i)
                 for (int j = 0; j < s[1]; ++j)
@@ -175,11 +183,13 @@ struct IteratorNDTest
         }
 
         {
-            CID diter(s, S{ 2,0,1 }), dend(diter.end()), drend(diter.rend());
+            CID diter(s, S{ 2,0,1 }), dend(diter.end()), drend(diter.rend()), dbegin(dend.begin()), drbegin(diter.rbegin());
 
             shouldEqual(diter.shape(), s);
             shouldEqual(dend.coord(), (S{ 0,3,0 }));
             shouldEqual(drend.coord(), (S{ 3,-1,1 }));
+            shouldEqual(dbegin.coord(), (S{ 0,0,0 }));
+            shouldEqual(drbegin.coord(), (S{ 3,2,1 }));
 
             for (int i = 0; i < s[1]; ++i)
                 for (int j = 0; j < s[0]; ++j)

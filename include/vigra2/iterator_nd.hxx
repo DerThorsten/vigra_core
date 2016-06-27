@@ -820,6 +820,8 @@ struct IteratorNDBase<N, HANDLES, runtime_order>
     Shape<N> order_;
 };
 
+// FIXME: benchmark if hard-coding F_ORDER and C_ORDER is beneficial in IteratorND
+
 template <int N, class HANDLES, int ORDER = runtime_order>
 class IteratorND
 : protected IteratorNDBase<N, HANDLES, ORDER>
@@ -852,16 +854,6 @@ class IteratorND
     //};
 
     IteratorND() = default;
-
-    // explicit
-    // IteratorND(value_type const & handles,
-               // enable_if_t<ORDER != runtime_order, bool> = true)
-    // : handles_(handles)
-    // , axes_(shape_type::range(ndim()))
-    // {
-        // if(order == C_ORDER)
-            // axes_ = reversed(axes_);
-    // }
 
     template <int O = ORDER>
     explicit
@@ -923,18 +915,6 @@ class IteratorND
     {
         handles_.move(diff);
     }
-
-    // void setDim(int dim, ArrayIndex d)
-    // {
-        // d -= coord(dim);
-        // handles_.addDim(dim, d);
-        // handles_.incrementIndex(d*strides_[dim]);
-    // }
-
-    // void resetDim(int dim)
-    // {
-        // move(dim, -coord(dim));
-     // }
 
     IteratorND & operator++()
     {
@@ -1119,6 +1099,20 @@ class IteratorND
         // strides_ = detail::defaultStride(shape());
         // return *this;
     // }
+
+    IteratorND begin() const
+    {
+        IteratorND res(*this);
+        res.move(-coord());
+        return res;
+    }
+
+    IteratorND rbegin() const
+    {
+        IteratorND res(end());
+        --res;
+        return res;
+    }
 
     IteratorND end() const
     {
@@ -1360,6 +1354,16 @@ class CoordinateIterator
     // {
         // return operator+=(-coordOffset);
     // }
+
+    CoordinateIterator begin() const
+    {
+       return CoordinateIterator(base_type::begin());
+    }
+
+    CoordinateIterator rbegin() const
+    {
+       return CoordinateIterator(base_type::rbegin());
+    }
 
     CoordinateIterator end() const
     {
