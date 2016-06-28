@@ -74,8 +74,8 @@ struct IteratorNDTest
             shouldEqual(cend.coord(), (S{ 4,0,0 }));
             shouldEqual(drend.coord(), (S{ -1, 2, 1 }));
             shouldEqual(crend.coord(), (S{ -1, 2, 1 }));
-            shouldEqual(dbegin.coord(), (S{ 0,0,0 }));
-            shouldEqual(cbegin.coord(), (S{ 0,0,0 }));
+            should(dbegin == diter);
+            should(cbegin == citer);
             shouldEqual(drbegin.coord(), (S{ 3,2,1 }));
             shouldEqual(crbegin.coord(), (S{ 3,2,1 }));
 
@@ -102,6 +102,8 @@ struct IteratorNDTest
 
             --diter;
             --citer;
+            should(diter == drbegin);
+            should(citer == crbegin);
             for (int i = s[0] - 1; i >= 0; --i)
                 for (int j = s[1] - 1; j >= 0; --j)
                     for (int k = s[2] - 1; k >= 0; --k, --diter, --citer)
@@ -133,8 +135,8 @@ struct IteratorNDTest
             shouldEqual(fend.coord(), (S{ 0,0,2 }));
             shouldEqual(drend.coord(), (S{ 3,2,-1 }));
             shouldEqual(frend.coord(), (S{ 3,2,-1 }));
-            shouldEqual(dbegin.coord(), (S{ 0,0,0 }));
-            shouldEqual(fbegin.coord(), (S{ 0,0,0 }));
+            should(dbegin == diter);
+            should(fbegin == fiter);
             shouldEqual(drbegin.coord(), (S{ 3,2,1 }));
             shouldEqual(frbegin.coord(), (S{ 3,2,1 }));
 
@@ -161,6 +163,8 @@ struct IteratorNDTest
 
             --diter;
             --fiter;
+            should(diter == drbegin);
+            should(fiter == frbegin);
             for (int i = s[2] - 1; i >= 0; --i)
                 for (int j = s[1] - 1; j >= 0; --j)
                     for (int k = s[0] - 1; k >= 0; --k, --diter, --fiter)
@@ -188,7 +192,7 @@ struct IteratorNDTest
             shouldEqual(diter.shape(), s);
             shouldEqual(dend.coord(), (S{ 0,3,0 }));
             shouldEqual(drend.coord(), (S{ 3,-1,1 }));
-            shouldEqual(dbegin.coord(), (S{ 0,0,0 }));
+            should(dbegin == diter);
             shouldEqual(drbegin.coord(), (S{ 3,2,1 }));
 
             for (int i = 0; i < s[1]; ++i)
@@ -206,6 +210,7 @@ struct IteratorNDTest
             should(diter.atEnd());
 
             --diter;
+            should(diter == drbegin);
             for (int i = s[1] - 1; i >= 0; --i)
                 for (int j = s[0] - 1; j >= 0; --j)
                     for (int k = s[2] - 1; k >= 0; --k, --diter)
