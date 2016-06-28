@@ -79,12 +79,36 @@ struct IteratorNDTest
             shouldEqual(drbegin.coord(), (S{ 3,2,1 }));
             shouldEqual(crbegin.coord(), (S{ 3,2,1 }));
 
+            shouldEqual(diter.scanOrderIndex(), 0);
+            shouldEqual(citer.scanOrderIndex(), 0);
+            shouldEqual(dend.scanOrderIndex(), 24);
+            shouldEqual(cend.scanOrderIndex(), 24);
+            shouldEqual(drbegin.scanOrderIndex(), 23);
+            shouldEqual(crbegin.scanOrderIndex(), 23);
+            shouldEqual(drend.scanOrderIndex(), -1);
+            shouldEqual(crend.scanOrderIndex(), -1);
+
+            ArrayIndex offset = -12;
+            auto dmiddle = dbegin - offset;
+            auto cmiddle = cbegin - offset;
+            shouldEqual(dmiddle.coord(), (S{ 2,0,0 }));
+            shouldEqual(cmiddle.coord(), (S{ 2,0,0 }));
+
+            int count = 0;
             for (int i = 0; i < s[0]; ++i)
                 for (int j = 0; j < s[1]; ++j)
-                    for (int k = 0; k < s[2]; ++k, ++diter, ++citer)
+                    for (int k = 0; k < s[2]; ++k, ++diter, ++citer, ++count)
                     {
                         shouldEqual(*diter, (S{ i,j,k }));
                         shouldEqual(*citer, (S{ i,j,k }));
+                        shouldEqual(dbegin[count], (S{ i,j,k }));
+                        shouldEqual(cbegin[count], (S{ i,j,k }));
+                        shouldEqual(dmiddle[count+offset], (S{ i,j,k }));
+                        shouldEqual(cmiddle[count+offset], (S{ i,j,k }));
+                        shouldEqual(diter - dmiddle, count + offset);
+                        shouldEqual(citer - cmiddle, count + offset);
+                        shouldEqual(diter.scanOrderIndex(), count);
+                        shouldEqual(citer.scanOrderIndex(), count);
                         should(diter != dend);
                         should(citer != cend);
                         should(diter.isValid());
@@ -140,12 +164,34 @@ struct IteratorNDTest
             shouldEqual(drbegin.coord(), (S{ 3,2,1 }));
             shouldEqual(frbegin.coord(), (S{ 3,2,1 }));
 
+            shouldEqual(diter.scanOrderIndex(), 0);
+            shouldEqual(fiter.scanOrderIndex(), 0);
+            shouldEqual(dend.scanOrderIndex(), 24);
+            shouldEqual(fend.scanOrderIndex(), 24);
+            shouldEqual(drbegin.scanOrderIndex(), 23);
+            shouldEqual(frbegin.scanOrderIndex(), 23);
+            shouldEqual(drend.scanOrderIndex(), -1);
+            shouldEqual(frend.scanOrderIndex(), -1);
+
+            ArrayIndex offset = -12;
+            auto dmiddle = dbegin - offset;
+            auto fmiddle = fbegin - offset;
+            shouldEqual(dmiddle.coord(), (S{ 0,0,1 }));
+            shouldEqual(fmiddle.coord(), (S{ 0,0,1 }));
+
+            int count = 0;
             for (int i = 0; i < s[2]; ++i)
                 for (int j = 0; j < s[1]; ++j)
-                    for (int k = 0; k < s[0]; ++k, ++diter, ++fiter)
+                    for (int k = 0; k < s[0]; ++k, ++diter, ++fiter, ++count)
                     {
                         shouldEqual(*diter, (S{ k,j,i }));
                         shouldEqual(*fiter, (S{ k,j,i }));
+                        shouldEqual(dbegin[count], (S{ k,j,i }));
+                        shouldEqual(fbegin[count], (S{ k,j,i }));
+                        shouldEqual(dmiddle[count + offset], (S{ k,j,i }));
+                        shouldEqual(fmiddle[count + offset], (S{ k,j,i }));
+                        shouldEqual(diter - dmiddle, count + offset);
+                        shouldEqual(fiter - fmiddle, count + offset);
                         should(diter != dend);
                         should(fiter != fend);
                         should(diter.isValid());
@@ -195,11 +241,24 @@ struct IteratorNDTest
             should(dbegin == diter);
             shouldEqual(drbegin.coord(), (S{ 3,2,1 }));
 
+            shouldEqual(diter.scanOrderIndex(), 0);
+            shouldEqual(dend.scanOrderIndex(), 24);
+            shouldEqual(drbegin.scanOrderIndex(), 23);
+            shouldEqual(drend.scanOrderIndex(), -1);
+
+            ArrayIndex offset = -12;
+            auto dmiddle = dbegin - offset;
+            shouldEqual(dmiddle.coord(), (S{ 2,1,0 }));
+
+            int count = 0;
             for (int i = 0; i < s[1]; ++i)
                 for (int j = 0; j < s[0]; ++j)
-                    for (int k = 0; k < s[2]; ++k, ++diter)
+                    for (int k = 0; k < s[2]; ++k, ++diter, ++count)
                     {
                         shouldEqual(*diter, (S{ j,i,k }));
+                        shouldEqual(dbegin[count], (S{ j,i,k }));
+                        shouldEqual(dmiddle[count + offset], (S{ j,i,k }));
+                        shouldEqual(diter - dmiddle, count + offset);
                         should(diter != dend);
                         should(diter.isValid());
                         shouldNot(diter.atEnd());

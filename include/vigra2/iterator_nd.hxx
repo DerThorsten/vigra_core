@@ -670,6 +670,10 @@ template <int N, class HANDLES>
 struct IteratorNDBase<N, HANDLES, F_ORDER>
 : protected IteratorNDAxisInfo<N, F_ORDER>
 {
+  protected:
+
+    HANDLES handles_;
+
     IteratorNDBase(HANDLES const & h)
     : IteratorNDAxisInfo<N, F_ORDER>(h.ndim()-1)
     , handles_(h)
@@ -713,13 +717,47 @@ struct IteratorNDBase<N, HANDLES, F_ORDER>
         return false;
     }
 
-    HANDLES handles_;
+    Shape<N> scanOrderToCoordinate(ArrayIndex d) const
+    {
+        Shape<N> res(handles_.ndim(), DontInit);
+        for(int k=0; k<=minor_; ++k)
+        {
+            res[k] = d % handles_.shape(k);
+            d /= handles_.shape(k);
+        }
+        return res;
+    }
+
+    template <class SHAPE>
+    ArrayIndex scanOrderIndex(SHAPE const & s) const
+    {
+        ArrayIndex stride = 1, res = 0;
+        for(int k=0; k<=minor_; ++k)
+        {
+            res += stride*s[k];
+            stride *= handles_.shape(k);
+        }
+        return res;
+
+    }
+
+  public:
+
+    // FIXME: should the scan-order index be stored in IteratorND?
+    ArrayIndex scanOrderIndex() const
+    {
+        return scanOrderIndex(handles_.coord());
+    }
 };
 
 template <int N, class HANDLES>
 struct IteratorNDBase<N, HANDLES, C_ORDER>
 : protected IteratorNDAxisInfo<N, C_ORDER>
 {
+  protected:
+
+    HANDLES handles_;
+
     IteratorNDBase(HANDLES const & h)
     : IteratorNDAxisInfo<N, C_ORDER>(h.ndim()-1)
     , handles_(h)
@@ -763,7 +801,36 @@ struct IteratorNDBase<N, HANDLES, C_ORDER>
         return false;
     }
 
-    HANDLES handles_;
+    Shape<N> scanOrderToCoordinate(ArrayIndex d) const
+    {
+        Shape<N> res(handles_.ndim(), DontInit);
+        for(int k=major_; k>=0; --k)
+        {
+            res[k] = d % handles_.shape(k);
+            d /= handles_.shape(k);
+        }
+        return res;
+    }
+
+    template <class SHAPE>
+    ArrayIndex scanOrderIndex(SHAPE const & s) const
+    {
+        ArrayIndex stride = 1, res = 0;
+        for(int k=major_; k>=0; --k)
+        {
+            res += stride*s[k];
+            stride *= handles_.shape(k);
+        }
+        return res;
+    }
+
+  public:
+
+    // FIXME: should the scan-order index be stored in IteratorND?
+    ArrayIndex scanOrderIndex() const
+    {
+        return scanOrderIndex(handles_.coord());
+    }
 };
 
 
@@ -771,6 +838,11 @@ template <int N, class HANDLES>
 struct IteratorNDBase<N, HANDLES, runtime_order>
 : protected IteratorNDAxisInfo<N, runtime_order>
 {
+  protected:
+
+    HANDLES handles_;
+    Shape<N> order_;
+
     IteratorNDBase(HANDLES const & h,
                    Shape<N> const & order)
     : IteratorNDAxisInfo<N, runtime_order>(order.back())
@@ -816,15 +888,43 @@ struct IteratorNDBase<N, HANDLES, runtime_order>
         return false;
     }
 
-    HANDLES handles_;
-    Shape<N> order_;
+    Shape<N> scanOrderToCoordinate(ArrayIndex d) const
+    {
+        Shape<N> res(handles_.ndim(), DontInit);
+        for(int k=0; k<order_.size(); ++k)
+        {
+            res[order_[k]] = d % handles_.shape(order_[k]);
+            d /= handles_.shape(order_[k]);
+        }
+        return res;
+    }
+
+    template <class SHAPE>
+    ArrayIndex scanOrderIndex(SHAPE const & s) const
+    {
+        ArrayIndex stride = 1, res = 0;
+        for(int k=0; k<order_.size(); ++k)
+        {
+            res += stride*s[order_[k]];
+            stride *= handles_.shape(order_[k]);
+        }
+        return res;
+    }
+
+  public:
+
+    // FIXME: should the scan-order index be stored in IteratorND?
+    ArrayIndex scanOrderIndex() const
+    {
+        return scanOrderIndex(handles_.coord());
+    }
 };
 
 // FIXME: benchmark if hard-coding F_ORDER and C_ORDER is beneficial in IteratorND
 
 template <int N, class HANDLES, int ORDER = runtime_order>
 class IteratorND
-: protected IteratorNDBase<N, HANDLES, ORDER>
+: public IteratorNDBase<N, HANDLES, ORDER>
 {
     static_assert(ORDER == runtime_order || ORDER == C_ORDER || ORDER == F_ORDER,
         "IteratorND<N, HANDLES, ORDER>: Order must be one of runtime_order, C_ORDER, F_ORDER.");
@@ -896,6 +996,16 @@ class IteratorND
         // return static_cast<Proxy const &>(static_cast<Iter const &>(*this));
     // }
 
+    void inc()
+    {
+        base_type::operator++();
+    }
+
+    void dec()
+    {
+        base_type::operator--();
+    }
+
     void inc(int dim)
     {
         handles_.inc(dim);
@@ -929,23 +1039,17 @@ class IteratorND
         return res;
     }
 
-    // IteratorND & operator+=(ArrayIndex i)
-    // {
-        // // FIXME: this looks very expensive
-        // shape_type coordOffset;
-        // detail::ScanOrderToCoordinate<N>::exec(i+scanOrderIndex(), shape(), coordOffset);
-        // coordOffset -= coord();
-        // handles_.add(coordOffset);
-        // handles_.scanOrderIndex_ += i;
-        // return *this;
-    // }
+    IteratorND & operator+=(ArrayIndex i)
+    {
+        handles_.move(scanOrderToCoordinate(i+scanOrderIndex())-coord());
+        return *this;
+    }
 
-    // IteratorND & operator+=(const shape_type &coordOffset)
-    // {
-        // handles_.add(coordOffset);
-        // handles_.scanOrderIndex_ += detail::CoordinateToScanOrder<N>::exec(shape(), coordOffset);
-        // return *this;
-    // }
+    IteratorND & operator+=(shape_type const & coordOffset)
+    {
+        handles_.move(coordOffset);
+        return *this;
+    }
 
     IteratorND & operator--()
     {
@@ -960,53 +1064,53 @@ class IteratorND
         return res;
     }
 
-    // IteratorND & operator-=(ArrayIndex i)
-    // {
-        // return operator+=(-i);
-    // }
+    IteratorND & operator-=(ArrayIndex i)
+    {
+        return operator+=(-i);
+    }
 
-    // IteratorND & operator-=(const shape_type &coordOffset)
-    // {
-        // return operator+=(-coordOffset);
-    // }
+    IteratorND & operator-=(shape_type const & coordOffset)
+    {
+        return operator+=(-coordOffset);
+    }
 
-    // value_type operator[](ArrayIndex i) const
-    // {
-        // return *(IteratorND(*this) += i);
-    // }
+    value_type operator[](ArrayIndex i) const
+    {
+        return *(IteratorND(*this) += i);
+    }
 
-    // value_type operator[](const shape_type& coordOffset) const
-    // {
-        // return *(IteratorND(*this) += coordOffset);
-    // }
+    value_type operator[](shape_type const & coordOffset) const
+    {
+        return *(IteratorND(*this) += coordOffset);
+    }
 
-    // IteratorND
-    // operator+(ArrayIndex d) const
-    // {
-        // return IteratorND(*this) += d;
-    // }
+    IteratorND
+    operator+(ArrayIndex d) const
+    {
+        return IteratorND(*this) += d;
+    }
 
-    // IteratorND
-    // operator-(ArrayIndex d) const
-    // {
-        // return IteratorND(*this) -= d;
-    // }
+    IteratorND
+    operator-(ArrayIndex d) const
+    {
+        return IteratorND(*this) -= d;
+    }
 
-    // IteratorND operator+(const shape_type &coordOffset) const
-    // {
-        // return IteratorND(*this) += coordOffset;
-    // }
+    IteratorND operator+(const shape_type &coordOffset) const
+    {
+        return IteratorND(*this) += coordOffset;
+    }
 
-    // IteratorND operator-(const shape_type &coordOffset) const
-    // {
-        // return IteratorND(*this) -= coordOffset;
-    // }
+    IteratorND operator-(const shape_type &coordOffset) const
+    {
+        return IteratorND(*this) -= coordOffset;
+    }
 
-    // ArrayIndex
-    // operator-(IteratorND const & r) const
-    // {
-        // return scanOrderIndex() - r.scanOrderIndex();
-    // }
+    ArrayIndex
+    operator-(IteratorND const & r) const
+    {
+        return scanOrderIndex(coord() - r.coord());
+    }
 
     bool operator==(IteratorND const & r) const
     {
@@ -1018,25 +1122,25 @@ class IteratorND
         return base_type::operator!=(r.handles_);
     }
 
-    // bool operator<(IteratorND const & r) const
-    // {
-        // return scanOrderIndex() < r.scanOrderIndex();
-    // }
+    bool operator<(IteratorND const & r) const
+    {
+        return (*this) - r < 0;
+    }
 
-    // bool operator<=(IteratorND const & r) const
-    // {
-        // return scanOrderIndex() <= r.scanOrderIndex();
-    // }
+    bool operator<=(IteratorND const & r) const
+    {
+        return (*this) - r <= 0;
+    }
 
-    // bool operator>(IteratorND const & r) const
-    // {
-        // return scanOrderIndex() > r.scanOrderIndex();
-    // }
+    bool operator>(IteratorND const & r) const
+    {
+        return (*this) - r > 0;
+    }
 
-    // bool operator>=(IteratorND const & r) const
-    // {
-        // return scanOrderIndex() >= r.scanOrderIndex();
-    // }
+    bool operator>=(IteratorND const & r) const
+    {
+        return (*this) - r >= 0;
+    }
 
     bool isValid() const
     {
@@ -1302,10 +1406,15 @@ class CoordinateIterator
         return this->handle_.operator->();
     }
 
-    // value_type operator[](ArrayIndex i) const
-    // {
-        // return *(CoordinateIterator(*this) += i);
-    // }
+    value_type operator[](ArrayIndex i) const
+    {
+        return *(CoordinateIterator(*this) += i);
+    }
+
+    value_type operator[](shape_type const & coordOffset) const
+    {
+        return *(CoordinateIterator(*this) += coordOffset);
+    }
 
     CoordinateIterator & operator++()
     {
@@ -1320,17 +1429,17 @@ class CoordinateIterator
         return res;
     }
 
-    // CoordinateIterator & operator+=(ArrayIndex i)
-    // {
-        // base_type::operator+=(i);
-        // return *this;
-    // }
+    CoordinateIterator & operator+=(ArrayIndex i)
+    {
+        base_type::operator+=(i);
+        return *this;
+    }
 
-    // CoordinateIterator & operator+=(const shape_type &coordOffset)
-    // {
-        // base_type::operator+=(coordOffset);
-        // return *this;
-    // }
+    CoordinateIterator & operator+=(shape_type const & coordOffset)
+    {
+        base_type::operator+=(coordOffset);
+        return *this;
+    }
 
     CoordinateIterator & operator--()
     {
@@ -1345,15 +1454,15 @@ class CoordinateIterator
         return res;
     }
 
-    // CoordinateIterator & operator-=(ArrayIndex i)
-    // {
-        // return operator+=(-i);
-    // }
+    CoordinateIterator & operator-=(ArrayIndex i)
+    {
+        return operator+=(-i);
+    }
 
-    // CoordinateIterator & operator-=(const shape_type &coordOffset)
-    // {
-        // return operator+=(-coordOffset);
-    // }
+    CoordinateIterator & operator-=(shape_type const & coordOffset)
+    {
+        return operator+=(-coordOffset);
+    }
 
     CoordinateIterator begin() const
     {
@@ -1375,30 +1484,30 @@ class CoordinateIterator
        return CoordinateIterator(base_type::rend());
     }
 
-    // CoordinateIterator operator+(ArrayIndex d) const
-    // {
-        // return CoordinateIterator(*this) += d;
-    // }
+    CoordinateIterator operator+(ArrayIndex d) const
+    {
+        return CoordinateIterator(*this) += d;
+    }
 
-    // CoordinateIterator operator-(ArrayIndex d) const
-    // {
-        // return CoordinateIterator(*this) -= d;
-    // }
+    CoordinateIterator operator-(ArrayIndex d) const
+    {
+        return CoordinateIterator(*this) -= d;
+    }
 
-    // CoordinateIterator operator+(const shape_type &coordOffset) const
-    // {
-        // return CoordinateIterator(*this) += coordOffset;
-    // }
+    CoordinateIterator operator+(shape_type const & coordOffset) const
+    {
+        return CoordinateIterator(*this) += coordOffset;
+    }
 
-    // CoordinateIterator operator-(const shape_type &coordOffset) const
-    // {
-        // return CoordinateIterator(*this) -= coordOffset;
-    // }
+    CoordinateIterator operator-(shape_type const & coordOffset) const
+    {
+        return CoordinateIterator(*this) -= coordOffset;
+    }
 
-    // ArrayIndex operator-(const CoordinateIterator & other) const
-    // {
-        // return base_type::operator-(other);
-    //}
+    ArrayIndex operator-(CoordinateIterator const & other) const
+    {
+        return base_type::operator-(other);
+    }
 
   protected:
     CoordinateIterator(base_type const & base)
