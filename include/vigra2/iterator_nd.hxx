@@ -60,545 +60,6 @@ namespace vigra {
 */
 //@{
 
-/** \brief Iterate over multiple images simultaneously in scan order.
-
-    The value type of this iterator is an instance of the handle class CoupledHandle. This allows to iterate over multiple arrays simultaneously. The coordinates can be accessed as a special band (index 0) in the handle. The scan-order is defined such that dimensions are iterated from front to back (first to last).
-
-    Instances of this class are usually constructed by calling createCoupledIterator() .
-
-    To get the type of a IteratorND for arrays of a certain dimension and element types use CoupledIteratorType::type.
-
-    The iterator supports all functions listed in the STL documentation for
-        <a href="http://www.sgi.com/tech/stl/RandomAccessIterator.html">Random Access Iterators</a>.
-
-    Example of use:
-    \code
-    using namespace vigra;
-    MultiArray<2, double> image1(Shape2(5, 5));
-    MultiArray<2, double> image2(Shape2(5, 5));
-    // fill image with data ...
-
-    typedef CoupledIteratorType<2, double, double>::type Iterator; // the type of the IteratorND
-
-    Iterator start = createCoupledIterator(image1, image2); // create coupled iterator for simultaneous iteration over image1, image2 and their coordinates
-    Iterator end = start.getEndIterator();
-
-    for (Iterator it = start; it < end; ++it) {
-      std::cout << "coordinates: " << it.get<0>() << std::endl;
-      std::cout << "image1: " << it.get<1>() << std::endl;
-      std::cout << "image2: " << it.get<2>() << std::endl;
-    }
-
-    //random access:
-    Iterator::value_type handle = start[15];
-    std::cout << "image1: " << get<1>(handle) << std::endl;
-    \endcode
-
-    <b>\#include</b> \<vigra/multi_iterator_coupled.hxx\> <br/>
-    Namespace: vigra
-*/
-#if 0
-template <unsigned int N,
-          class HANDLES,
-          int DIMENSION>  // NOTE: default template arguments are defined in multi_fwd.hxx
-class IteratorND
-#ifndef DOXYGEN  // doxygen doesn't understand this inheritance
-: public IteratorND<N, HANDLES, DIMENSION-1>
-#endif
-{
-    typedef IteratorND<N, HANDLES, DIMENSION-1> base_type;
-
-  public:
-     static const int dimension = DIMENSION;
-
-    typedef ArrayIndex                        difference_type;
-    typedef IteratorND                        iterator;
-    typedef std::random_access_iterator_tag   iterator_category;
-    typedef typename base_type::value_type    value_type;
-
-#ifdef DOXYGEN
-  /** The type of the CoupledHandle.
-   */
-    typedef HANDLES value_type;
-#endif
-
-    typedef typename base_type::shape_type      shape_type;
-    typedef typename base_type::reference       reference;
-    typedef typename base_type::const_reference const_reference; // FIXME: do we need both?
-    typedef typename base_type::pointer         pointer;
-    typedef CoupledDimensionProxy<iterator>     dimension_proxy;
-
-    explicit IteratorND(value_type const & handles = value_type())
-    : base_type(handles)
-    {}
-
-    IteratorND & operator++()
-    {
-        base_type::operator++();
-        if(this->point()[dimension-1] == this->shape()[dimension-1])
-        {
-            resetAndIncrement();
-        }
-        return *this;
-    }
-
-    IteratorND operator++(int)
-    {
-        IteratorND res(*this);
-        ++*this;
-        return res;
-    }
-
-    IteratorND & operator+=(ArrayIndex i)
-    {
-        base_type::operator+=(i);
-        return *this;
-    }
-
-    IteratorND & operator+=(const shape_type &coordOffset)
-    {
-        base_type::operator+=(coordOffset);
-        return *this;
-    }
-
-    IteratorND & operator--()
-    {
-        base_type::operator--();
-        if(this->point()[dimension-1] == -1)
-        {
-            resetAndDecrement();
-        }
-        return *this;
-    }
-
-    IteratorND operator--(int)
-    {
-        IteratorND res(*this);
-        --*this;
-        return res;
-    }
-
-    IteratorND & operator-=(ArrayIndex i)
-    {
-        return operator+=(-i);
-    }
-
-    IteratorND & operator-=(const shape_type &coordOffset)
-    {
-        return operator+=(-coordOffset);
-    }
-
-        /** Returns IteratorND pointing beyond the last element.
-        */
-    IteratorND getEndIterator() const
-    {
-        return operator+(prod(this->shape()) - this->scanOrderIndex());
-    }
-
-    IteratorND operator+(ArrayIndex d) const
-    {
-        return IteratorND(*this) += d;
-    }
-
-    IteratorND operator-(ArrayIndex d) const
-    {
-        return IteratorND(*this) -= d;
-    }
-
-    IteratorND operator+(const shape_type &coordOffset) const
-    {
-        return IteratorND(*this) += coordOffset;
-    }
-
-    IteratorND operator-(const shape_type &coordOffset) const
-    {
-        return IteratorND(*this) -= coordOffset;
-    }
-
-    ArrayIndex operator-(IteratorND const & r) const
-    {
-        return base_type::operator-(r);
-    }
-
-    IteratorND &
-    restrictToSubarray(shape_type const & start, shape_type const & end)
-    {
-        base_type::restrictToSubarray(start, end);
-        return *this;
-    }
-
-#ifdef DOXYGEN
-
-        /** Returns reference to the element in the band with index TARGET_INDEX.
-        */
-    template<unsigned int TARGET_INDEX>
-    typename CoupledHandleCast<TARGET_INDEX, value_type>::type::reference
-    get();
-
-        /** Returns constant reference to the element in the band with index TARGET_INDEX.
-        */
-    template<unsigned int TARGET_INDEX>
-    typename CoupledHandleCast<TARGET_INDEX, value_type>::type::const_reference
-    get() const;
-
-#endif
-
-  protected:
-        // placing these functions out-of-line prevents MSVC
-        // from stupid optimizations
-    void resetAndIncrement()
-    {
-        base_type::reset();
-        this->handles_.template increment<dimension>();
-    }
-
-    void resetAndDecrement()
-    {
-        base_type::inverseReset();
-        this->handles_.template decrement<dimension>();
-    }
-
-    void reset()
-    {
-        this->handles_.template decrement<dimension>(this->shape()[dimension]);
-    }
-
-    void inverseReset()
-    {
-        this->handles_.template increment<dimension>(this->shape()[dimension]);
-    }
-};
-
-template <unsigned int N, class HANDLES>
-class IteratorND<N, HANDLES, 0>
-{
-  public:
-
-    static const int dimension = 0;
-
-    typedef IteratorND<N, HANDLES, 0>                self_type;
-    typedef HANDLES                                  value_type;
-    typedef ArrayIndex                               difference_type;
-    typedef value_type &                             reference;
-    typedef value_type const &                       const_reference;
-    typedef value_type *                             pointer;
-    typedef Shape<N>                                 shape_type;
-    typedef IteratorND                               iterator;
-    typedef std::random_access_iterator_tag          iterator_category;
-    typedef CoupledDimensionProxy<iterator>          dimension_proxy;
-
-    template <unsigned int TARGET_INDEX>
-    struct Reference
-    {
-        typedef typename CoupledHandleCast<TARGET_INDEX, HANDLES>::reference type;
-    };
-
-    template <unsigned int TARGET_INDEX>
-    struct ConstReference
-    {
-        typedef typename CoupledHandleCast<TARGET_INDEX, HANDLES>::const_reference type;
-    };
-
-    IteratorND() = default;
-
-    explicit
-    IteratorND(value_type const & handles,
-               MemoryOrder order = C_ORDER)
-    : handles_(handles)
-    , scan_order_index_()
-    , strides_(shapeToStrides(handles.shape(9, order))
-    {}
-
-    // template <unsigned int DIM>
-    // typename IteratorND<N, HANDLES, DIM>::dimension_proxy &
-    // dim()
-    // {
-        // typedef IteratorND<N, HANDLES, DIM> Iter;
-        // typedef typename Iter::dimension_proxy Proxy;
-        // return static_cast<Proxy &>(static_cast<Iter &>(*this));
-    // }
-
-    // template <unsigned int DIM>
-    // typename IteratorND<N, HANDLES, DIM>::dimension_proxy const &
-    // dim() const
-    // {
-        // typedef IteratorND<N, HANDLES, DIM> Iter;
-        // typedef typename Iter::dimension_proxy Proxy;
-        // return static_cast<Proxy const &>(static_cast<Iter const &>(*this));
-    // }
-
-    void inc(int dim)
-    {
-        handles_.inc(dim);
-        scan_order_index_ += strides_[dim];
-    }
-
-    void dec(int dim)
-    {
-        handles_.dec(dim);
-        scan_order_index_ -= strides_[dim];
-    }
-
-    void move(int dim, ArrayIndex d)
-    {
-        handles_.move(dim, d);
-        scan_order_index_ += d*strides_[dim];
-    }
-
-    // void setDim(int dim, ArrayIndex d)
-    // {
-        // d -= point(dim);
-        // handles_.addDim(dim, d);
-        // handles_.incrementIndex(d*strides_[dim]);
-    // }
-
-    void resetDim(int dim)
-    {
-        move(dim, -point(dim));
-     }
-
-    IteratorND & operator++()
-    {
-        inc(dimension);
-        return *this;
-    }
-
-    IteratorND operator++(int)
-    {
-        IteratorND res(*this);
-        ++*this;
-        return res;
-    }
-
-    // IteratorND & operator+=(ArrayIndex i)
-    // {
-        // // FIXME: this looks very expensive
-        // shape_type coordOffset;
-        // detail::ScanOrderToCoordinate<N>::exec(i+scanOrderIndex(), shape(), coordOffset);
-        // coordOffset -= point();
-        // handles_.add(coordOffset);
-        // handles_.scanOrderIndex_ += i;
-        // return *this;
-    // }
-
-    // IteratorND & operator+=(const shape_type &coordOffset)
-    // {
-        // handles_.add(coordOffset);
-        // handles_.scanOrderIndex_ += detail::CoordinateToScanOrder<N>::exec(shape(), coordOffset);
-        // return *this;
-    // }
-
-    IteratorND & operator--()
-    {
-        dec(dimension);
-        return *this;
-    }
-
-    IteratorND operator--(int)
-    {
-        IteratorND res(*this);
-        --this;
-        return res;
-    }
-
-    // IteratorND & operator-=(ArrayIndex i)
-    // {
-        // return operator+=(-i);
-    // }
-
-    // IteratorND & operator-=(const shape_type &coordOffset)
-    // {
-        // return operator+=(-coordOffset);
-    // }
-
-    // value_type operator[](ArrayIndex i) const
-    // {
-        // return *(IteratorND(*this) += i);
-    // }
-
-    // value_type operator[](const shape_type& coordOffset) const
-    // {
-        // return *(IteratorND(*this) += coordOffset);
-    // }
-
-    // IteratorND
-    // operator+(ArrayIndex d) const
-    // {
-        // return IteratorND(*this) += d;
-    // }
-
-    // IteratorND
-    // operator-(ArrayIndex d) const
-    // {
-        // return IteratorND(*this) -= d;
-    // }
-
-    // IteratorND operator+(const shape_type &coordOffset) const
-    // {
-        // return IteratorND(*this) += coordOffset;
-    // }
-
-    // IteratorND operator-(const shape_type &coordOffset) const
-    // {
-        // return IteratorND(*this) -= coordOffset;
-    // }
-
-    // ArrayIndex
-    // operator-(IteratorND const & r) const
-    // {
-        // return scanOrderIndex() - r.scanOrderIndex();
-    // }
-
-    bool operator==(IteratorND const & r) const
-    {
-        return scan_order_index_ == r.scan_order_index_;
-    }
-
-    bool operator!=(IteratorND const & r) const
-    {
-        return scan_order_index_ != r.scan_order_index_;
-    }
-
-    // bool operator<(IteratorND const & r) const
-    // {
-        // return scanOrderIndex() < r.scanOrderIndex();
-    // }
-
-    // bool operator<=(IteratorND const & r) const
-    // {
-        // return scanOrderIndex() <= r.scanOrderIndex();
-    // }
-
-    // bool operator>(IteratorND const & r) const
-    // {
-        // return scanOrderIndex() > r.scanOrderIndex();
-    // }
-
-    // bool operator>=(IteratorND const & r) const
-    // {
-        // return scanOrderIndex() >= r.scanOrderIndex();
-    // }
-
-    bool isValid() const
-    {
-        return scan_order_index_ < prod(shape());
-    }
-
-    bool atEnd() const
-    {
-        return scan_order_index_ >= prod(shape());
-    }
-
-    ArrayIndex scanOrderIndex() const
-    {
-        return scan_order_index_;
-    }
-
-    shape_type const & coord() const
-    {
-        return handles_.point();
-    }
-
-    ArrayIndex coord(int dim) const
-    {
-        return coord()[dim];
-    }
-
-    shape_type const & point() const
-    {
-        return handles_.point();
-    }
-
-    ArrayIndex point(int dim) const
-    {
-        return point()[dim];
-    }
-
-    shape_type const & shape() const
-    {
-        return handles_.shape();
-    }
-
-    ArrayIndex shape(int dim) const
-    {
-        return handles_.shape()[dim];
-    }
-
-    reference operator*()
-    {
-        return handles_;
-    }
-
-    const_reference operator*() const
-    {
-        return handles_;
-    }
-
-    // IteratorND &
-    // restrictToSubarray(shape_type const & start, shape_type const & end)
-    // {
-        // operator+=(-point());
-        // handles_.restrictToSubarray(start, end);
-        // strides_ = detail::defaultStride(shape());
-        // return *this;
-    // }
-
-    IteratorND getEndIterator() const
-    {
-
-        return operator+(prod(shape())-scan_order_index_);
-    }
-
-    // bool atBorder() const
-    // {
-        // return (handles_.borderType() != 0);
-    // }
-
-    // unsigned int borderType() const
-    // {
-        // return handles_.borderType();
-    // }
-
-    // template<unsigned int TARGET_INDEX>
-    // typename Reference<TARGET_INDEX>::type
-    // get()
-    // {
-        // return vigra::get<TARGET_INDEX>(handles_);
-    // }
-
-    // template<unsigned int TARGET_INDEX>
-    // typename ConstReference<TARGET_INDEX>::type
-    // get() const
-    // {
-        // return vigra::get<TARGET_INDEX>(handles_);
-    // }
-
-    reference handles()
-    {
-        return handles_;
-    }
-
-    const_reference handles() const
-    {
-        return handles_;
-    }
-
-  protected:
-    void reset()
-    {
-        handles_.template decrement<dimension>(shape()[dimension]);
-    }
-
-    void inverseReset()
-    {
-        handles_.template increment<dimension>(shape()[dimension]);
-    }
-
-    value_type handles_;
-    // shape_type strides_;
-    ArrayIndex scan_order_index_;
-};
-#endif // if 0
 
 template <int N, int ORDER>
 struct IteratorNDAxisInfo;
@@ -663,14 +124,16 @@ struct IteratorNDAxisInfo<runtime_size, runtime_order>
     int minor_;
 };
 
-template <int N, class HANDLES, int ORDER>
+template <class HANDLES, int ORDER>
 class IteratorNDBase;
 
-template <int N, class HANDLES>
-struct IteratorNDBase<N, HANDLES, F_ORDER>
-: protected IteratorNDAxisInfo<N, F_ORDER>
+template <class HANDLES>
+struct IteratorNDBase<HANDLES, F_ORDER>
+: protected IteratorNDAxisInfo<HANDLES::dimension, F_ORDER>
 {
   protected:
+
+    static const int N = HANDLES::dimension;
 
     HANDLES handles_;
 
@@ -750,11 +213,13 @@ struct IteratorNDBase<N, HANDLES, F_ORDER>
     }
 };
 
-template <int N, class HANDLES>
-struct IteratorNDBase<N, HANDLES, C_ORDER>
-: protected IteratorNDAxisInfo<N, C_ORDER>
+template <class HANDLES>
+struct IteratorNDBase<HANDLES, C_ORDER>
+: protected IteratorNDAxisInfo<HANDLES::dimension, C_ORDER>
 {
   protected:
+
+    static const int N = HANDLES::dimension;
 
     HANDLES handles_;
 
@@ -834,11 +299,13 @@ struct IteratorNDBase<N, HANDLES, C_ORDER>
 };
 
 
-template <int N, class HANDLES>
-struct IteratorNDBase<N, HANDLES, runtime_order>
-: protected IteratorNDAxisInfo<N, runtime_order>
+template <class HANDLES>
+struct IteratorNDBase<HANDLES, runtime_order>
+: protected IteratorNDAxisInfo<HANDLES::dimension, runtime_order>
 {
   protected:
+
+    static const int N = HANDLES::dimension;
 
     HANDLES handles_;
     Shape<N> order_;
@@ -922,15 +389,53 @@ struct IteratorNDBase<N, HANDLES, runtime_order>
 
 // FIXME: benchmark if hard-coding F_ORDER and C_ORDER is beneficial in IteratorND
 
-template <int N, class HANDLES, int ORDER = runtime_order>
+/** \brief Iterate over multiple images simultaneously in scan order.
+
+    The value type of this iterator is an instance of the handle class CoupledHandle. This allows to iterate over multiple arrays simultaneously. The coordinates can be accessed as a special band (index 0) in the handle. The scan-order is defined such that dimensions are iterated from front to back (first to last).
+
+    Instances of this class are usually constructed by calling createCoupledIterator() .
+
+    To get the type of a IteratorND for arrays of a certain dimension and element types use CoupledIteratorType::type.
+
+    The iterator supports all functions listed in the STL documentation for
+        <a href="http://www.sgi.com/tech/stl/RandomAccessIterator.html">Random Access Iterators</a>.
+
+    Example of use:
+    \code
+    using namespace vigra;
+    MultiArray<2, double> image1(Shape2(5, 5));
+    MultiArray<2, double> image2(Shape2(5, 5));
+    // fill image with data ...
+
+    typedef CoupledIteratorType<2, double, double>::type Iterator; // the type of the IteratorND
+
+    Iterator start = createCoupledIterator(image1, image2); // create coupled iterator for simultaneous iteration over image1, image2 and their coordinates
+    Iterator end = start.getEndIterator();
+
+    for (Iterator it = start; it < end; ++it) {
+      std::cout << "coordinates: " << it.get<0>() << std::endl;
+      std::cout << "image1: " << it.get<1>() << std::endl;
+      std::cout << "image2: " << it.get<2>() << std::endl;
+    }
+
+    //random access:
+    Iterator::value_type handle = start[15];
+    std::cout << "image1: " << get<1>(handle) << std::endl;
+    \endcode
+
+    <b>\#include</b> \<vigra/multi_iterator_coupled.hxx\> <br/>
+    Namespace: vigra
+*/
+template <class HANDLES, int ORDER = runtime_order>
 class IteratorND
-: public IteratorNDBase<N, HANDLES, ORDER>
+: public IteratorNDBase<HANDLES, ORDER>
 {
     static_assert(ORDER == runtime_order || ORDER == C_ORDER || ORDER == F_ORDER,
         "IteratorND<N, HANDLES, ORDER>: Order must be one of runtime_order, C_ORDER, F_ORDER.");
   public:
 
-    typedef IteratorNDBase<N, HANDLES, ORDER>        base_type;
+    static const int N = HANDLES::dimension;
+    typedef IteratorNDBase<HANDLES, ORDER>           base_type;
     typedef IteratorND                               self_type;
     typedef HANDLES                                  value_type;
     typedef ArrayIndex                               difference_type;
@@ -939,19 +444,6 @@ class IteratorND
     typedef value_type *                             pointer;
     typedef Shape<N>                                 shape_type;
     typedef std::random_access_iterator_tag          iterator_category;
-    //typedef CoupledDimensionProxy<iterator>          dimension_proxy;
-
-    //template <unsigned int TARGET_INDEX>
-    //struct Reference
-    //{
-    //    typedef typename CoupledHandleCast<TARGET_INDEX, HANDLES>::reference type;
-    //};
-
-    //template <unsigned int TARGET_INDEX>
-    //struct ConstReference
-    //{
-    //    typedef typename CoupledHandleCast<TARGET_INDEX, HANDLES>::const_reference type;
-    //};
 
     IteratorND() = default;
 
@@ -1283,7 +775,6 @@ class IteratorND
 };
 
 
-
     /** \brief Iterate over a virtual array where each element contains its coordinate.
 
         CoordinateIterator behaves like a read-only random access iterator.
@@ -1321,13 +812,13 @@ class IteratorND
     */
 template <int N, int ORDER = runtime_order>
 class CoordinateIterator
-: public IteratorND<N, HandleNDChain<Shape<N>>, ORDER>
+: public IteratorND<HandleNDChain<Shape<N>>, ORDER>
 {
     static_assert(ORDER == runtime_order || ORDER == C_ORDER || ORDER == F_ORDER,
         "CoordinateIterator<N, ORDER>: Order must be one of runtime_order, C_ORDER, F_ORDER.");
   protected:
 
-    typedef IteratorND<N, HandleNDChain<Shape<N>>, ORDER> base_type;
+    typedef IteratorND<HandleNDChain<Shape<N>>, ORDER> base_type;
     typedef HandleNDChain<Shape<N>>                handle_type;
 
   public:
@@ -1403,7 +894,7 @@ class CoordinateIterator
 
     const_pointer operator->() const
     {
-        return this->handle_.operator->();
+        return this->handles_.operator->();
     }
 
     value_type operator[](ArrayIndex i) const
@@ -1515,7 +1006,215 @@ class CoordinateIterator
     {}
 };
 
+template <int N, class T, int ORDER = runtime_order>
+class ArrayNDIterator
+: public IteratorND<HandleNDChain<T, HandleNDChain<Shape<N>>>, ORDER>
+{
+    static_assert(ORDER == runtime_order || ORDER == C_ORDER || ORDER == F_ORDER,
+        "CoordinateIterator<N, ORDER>: Order must be one of runtime_order, C_ORDER, F_ORDER.");
+  protected:
 
+    typedef HandleNDChain<T, HandleNDChain<Shape<N>>> handle_type;
+    typedef HandleND<N, T>                         array_handle_type;
+    typedef IteratorND<handle_type, ORDER>         base_type;
+
+  public:
+    typedef typename handle_type::value_type       value_type;
+    typedef typename handle_type::reference        reference;
+    typedef typename handle_type::const_reference  const_reference;
+    typedef typename handle_type::pointer          pointer;
+    typedef typename handle_type::const_pointer    const_pointer;
+    typedef typename handle_type::shape_type       shape_type;
+    // typedef typename handle_type::difference_type  difference_type;
+    typedef Shape<N>                               difference_type;
+    typedef std::random_access_iterator_tag        iterator_category;
+
+    ArrayNDIterator() = default;
+
+    ArrayNDIterator(HandleND<N, T> const & handle, shape_type const & shape,
+                    MemoryOrder order = C_ORDER)
+    : base_type(handle_type(handle, shape), order)
+    {}
+
+    ArrayNDIterator(HandleND<N, T> const & handle, shape_type const & shape,
+                    shape_type const & order)
+    : base_type(handle_type(handle, shape), order)
+    {}
+
+    // template <class SHAPE, int O = ORDER,
+              // VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value &&
+                            // O == runtime_order> >
+    // ArrayNDIterator(SHAPE const & shape,
+                       // SHAPE const & order)
+    // : base_type(handle_type(shape), order)
+    // {}
+
+    // template <class SHAPE, int O = ORDER,
+              // VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value &&
+                            // O != runtime_order> >
+    // ArrayNDIterator(SHAPE const & shape)
+    // : base_type(handle_type(shape))
+    // {}
+
+    // explicit ArrayNDIterator(shape_type const & start, shape_type const & end)
+        // : base_type(handle_type(end))
+    // {
+        // this->restrictToSubarray(start, end);
+    // }
+
+    // template<class DirectedTag>
+    // explicit ArrayNDIterator(GridGraph<N, DirectedTag> const & g)
+       // : base_type(handle_type(g.shape()))
+    // {}
+
+
+    // template<class DirectedTag>
+    // explicit ArrayNDIterator(GridGraph<N, DirectedTag> const & g, const typename  GridGraph<N, DirectedTag>::Node & node)
+       // : base_type(handle_type(g.shape()))
+    // {
+        // if( isInside(g,node))
+            // (*this)+=node;
+        // else
+            // *this=this->getEndIterator();
+    // }
+
+
+    reference operator*()
+    {
+        return *handles_;
+    }
+
+    const_reference operator*() const
+    {
+        return *handles_;
+    }
+
+    pointer operator->()
+    {
+        return this->handles_.operator->();
+    }
+
+    const_pointer operator->() const
+    {
+        return this->handles_.operator->();
+    }
+
+    value_type operator[](ArrayIndex i) const
+    {
+        return *(ArrayNDIterator(*this) += i);
+    }
+
+    value_type operator[](shape_type const & coordOffset) const
+    {
+        return *(ArrayNDIterator(*this) += coordOffset);
+    }
+
+    ArrayNDIterator & operator++()
+    {
+        base_type::operator++();
+        return *this;
+    }
+
+    ArrayNDIterator operator++(int)
+    {
+        ArrayNDIterator res(*this);
+        ++*this;
+        return res;
+    }
+
+    ArrayNDIterator & operator+=(ArrayIndex i)
+    {
+        base_type::operator+=(i);
+        return *this;
+    }
+
+    ArrayNDIterator & operator+=(shape_type const & coordOffset)
+    {
+        base_type::operator+=(coordOffset);
+        return *this;
+    }
+
+    ArrayNDIterator & operator--()
+    {
+        base_type::operator--();
+        return *this;
+    }
+
+    ArrayNDIterator operator--(int)
+    {
+        ArrayNDIterator res(*this);
+        --*this;
+        return res;
+    }
+
+    ArrayNDIterator & operator-=(ArrayIndex i)
+    {
+        return operator+=(-i);
+    }
+
+    ArrayNDIterator & operator-=(shape_type const & coordOffset)
+    {
+        return operator+=(-coordOffset);
+    }
+
+    ArrayNDIterator begin() const
+    {
+       return ArrayNDIterator(base_type::begin());
+    }
+
+    ArrayNDIterator rbegin() const
+    {
+       return ArrayNDIterator(base_type::rbegin());
+    }
+
+    ArrayNDIterator end() const
+    {
+       return ArrayNDIterator(base_type::end());
+    }
+
+    ArrayNDIterator rend() const
+    {
+       return ArrayNDIterator(base_type::rend());
+    }
+
+    ArrayNDIterator operator+(ArrayIndex d) const
+    {
+        return ArrayNDIterator(*this) += d;
+    }
+
+    ArrayNDIterator operator-(ArrayIndex d) const
+    {
+        return ArrayNDIterator(*this) -= d;
+    }
+
+    ArrayNDIterator operator+(shape_type const & coordOffset) const
+    {
+        return ArrayNDIterator(*this) += coordOffset;
+    }
+
+    ArrayNDIterator operator-(shape_type const & coordOffset) const
+    {
+        return ArrayNDIterator(*this) -= coordOffset;
+    }
+
+    ArrayIndex operator-(ArrayNDIterator const & other) const
+    {
+        return base_type::operator-(other);
+    }
+
+  protected:
+    ArrayNDIterator(base_type const & base)
+    : base_type(base)
+    {}
+};
+
+template <int INDEX, class HANDLES, int ORDER>
+auto
+get(IteratorND<HANDLES, ORDER> & i)
+-> decltype(*array_detail::HandleChainCast<INDEX, HANDLES>::cast(i.handles()))
+{
+    return *array_detail::HandleChainCast<INDEX, HANDLES>::cast(i.handles());
+}
 
 } // namespace vigra
 

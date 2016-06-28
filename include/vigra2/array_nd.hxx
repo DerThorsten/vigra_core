@@ -46,6 +46,7 @@
 #include "shape.hxx"
 #include "box.hxx"
 #include "handle_nd.hxx"
+#include "iterator_nd.hxx"
 #include "array_math.hxx"
 #include "axistags.hxx"
 
@@ -247,6 +248,14 @@ class ArrayViewND
         /** the array's handle type
          */
     typedef HandleND<N, value_type> handle_type;
+
+         /** scan-order iterator (ArrayNDIterator) type
+         */
+    typedef ArrayNDIterator<actual_dimension, T> iterator;
+
+        /** const scan-order iterator (ArrayNDIterator) type
+         */
+    typedef ArrayNDIterator<actual_dimension, T const> const_iterator;
 
          // /** scan-order iterator (StridedScanOrderIterator) type
          // */
@@ -863,9 +872,10 @@ public:
 
         /** Create a view to channel 'i' of a vector-like value type. Possible value types
             (of the original array) are: \ref TinyVector, \ref RGBValue, \ref FFTWComplex,
-            and <tt>std::complex</tt>. The list can be extended to any type whose memory
-            layout is equivalent to a fixed-size C array, by specializing
-            <tt>ExpandElementResult</tt>.
+            and <tt>std::complex</tt>. The function can be applied whenever the array's
+            element type <tt>T</tt> defines an embedded type <tt>T::value_type</tt> which
+            becomes the return type of <tt>bindElementChannel()</tt>.
+
 
             <b>Usage:</b>
             \code
@@ -876,7 +886,9 @@ public:
                 ArrayViewND<2, float> blue  = rgb_image.bindElementChannel(2);
             \endcode
         */
-    ArrayViewND<N, typename array_detail::ExpandElementResult<T>::type>
+    template <class U=T,
+              VIGRA_REQUIRE<!std::is_scalar<U>::value> >
+    ArrayViewND<N, typename U::value_type>
     bindElementChannel(difference_type_1 i) const
     {
         vigra_precondition(0 <= i &&
@@ -892,9 +904,8 @@ public:
             Possible value types of the original array are: \ref TinyArray, \ref RGBValue,
             \ref FFTWComplex, <tt>std::complex</tt>, and the built-in number types (in this
             case, <tt>expandElements</tt> is equivalent to <tt>insertSingletonDimension</tt>).
-            The list of supported types can be extended to any type whose memory
-            layout is equivalent to a fixed-size C array, by specializing
-            <tt>ExpandElementResult</tt>.
+            The function requires the array's element type <tt>T</tt> to define
+            an embedded type <tt>T::value_type</tt>.
 
             <b>Usage:</b>
             \code
@@ -1511,37 +1522,59 @@ public:
         return handle(array_detail::permutationToOrder(shape_, strides_, order));
     }
 
-        // /** returns a scan-order iterator pointing
-            // to the first array element.
-        // */
-    // iterator begin()
-    // {
-        // return iterator(*this);
-    // }
+        /** returns a scan-order iterator pointing
+            to the first array element.
+        */
+    iterator begin(MemoryOrder order)
+    {
+        return iterator(handle(), shape(), order);
+    }
 
-        // /** returns a const scan-order iterator pointing
-            // to the first array element.
-        // */
-    // const_iterator begin() const
-    // {
-        // return const_iterator(*this);
-    // }
+    iterator begin()
+    {
+        return iterator(handle(), shape(),
+                  array_detail::permutationToOrder(shape(), strides(), F_ORDER));
+    }
 
-        // /** returns a scan-order iterator pointing
-            // beyond the last array element.
-        // */
-    // iterator end()
-    // {
-        // return begin().getEndIterator();
-    // }
+        /** returns a const scan-order iterator pointing
+            to the first array element.
+        */
+    const_iterator begin(MemoryOrder order) const
+    {
+        return const_iterator(handle(), shape(), order);
+    }
 
-        // /** returns a const scan-order iterator pointing
-            // beyond the last array element.
-        // */
-    // const_iterator end() const
-    // {
-        // return begin().getEndIterator();
-    // }
+    const_iterator begin() const
+    {
+        return const_iterator(handle(), shape(),
+                  array_detail::permutationToOrder(shape(), strides(), F_ORDER));
+    }
+
+        /** returns a scan-order iterator pointing
+            beyond the last array element.
+        */
+    iterator end(MemoryOrder order)
+    {
+        return begin(order).end();
+    }
+
+    iterator end()
+    {
+        return begin().end();
+    }
+
+        /** returns a const scan-order iterator pointing
+            beyond the last array element.
+        */
+    const_iterator end(MemoryOrder order) const
+    {
+        return begin(order).end();
+    }
+
+    const_iterator end() const
+    {
+        return begin().end();
+    }
 
         // /** returns the N-dimensional MultiIterator pointing
             // to the first element in every dimension.
@@ -2197,6 +2230,42 @@ swap(ArrayND<N,T,A> & array1, ArrayND<N,T,A> & array2)
     array1.swap(array2);
 }
 
+namespace array_detail {
+
+
+
+template <class HANDLE, int N, class T, class ... REST>
+auto
+makeCoupledIteratorImpl(HANDLE const & inner_handle,
+                        ArrayViewND<N, T> const & a, REST const & ... rest)
+    -> decltype(makeCoupledIteratorImpl(*(HandleNDChain<T, HANDLE>*)0, rest...))
+{
+    static_assert(CompatibleDimensions<N, HANDLE::dimension>::value,
+        "makeCoupledIterator(): arrays have incompatible dimensions.");
+    vigra_precondition(a.shape() == inner_handle.shape(),
+        "makeCoupledIterator(): arrays have incompatible shapes.");
+    HandleNDChain<T, HANDLE> handle(a.handle(), inner_handle);
+    return makeCoupledIteratorImpl(handle, rest ...);
+}
+
+template <class HANDLE>
+IteratorND<HANDLE>
+makeCoupledIteratorImpl(HANDLE const & handle)
+{
+    return IteratorND<HANDLE>(handle);
+}
+
+} // namespace array_detail
+
+// FIXME: should makeCoupledIterator() support other memory orders?
+template <int N, class T, class ... REST>
+auto
+makeCoupledIterator(ArrayViewND<N, T> const & a, REST const & ... rest)
+    -> decltype(array_detail::makeCoupledIteratorImpl(*(HandleNDChain<T, HandleNDChain<Shape<N>>>*)0, rest...))
+{
+    HandleNDChain<T, HandleNDChain<Shape<N>>> handle(a.handle(), a.shape());
+    return array_detail::makeCoupledIteratorImpl(handle, rest ...);
+}
 
 } // namespace vigra
 

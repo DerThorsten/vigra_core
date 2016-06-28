@@ -87,19 +87,24 @@ struct ArrayNDTest
         should(v1 != v0);
         shouldNot(v1 == v0);
 
+        auto iter1 = v1.begin(C_ORDER), end1 = v1.end(C_ORDER);
+
         int count = 0;
         for (int i = 0; i < s[0]; ++i)
             for (int j = 0; j < s[1]; ++j)
-                for (int k = 0; k < s[2]; ++k, ++count)
+                for (int k = 0; k < s[2]; ++k, ++count, ++iter1)
                 {
                     should((v1.isInside(S{ i,j,k })));
                     shouldNot((v1.isOutside(S{ i,j,k })));
                     shouldEqual((v1[{i, j, k}]), count);
                     shouldEqual(v1[count], count);
-                    shouldEqual(v1(i,j,k), count);
+                    shouldEqual(v1(i, j, k), count);
+                    shouldEqual(*iter1, count);
+                    shouldNot(iter1 == end1);
                 }
         shouldNot(v1.isInside(S{ -1,-1,-1 }));
         should(v1.isOutside(S{ -1,-1,-1 }));
+        should(iter1 == end1);
 
         View v2(s, defaultAxistags(3, false, F_ORDER), &data1[0], F_ORDER);
 
@@ -113,14 +118,19 @@ struct ArrayNDTest
         should(v1 != v2);
         shouldNot(v1 == v2);
 
+        auto iter2 = v2.begin(F_ORDER), end2 = v2.end(F_ORDER);
+
         count = 0;
         for (int i = 0; i < s[2]; ++i)
             for (int j = 0; j < s[1]; ++j)
-                for (int k = 0; k < s[0]; ++k, ++count)
+                for (int k = 0; k < s[0]; ++k, ++count, ++iter2)
                 {
                     shouldEqual((v2[{k, j, i}]), count);
                     shouldEqual(v2[count], count);
+                    shouldEqual(*iter2, count);
+                    shouldNot(iter2 == end2);
                 }
+        should(iter2 == end2);
 
         View v3(s, S{3, 1, 12}, &data1[0]);
 
@@ -129,14 +139,19 @@ struct ArrayNDTest
         shouldEqual(v3.data(), &data1[0]);
         should(v3.isConsecutive());
 
+        auto iter3 = v3.begin(), end3 = v3.end();
+
         count = 0;
         for (int i = 0; i < s[2]; ++i)
             for (int j = 0; j < s[0]; ++j)
-                for (int k = 0; k < s[1]; ++k, ++count)
+                for (int k = 0; k < s[1]; ++k, ++count, ++iter3)
                 {
                     shouldEqual((v3[{j, k, i}]), count);
                     shouldEqual(v3[count], count);
+                    shouldEqual(*iter3, count);
+                    shouldNot(iter3 == end3);
                 }
+        should(iter3 == end3);
     }
 
     void testBind()
@@ -804,6 +819,38 @@ struct ArrayNDTest
         shouldNot(a5.hasData());
         shouldEqual(a5.shape(), (S{}));
     }
+
+    void testIterators()
+    {
+        Array a1(s);
+
+        std::iota(a1.begin(), a1.end(), 1);
+        Array a2(a1), a3(a1);
+        a2 += 1;
+        a3 -= 1;
+        auto iter = makeCoupledIterator(a1, a2, a3);
+
+        should(get<0>(iter) == (S{ 0,0,0 }));
+        should(&get<1>(iter) == a1.data());
+        should(&get<2>(iter) == a2.data());
+        should(&get<3>(iter) == a3.data());
+
+        int count = 1;
+        for (int i = 0; i < s[0]; ++i)
+            for (int j = 0; j < s[1]; ++j)
+                for (int k = 0; k < s[2]; ++k, ++count, ++iter)
+                {
+                    shouldEqual((a1[{i, j, k}]), count);
+                    shouldEqual((a2[{i, j, k}]), count + 1);
+                    shouldEqual((a3[{i, j, k}]), count - 1);
+                    shouldEqual(get<0>(iter), (S{ i,j,k }));
+                    shouldEqual(get<1>(iter), count);
+                    shouldEqual(get<2>(iter), count + 1);
+                    shouldEqual(get<3>(iter), count - 1);
+                    get<1>(iter) = 0;
+                }
+        shouldNot(a1.any());
+    }
 };
 
 struct ArrayNDTestSuite
@@ -828,6 +875,7 @@ struct ArrayNDTestSuite
         add(testCase(&ArrayNDTest<N>::testSubarray));
         add(testCase(&ArrayNDTest<N>::testVectorValuetype));
         add(testCase(&ArrayNDTest<N>::testArray));
+        add(testCase(&ArrayNDTest<N>::testIterators));
     }
 };
 
