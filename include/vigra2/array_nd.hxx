@@ -2236,35 +2236,43 @@ namespace array_detail {
 
 template <class HANDLE, int N, class T, class ... REST>
 auto
-makeCoupledIteratorImpl(HANDLE const & inner_handle,
+makeCoupledIteratorImpl(MemoryOrder order, HANDLE const & inner_handle,
                         ArrayViewND<N, T> const & a, REST const & ... rest)
-    -> decltype(makeCoupledIteratorImpl(*(HandleNDChain<T, HANDLE>*)0, rest...))
+    -> decltype(makeCoupledIteratorImpl(order, *(HandleNDChain<T, HANDLE>*)0, rest...))
 {
     static_assert(CompatibleDimensions<N, HANDLE::dimension>::value,
         "makeCoupledIterator(): arrays have incompatible dimensions.");
     vigra_precondition(a.shape() == inner_handle.shape(),
         "makeCoupledIterator(): arrays have incompatible shapes.");
     HandleNDChain<T, HANDLE> handle(a.handle(), inner_handle);
-    return makeCoupledIteratorImpl(handle, rest ...);
+    return makeCoupledIteratorImpl(order, handle, rest ...);
 }
 
 template <class HANDLE>
 IteratorND<HANDLE>
-makeCoupledIteratorImpl(HANDLE const & handle)
+makeCoupledIteratorImpl(MemoryOrder order, HANDLE const & handle)
 {
-    return IteratorND<HANDLE>(handle);
+    return IteratorND<HANDLE>(handle, order);
 }
 
 } // namespace array_detail
 
-// FIXME: should makeCoupledIterator() support other memory orders?
 template <int N, class T, class ... REST>
 auto
 makeCoupledIterator(ArrayViewND<N, T> const & a, REST const & ... rest)
-    -> decltype(array_detail::makeCoupledIteratorImpl(*(HandleNDChain<T, HandleNDChain<Shape<N>>>*)0, rest...))
+    -> decltype(array_detail::makeCoupledIteratorImpl(C_ORDER, *(HandleNDChain<T, HandleNDChain<Shape<N>>>*)0, rest...))
 {
-    HandleNDChain<T, HandleNDChain<Shape<N>>> handle(a.handle(), a.shape());
-    return array_detail::makeCoupledIteratorImpl(handle, rest ...);
+    HandleNDChain<T, HandleNDChain<Shape<N>>> handle(a.handle(), HandleNDChain<Shape<N>>(a.shape()));
+    return array_detail::makeCoupledIteratorImpl(C_ORDER, handle, rest ...);
+}
+
+template <int N, class T, class ... REST>
+auto
+makeCoupledIterator(MemoryOrder order, ArrayViewND<N, T> const & a, REST const & ... rest)
+    -> decltype(array_detail::makeCoupledIteratorImpl(order, *(HandleNDChain<T, HandleNDChain<Shape<N>>>*)0, rest...))
+{
+    HandleNDChain<T, HandleNDChain<Shape<N>>> handle(a.handle(), HandleNDChain<Shape<N>>(a.shape()));
+    return array_detail::makeCoupledIteratorImpl(order, handle, rest ...);
 }
 
 } // namespace vigra

@@ -1033,12 +1033,12 @@ class ArrayNDIterator
 
     ArrayNDIterator(HandleND<N, T> const & handle, shape_type const & shape,
                     MemoryOrder order = C_ORDER)
-    : base_type(handle_type(handle, shape), order)
+    : base_type(handle_type(handle, HandleNDChain<Shape<N>>(shape)), order)
     {}
 
     ArrayNDIterator(HandleND<N, T> const & handle, shape_type const & shape,
                     shape_type const & order)
-    : base_type(handle_type(handle, shape), order)
+    : base_type(handle_type(handle, HandleNDChain<Shape<N>>(shape)), order)
     {}
 
     // template <class SHAPE, int O = ORDER,

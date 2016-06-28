@@ -850,6 +850,23 @@ struct ArrayNDTest
                     get<1>(iter) = 0;
                 }
         shouldNot(a1.any());
+
+        auto fiter = makeCoupledIterator(F_ORDER, a2, a3);
+
+        should(get<0>(fiter) == (S{ 0,0,0 }));
+        should(&get<1>(fiter) == a2.data());
+        should(&get<2>(fiter) == a3.data());
+
+        for (int i = 0; i < s[2]; ++i)
+            for (int j = 0; j < s[1]; ++j)
+                for (int k = 0; k < s[0]; ++k, ++fiter)
+                {
+                    shouldEqual(get<0>(fiter), (S{ k, j, i }));
+                    shouldEqual(get<1>(fiter), (a2[{k, j, i}]));
+                    shouldEqual(get<2>(fiter), (a3[{k, j, i}]));
+                    get<1>(fiter) = 0;
+                }
+        shouldNot(a2.any());
     }
 };
 
