@@ -74,17 +74,17 @@ struct AxisTagsTest
         shouldEqual(defaultAxistags(3, true), (AxisTags{ axis_y, axis_x, axis_c }));
         shouldEqual(defaultAxistags(4, false, F_ORDER), (AxisTags{ axis_x, axis_y, axis_z, axis_t }));
         shouldEqual(defaultAxistags(3, true, F_ORDER), (AxisTags{ axis_c, axis_x, axis_y }));
-    }
 
-    void testException()
-    {
+        shouldEqual(makeAxistags("xyc"), (AxisTags{ axis_x, axis_y, axis_c }));
+        shouldEqual(makeAxistags("tcyxz"), (AxisTags{ axis_t, axis_c, axis_y, axis_x, axis_z }));
         try
         {
+            makeAxistags("to");
             failTest("no exception thrown");
         }
         catch(std::runtime_error & e)
         {
-            std::string expected("expected message");
+            std::string expected("\nPrecondition violation!\nmakeAxistags(): invalid tag 'o'.");
             std::string message(e.what());
             should(0 == expected.compare(message.substr(0,expected.size())));
         }

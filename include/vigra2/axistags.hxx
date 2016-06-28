@@ -43,6 +43,7 @@
 #include "tinyarray.hxx"
 #include <string>
 #include <iostream>
+#include <map>
 
 namespace vigra {
 
@@ -71,7 +72,8 @@ enum AxisTag  { no_channel_axis = -1,
                 axis_fy, // Fourier transform of y-axis
                 axis_fz, // Fourier transform of z-axis
                 axis_ft, // Fourier transform of t-axis
-                axis_e   // edge map for a graph
+                axis_e,  // edge map for a graph
+                axis_end // marker for the end of the list
               };
 
     // order must conform to the indices of AxisTag
@@ -341,6 +343,27 @@ defaultAxistags(int N, bool with_channels = false, MemoryOrder order = C_ORDER)
     return order == C_ORDER
               ? res
               : reversed(res);
+}
+
+inline AxisTags<runtime_size>
+makeAxistags(std::string const & spec)
+{
+    static std::map<char, tags::AxisTag> charToTag;
+    if(charToTag.size() == 0)
+    {
+        for(int k=0; k<tags::axis_end; ++k)
+            if((tags::AxisTagTypes[k] & tags::Frequency) == 0)
+                charToTag[tags::AxisTagKeys[k][0]] = tags::AxisTag(k);
+    }
+    AxisTags<runtime_size> res(spec.size(), DontInit);
+    for(int k=0; k<spec.size(); ++k)
+    {
+        auto iter = charToTag.find(spec[k]);
+        vigra_precondition(iter != charToTag.end(),
+            std::string("makeAxistags(): invalid tag '") + spec[k] + "'.");
+        res[k] = iter->second;
+    }
+    return res;
 }
 
 } // namespace vigra
