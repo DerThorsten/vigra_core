@@ -79,16 +79,11 @@ namespace array_detail {
 struct UnsuitableTypeForExpandElements {};
 
 template <class T>
-struct ExpandElementResult
-{
-    typedef UnsuitableTypeForExpandElements type;
-};
+struct VectorElementSize;
 
 template <class T>
-struct ExpandElementResult<std::complex<T> >
+struct VectorElementSize<std::complex<T> >
 {
-    typedef T type;
-
     static int size(std::complex<T> const *)
     {
         return 2;
@@ -96,10 +91,8 @@ struct ExpandElementResult<std::complex<T> >
 };
 
 template <class T>
-struct ExpandElementResult<FFTWComplex<T> >
+struct VectorElementSize<FFTWComplex<T> >
 {
-    typedef T type;
-
     static int size(FFTWComplex<T> const *)
     {
         return 2;
@@ -107,10 +100,8 @@ struct ExpandElementResult<FFTWComplex<T> >
 };
 
 template <class T, int SIZE>
-struct ExpandElementResult<TinyArray<T, SIZE> >
+struct VectorElementSize<TinyArray<T, SIZE> >
 {
-    typedef T type;
-
     static int size(TinyArray<T, SIZE> const * t)
     {
         return t ? t->size() : 1;
@@ -118,44 +109,41 @@ struct ExpandElementResult<TinyArray<T, SIZE> >
 };
 
 template <class T, unsigned int R, unsigned int G, unsigned int B>
-struct ExpandElementResult<RGBValue<T, R, G, B> >
+struct VectorElementSize<RGBValue<T, R, G, B> >
 {
-    typedef T type;
-
     static int size(RGBValue<T, R, G, B> const *)
     {
         return 3;
     }
 };
 
-#define VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(TYPE) \
+#define VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(TYPE) \
 template <>  \
-struct ExpandElementResult<TYPE> \
+struct VectorElementSize<TYPE> \
 { \
-    typedef TYPE type; \
     static int size(TYPE const *) \
     { \
         return 1; \
     } \
 };
 
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(bool)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(char)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(signed char)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(signed short)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(signed int)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(signed long)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(signed long long)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(unsigned char)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(unsigned short)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(unsigned int)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(unsigned long)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(unsigned long long)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(float)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(double)
-VIGRA_DEFINE_EXPAND_ELEMENT_RESULT(long double)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(bool)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(char)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(signed char)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(signed short)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(signed int)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(signed long)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(signed long long)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(unsigned char)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(unsigned short)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(unsigned int)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(unsigned long)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(unsigned long long)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(float)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(double)
+VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(long double)
 
-#undef VIGRA_DEFINE_EXPAND_ELEMENT_RESULT
+#undef VIGRA_DEFINE_VECTOR_ELEMENT_SIZE
 
 template <int M>
 inline ArrayIndex
@@ -257,41 +245,9 @@ class ArrayViewND
          */
     typedef ArrayNDIterator<actual_dimension, T const> const_iterator;
 
-         // /** scan-order iterator (StridedScanOrderIterator) type
-         // */
-    // typedef StridedScanOrderIterator<actual_dimension, T, T &, T *> iterator;
-
-        // /** const scan-order iterator (StridedScanOrderIterator) type
-         // */
-    // typedef StridedScanOrderIterator<actual_dimension, T, T const &, T const *> const_iterator;
-
-        // /** traverser (MultiIterator) type
-         // */
-    // typedef typename vigra::detail::MultiIteratorChooser <
-        // StrideTag>::template Traverser <actual_dimension, T, T &, T *>::type traverser;
-
-        // /** const traverser (MultiIterator) type
-         // */
-    // typedef typename vigra::detail::MultiIteratorChooser <
-        // StrideTag>::template Traverser <actual_dimension, T, T const &, T const *>::type const_traverser;
-
-        // /** the view type associated with this array.
-         // */
-    // typedef ArrayViewND <N, T, StrideTag> view_type;
-
         // /** the matrix type associated with this array.
          // */
     // typedef ArrayND <N, T> matrix_type;
-
-    // bool checkInnerStride(UnstridedArrayTag) const
-    // {
-        // return strides_.back() <= 1;
-    // }
-
-    // bool checkInnerStride(StridedArrayTag) const
-    // {
-        // return true;
-    // }
 
   protected:
 
@@ -344,18 +300,6 @@ class ArrayViewND
                 v = detail::RequiresExplicitCast<value_type>::cast(u);
             });
     }
-
-    // template <class U, class CN>
-    // void swapDataImpl(ArrayViewND <N, U, CN> rhs);
-
-    // template <class CN>
-    // bool arraysOverlap(const ArrayViewND <N, T, CN>& rhs) const;
-
-    // template <class U, class CN>
-    // bool arraysOverlap(const ArrayViewND <N, U, CN>&) const
-    // {
-        // return false;
-    // }
 
         // ensure that singleton axes have unit stride
     void fixSingletonStrides()
@@ -656,54 +600,6 @@ public:
             "ArrayViewND::operator[](int) forbidden for strided multi-dimensional arrays.");
     }
 
-        // /** Array access in scan-order sense.
-            // Mostly useful to support standard indexing for 1-dimensional multi-arrays,
-            // but works for any N. Use scanOrderIndexToCoordinate() and
-            // coordinateToScanOrderIndex() for conversion between indices and coordinates.
-
-            // <b>Note:</b> This function should not be used in the inner loop, because the
-            // conversion of the scan order index into a memory address is expensive
-            // (it must take into account that memory may not be consecutive for subarrays
-            // and/or strided arrays). Always prefer operator() if possible.
-         // */
-    // reference operator[](difference_type_1 d)
-    // {
-        // VIGRA_ASSERT_INSIDE(scanOrderIndexToCoordinate(d));
-        // return data_ [detail::ScanOrderToOffset<actual_dimension>::exec(d, shape_, strides_)];
-    // }
-
-        // /** Array access in scan-order sense.
-            // Mostly useful to support standard indexing for 1-dimensional multi-arrays,
-            // but works for any N. Use scanOrderIndexToCoordinate() and
-            // coordinateToScanOrderIndex() for conversion between indices and coordinates.
-
-            // <b>Note:</b> This function should not be used in the inner loop, because the
-            // conversion of the scan order index into a memory address is expensive
-            // (it must take into account that memory may not be consecutive for subarrays
-            // and/or strided arrays). Always prefer operator() if possible.
-        // */
-    // const_reference operator[](difference_type_1 d) const
-    // {
-        // VIGRA_ASSERT_INSIDE(scanOrderIndexToCoordinate(d));
-        // return data_ [detail::ScanOrderToOffset<actual_dimension>::exec(d, shape_, strides_)];
-    // }
-
-        // /** convert scan-order index to coordinate.
-         // */
-    // difference_type scanOrderIndexToCoordinate(difference_type_1 d) const
-    // {
-        // difference_type result;
-        // detail::ScanOrderToCoordinate<actual_dimension>::exec(d, shape_, result);
-        // return result;
-    // }
-
-        // /** convert coordinate to scan-order index.
-         // */
-    // difference_type_1 coordinateToScanOrderIndex(const difference_type &d) const
-    // {
-        // return detail::CoordinateToScanOrder<actual_dimension>::exec(shape_, d);
-    // }
-
         /** 1D array access. Use only if <tt>ndim() <= 1</tt>.
          */
     reference operator()(difference_type_1 i)
@@ -892,7 +788,7 @@ public:
     bindElementChannel(difference_type_1 i) const
     {
         vigra_precondition(0 <= i &&
-                           i < array_detail::ExpandElementResult<T>::size(data_),
+                           i < array_detail::VectorElementSize<T>::size(data_),
             "ArrayViewND::bindElementChannel(i): 'i' out of range.");
         return expandElements(0).bind(0, i);
     }
@@ -925,7 +821,7 @@ public:
         vigra_precondition(0 <= d && d <= ndim(),
             "ArrayViewND::expandElements(d): 0 <= 'd' <= ndim() required.");
 
-        int s = array_detail::ExpandElementResult<T>::size(data_);
+        int s = array_detail::VectorElementSize<T>::size(data_);
         return Result(shape_.insert(d, s),
                       (strides_ * s).insert(d, 1),
                       axistags_.insert(d, tags::axis_c),
@@ -1576,46 +1472,6 @@ public:
         return begin().end();
     }
 
-        // /** returns the N-dimensional MultiIterator pointing
-            // to the first element in every dimension.
-        // */
-    // traverser traverser_begin ()
-    // {
-        // traverser ret (data_, strides_.begin (), shape_.begin ());
-        // return ret;
-    // }
-
-        // /** returns the N-dimensional MultiIterator pointing
-            // to the const first element in every dimension.
-        // */
-    // const_traverser traverser_begin () const
-    // {
-        // const_traverser ret (data_, strides_.begin (), shape_.begin ());
-        // return ret;
-    // }
-
-        // /** returns the N-dimensional MultiIterator pointing
-            // beyond the last element in dimension N, and to the
-            // first element in every other dimension.
-        // */
-    // traverser traverser_end ()
-    // {
-        // traverser ret (data_, strides_.begin (), shape_.begin ());
-        // ret += shape_ [actual_dimension-1];
-        // return ret;
-    // }
-
-        // /** returns the N-dimensional const MultiIterator pointing
-            // beyond the last element in dimension N, and to the
-            // first element in every other dimension.
-        // */
-    // const_traverser traverser_end () const
-    // {
-        // const_traverser ret (data_, strides_.begin (), shape_.begin ());
-        // ret += shape_ [actual_dimension-1];
-        // return ret;
-    // }
-
     template <int M = runtime_size>
     ArrayViewND<M, T> view() const
     {
@@ -1805,21 +1661,13 @@ class ArrayND
 
     typedef typename view_type::axistags_type axistags_type;
 
-        // /** traverser type
-         // */
-    // typedef typename view_type::traverser traverser;
+        /** sequential (random access) iterator type
+         */
+    typedef typename view_type::iterator iterator;
 
-        // /** traverser type to const data
-         // */
-    // typedef typename view_type::const_traverser  const_traverser;
-
-        // /** sequential (random access) iterator type
-         // */
-    // typedef typename view_type::iterator iterator;
-
-        // /** sequential (random access) const iterator type
-         // */
-    // typedef typename view_type::const_iterator const_iterator;
+        /** sequential (random access) const iterator type
+         */
+    typedef typename view_type::const_iterator const_iterator;
 
         /** default constructor
          */
@@ -2156,34 +2004,6 @@ class ArrayND
         view_type::operator/=(u);
         return *this;
     }
-
-        // /** sequential iterator pointing to the first array element.
-         // */
-    // iterator begin ()
-    // {
-        // return vigra::detail::MultiIteratorChooser<actual_stride>::template constructIterator<iterator>((view_type *)this);
-    // }
-
-        // /** sequential iterator pointing beyond the last array element.
-         // */
-    // iterator end ()
-    // {
-        // return begin() + this->elementCount();
-    // }
-
-        // /** sequential const iterator pointing to the first array element.
-         // */
-    // const_iterator begin () const
-    // {
-        // return vigra::detail::MultiIteratorChooser<actual_stride>::template constructIterator<iterator>((view_type const *)this);
-    // }
-
-        // /** sequential const iterator pointing beyond the last array element.
-         // */
-    // const_iterator end () const
-    // {
-        // return begin() + this->elementCount();
-    // }
 
     void
     resize(difference_type const & new_shape,
