@@ -1150,7 +1150,6 @@ class TinyArray
         /** Construction from lemon::Invalid.
             Initializes all vector elements with -1.
         */
-    explicit
     constexpr TinyArray(lemon::Invalid const &)
     : BaseType(-1)
     {}
@@ -1318,6 +1317,10 @@ class TinyArray<VALUETYPE, runtime_size>
         if(!may_use_uninitialized_memory)
             std::uninitialized_fill(this->begin(), this->end(), value_type());
     }
+
+    TinyArray(lemon::Invalid const &)
+    : BaseType()
+    {}
 
     TinyArray(ArrayIndex size, lemon::Invalid const &)
     : TinyArray(size, value_type(-1))
@@ -1934,6 +1937,46 @@ closeAtTolerance(TinyArrayBase<V1, D1, N...> const & l,
             return false;
     return true;
 }
+
+template <class V, class D, int ...M>
+inline bool
+operator==(TinyArrayBase<V, D, M...> const & l,
+           lemon::Invalid const &)
+{
+    for(int k=0; k < l.size(); ++k)
+        if(l[k] != -1)
+            return false;
+    return true;
+}
+
+template <class V, class D, int ...M>
+inline bool
+operator==(lemon::Invalid const &,
+           TinyArrayBase<V, D, M...> const & r)
+{
+    for(int k=0; k < r.size(); ++k)
+        if(r[k] != -1)
+            return false;
+    return true;
+}
+
+template <class V, class D, int ... M>
+inline bool
+operator!=(TinyArrayBase<V, D, M...> const & l,
+           lemon::Invalid const &)
+{
+    return !(l == lemon::INVALID);
+}
+
+template <class V, class D, int ... M>
+inline bool
+operator!=(lemon::Invalid const &,
+           TinyArrayBase<V, D, M...> const & r)
+{
+    return !(r == lemon::INVALID);
+}
+
+
 
 /********************************************************/
 /*                                                      */

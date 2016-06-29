@@ -262,6 +262,14 @@ struct TinyArrayTest
         should(any(iv) && !all(iv));
         iv = IV(1); iv[SIZE-1] = 0;
         should(any(iv) && !all(iv));
+
+        IV invalid1(lemon::INVALID);
+        should(invalid1 == lemon::INVALID);
+        should(lemon::INVALID == invalid1);
+        shouldNot(invalid1 != lemon::INVALID);
+        shouldNot(lemon::INVALID != invalid1);
+        shouldNot(iv == lemon::INVALID);
+        shouldNot(lemon::INVALID == iv);
     }
 
     void testArithmetic()
@@ -630,6 +638,18 @@ struct TinyArrayTest
 
         shouldEqual((A{ 0,0,0 }), A(tags::size = 3));
         shouldEqual((A{ 1,1,1 }), A(tags::size = 3, 1));
+
+        A invalid1(lemon::INVALID), invalid2(3, lemon::INVALID);
+        shouldEqual(invalid1.size(), 0);
+        shouldEqual(invalid2.size(), 3);
+        should(invalid1 == lemon::INVALID);
+        should(lemon::INVALID == invalid1);
+        should(invalid2 == lemon::INVALID);
+        should(lemon::INVALID == invalid2);
+        shouldNot(invalid1 != lemon::INVALID);
+        shouldNot(lemon::INVALID != invalid1);
+        shouldNot(a == lemon::INVALID);
+        shouldNot(lemon::INVALID == a);
     }
 };
 
