@@ -826,54 +826,52 @@ class CoordinateIterator
 
     CoordinateIterator() = default;
 
-    template <class SHAPE, int O = ORDER,
-              VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value &&
-                            O == runtime_order> >
-    CoordinateIterator(SHAPE const & shape,
+    template <int O = ORDER,
+              VIGRA_REQUIRE<O == runtime_order> >
+    explicit
+    CoordinateIterator(shape_type const & shape,
                        MemoryOrder order = C_ORDER)
     : base_type(handle_type(shape), order)
     {}
 
-    template <class SHAPE, int O = ORDER,
-              VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value &&
-                            O == runtime_order> >
-    CoordinateIterator(SHAPE const & shape,
-                       SHAPE const & order)
+    template <int O = ORDER,
+              VIGRA_REQUIRE<O == runtime_order> >
+    CoordinateIterator(shape_type const & shape,
+                       shape_type const & order)
     : base_type(handle_type(shape), order)
     {}
 
-    template <class SHAPE, int O = ORDER,
-              VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value &&
-                            O != runtime_order> >
-    CoordinateIterator(SHAPE const & shape)
+    template <int O = ORDER,
+              VIGRA_REQUIRE<O != runtime_order> >
+    CoordinateIterator(shape_type const & shape)
     : base_type(handle_type(shape))
     {}
 
     // explicit CoordinateIterator(shape_type const & start, shape_type const & end)
-        // : base_type(handle_type(end))
+    // : base_type(handle_type(end))
     // {
-        // this->restrictToSubarray(start, end);
+    //     this->restrictToSubarray(start, end);
     // }
 
     // template<class DirectedTag>
     // explicit CoordinateIterator(GridGraph<N, DirectedTag> const & g)
-       // : base_type(handle_type(g.shape()))
+    // : base_type(handle_type(g.shape()))
     // {}
 
-
     // template<class DirectedTag>
-    // explicit CoordinateIterator(GridGraph<N, DirectedTag> const & g, const typename  GridGraph<N, DirectedTag>::Node & node)
-       // : base_type(handle_type(g.shape()))
+    // explicit CoordinateIterator(GridGraph<N, DirectedTag> const & g,
+    //                             typename GridGraph<N, DirectedTag>::Node const & node)
+    // : base_type(handle_type(g.shape()))
     // {
-        // if( isInside(g,node))
-            // (*this)+=node;
-        // else
-            // *this=this->getEndIterator();
+    //     if( isInside(g,node))
+    //         (*this)+=node;
+    //     else
+    //         *this=this->getEndIterator();
     // }
 
 
-    // dereferencing the iterator yields the coordinate object
-    // (used as vertex_descriptor)
+        // dereferencing the iterator yields the coordinate object
+        // (used as vertex_descriptor)
     const_reference operator*() const
     {
         return this->coord();
@@ -1004,6 +1002,9 @@ class CoordinateIterator
 /*                                                      */
 /********************************************************/
 
+template <int N, class T>
+class ArrayViewND;
+
 template <int N, class T, int ORDER = runtime_order>
 class ArrayNDIterator
 : public IteratorND<HandleNDChain<T, HandleNDChain<Shape<N>>>, ORDER>
@@ -1012,7 +1013,7 @@ class ArrayNDIterator
         "CoordinateIterator<N, ORDER>: Order must be one of runtime_order, C_ORDER, F_ORDER.");
   protected:
 
-    typedef HandleNDChain<T, HandleNDChain<Shape<N>>> handle_type;
+    typedef HandleNDChain<T, ShapeHandle<N>>       handle_type;
     typedef HandleND<N, T>                         array_handle_type;
     typedef IteratorND<handle_type, ORDER>         base_type;
 
@@ -1028,19 +1029,15 @@ class ArrayNDIterator
 
     ArrayNDIterator() = default;
 
-    // ArrayNDIterator(ArrayViewND<N, T> const & array,
-                    // MemoryOrder order = C_ORDER)
-    // : base_type(handle_type(array.handle(), HandleNDChain<Shape<N>>(shape)), order)
-    // {}
-
-    ArrayNDIterator(HandleND<N, T> const & handle, shape_type const & shape,
+    explicit
+    ArrayNDIterator(ArrayViewND<N, T> const & array,
                     MemoryOrder order = C_ORDER)
-    : base_type(handle_type(handle, HandleNDChain<Shape<N>>(shape)), order)
+    : base_type(handle_type(array.handle(), ShapeHandle<N>(array.shape())), order)
     {}
 
-    ArrayNDIterator(HandleND<N, T> const & handle, shape_type const & shape,
+    ArrayNDIterator(ArrayViewND<N, T> const & array,
                     shape_type const & order)
-    : base_type(handle_type(handle, HandleNDChain<Shape<N>>(shape)), order)
+    : base_type(handle_type(array.handle(), ShapeHandle<N>(array.shape())), order)
     {}
 
     reference operator*()

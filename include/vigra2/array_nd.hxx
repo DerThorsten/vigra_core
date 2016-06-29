@@ -1527,12 +1527,12 @@ public:
         */
     iterator begin(MemoryOrder order)
     {
-        return iterator(handle(), shape(), order);
+        return iterator(*this, order);
     }
 
     iterator begin()
     {
-        return iterator(handle(), shape(),
+        return iterator(*this,
                   array_detail::permutationToOrder(shape(), strides(), F_ORDER));
     }
 
@@ -1541,12 +1541,12 @@ public:
         */
     const_iterator begin(MemoryOrder order) const
     {
-        return const_iterator(handle(), shape(), order);
+        return const_iterator(*this, order);
     }
 
     const_iterator begin() const
     {
-        return const_iterator(handle(), shape(),
+        return const_iterator(*this,
                   array_detail::permutationToOrder(shape(), strides(), F_ORDER));
     }
 
@@ -2260,18 +2260,18 @@ makeCoupledIteratorImpl(MemoryOrder order, HANDLE const & handle)
 template <int N, class T, class ... REST>
 auto
 makeCoupledIterator(ArrayViewND<N, T> const & a, REST const & ... rest)
-    -> decltype(array_detail::makeCoupledIteratorImpl(C_ORDER, *(HandleNDChain<T, HandleNDChain<Shape<N>>>*)0, rest...))
+    -> decltype(array_detail::makeCoupledIteratorImpl(C_ORDER, *(HandleNDChain<T, ShapeHandle<N>>*)0, rest...))
 {
-    HandleNDChain<T, HandleNDChain<Shape<N>>> handle(a.handle(), HandleNDChain<Shape<N>>(a.shape()));
+    HandleNDChain<T, ShapeHandle<N>> handle(a.handle(), ShapeHandle<N>(a.shape()));
     return array_detail::makeCoupledIteratorImpl(C_ORDER, handle, rest ...);
 }
 
 template <int N, class T, class ... REST>
 auto
 makeCoupledIterator(MemoryOrder order, ArrayViewND<N, T> const & a, REST const & ... rest)
-    -> decltype(array_detail::makeCoupledIteratorImpl(order, *(HandleNDChain<T, HandleNDChain<Shape<N>>>*)0, rest...))
+    -> decltype(array_detail::makeCoupledIteratorImpl(order, *(HandleNDChain<T, ShapeHandle<N>>*)0, rest...))
 {
-    HandleNDChain<T, HandleNDChain<Shape<N>>> handle(a.handle(), HandleNDChain<Shape<N>>(a.shape()));
+    HandleNDChain<T, ShapeHandle<N>> handle(a.handle(), ShapeHandle<N>(a.shape()));
     return array_detail::makeCoupledIteratorImpl(order, handle, rest ...);
 }
 

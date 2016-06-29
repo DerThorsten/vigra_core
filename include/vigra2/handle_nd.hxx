@@ -231,6 +231,7 @@ class HandleND<0, T>
     void inc(int) const {}
     void dec(int) const {}
     void move(int, difference_type_1) const {}
+    void move(difference_type const &) const {}
 
     result_type operator*() const
     {
@@ -263,180 +264,97 @@ class HandleND<0, T>
      Handle class, used by CoupledScanOrderIterator as the value type to simultaneously itearate over multiple images.
   */
 template <class T, class NEXT = void>
-class HandleNDChain;
-#if 0
+class HandleNDChain
 : public NEXT
 {
-public:
-    typedef NEXT                            base_type;
-    typedef CoupledHandle<T, NEXT>          self_type;
+  public:
+    typedef NEXT                          base_type;
+    static const unsigned int index     = base_type::index+1; // index of this member of the chain
+    static const unsigned int dimension = base_type::dimension;
+    typedef HandleND<dimension, T>        handle_type;
 
-    static const int index =                NEXT::index + 1;    // index of this member of the chain
-    static const unsigned int dimension =  NEXT::dimension;
+    typedef typename handle_type::value_type       value_type;
+    typedef typename handle_type::pointer          pointer;
+    typedef typename handle_type::const_pointer    const_pointer;
+    typedef typename handle_type::reference        reference;
+    typedef typename handle_type::const_reference  const_reference;
+    typedef typename base_type::shape_type         shape_type;
+    typedef typename base_type::difference_type    difference_type;
+    typedef HandleNDChain                          self_type;
 
-    typedef T                               value_type;
-    typedef T *                             pointer;
-    typedef T const *                       const_pointer;
-    typedef T &                             reference;
-    typedef T const &                       const_reference;
-    typedef typename base_type::shape_type  shape_type;
+    HandleNDChain() = default;
 
-    CoupledHandle()
-    : base_type(),
-      pointer_(),
-      strides_()
+    HandleNDChain(HandleND<dimension, T> const & handle, NEXT const & next)
+    : base_type(next)
+    , handle_(handle)
     {}
 
-    template <class NEXT1>
-    CoupledHandle(CoupledHandle<T, NEXT1> const & h, NEXT const & next)
-    : base_type(next),
-      pointer_(h.pointer_),
-      strides_(h.strides_)
-    {}
-
-    CoupledHandle(const_pointer p, shape_type const & strides, NEXT const & next)
-    : base_type(next),
-      pointer_(const_cast<pointer>(p)),
-      strides_(strides)
-    {}
-
-    template <class Stride>
-    CoupledHandle(MultiArrayView<dimension, T, Stride> const & v, NEXT const & next)
-    : base_type(next),
-      pointer_(const_cast<pointer>(v.data())),
-      strides_(v.stride())
+    inline void inc(int dim)
     {
-        vigra_precondition(v.shape() == this->shape(), "createCoupledIterator(): shape mismatch.");
+        base_type::inc(dim);
+        handle_.inc(dim);
     }
 
-    inline void incDim(int dim)
+    inline void dec(int dim)
     {
-        pointer_ += strides_[dim];
-        base_type::incDim(dim);
+        base_type::dec(dim);
+        handle_.dec(dim);
     }
 
-    inline void decDim(int dim)
+    void move(int dim, ArrayIndex diff)
     {
-        pointer_ -= strides_[dim];
-        base_type::decDim(dim);
+        base_type::move(dim, diff);
+        handle_.move(dim, diff);
     }
 
-    inline void addDim(int dim, MultiArrayIndex d)
+    void move(difference_type const & diff)
     {
-        pointer_ += d*strides_[dim];
-        base_type::addDim(dim, d);
+        base_type::move(diff);
+        handle_.move(diff);
     }
 
-    inline void add(shape_type const & d)
-    {
-        pointer_ += dot(d, strides_);
-        base_type::add(d);
-    }
+    // void restrictToSubarray(shape_type const & start, shape_type const & end)
+    // {
+        // point_ = shape_type();
+        // shape_ = end - start;
+    // }
 
-    template<int DIMENSION>
-    inline void increment()
-    {
-        pointer_ += strides_[DIMENSION];
-        base_type::template increment<DIMENSION>();
-    }
-
-    template<int DIMENSION>
-    inline void decrement()
-    {
-        pointer_ -= strides_[DIMENSION];
-        base_type::template decrement<DIMENSION>();
-    }
-
-    // TODO: test if making the above a default case of the this hurts performance
-    template<int DIMENSION>
-    inline void increment(MultiArrayIndex offset)
-    {
-        pointer_ += offset*strides_[DIMENSION];
-        base_type::template increment<DIMENSION>(offset);
-    }
-
-    template<int DIMENSION>
-    inline void decrement(MultiArrayIndex offset)
-    {
-        pointer_ -= offset*strides_[DIMENSION];
-        base_type::template decrement<DIMENSION>(offset);
-    }
-
-    void restrictToSubarray(shape_type const & start, shape_type const & end)
-    {
-        pointer_ += dot(start, strides_);
-        base_type::restrictToSubarray(start, end);
-    }
-
-    // ptr access
     reference operator*()
     {
-        return *pointer_;
+        return *handle_;
     }
 
     const_reference operator*() const
     {
-        return *pointer_;
+        return *handle_;
     }
 
     pointer operator->()
     {
-        return pointer_;
+        return handle_.ptr();
     }
 
     const_pointer operator->() const
     {
-        return pointer_;
+        return handle_.ptr();
     }
 
-    pointer ptr()
+    value_type operator[](shape_type const & diff) const
     {
-        return pointer_;
+        return handle_[diff];
     }
 
     const_pointer ptr() const
     {
-        return pointer_;
+        return handle_.ptr();
     }
 
-    shape_type const & strides() const
-    {
-        return strides_;
-    }
-
-    MultiArrayView<dimension, T>
-    arrayView() const
-    {
-        return MultiArrayView<dimension, T>(this->shape(), strides(), ptr() - dot(this->point(), strides()));
-    }
-
-    template <unsigned int TARGET_INDEX>
-    typename CoupledHandleCast<TARGET_INDEX, CoupledHandle, index>::reference
-    get()
-    {
-        return vigra::get<TARGET_INDEX>(*this);
-    }
-
-    template <unsigned int TARGET_INDEX>
-    typename CoupledHandleCast<TARGET_INDEX, CoupledHandle, index>::const_reference
-    get() const
-    {
-        return vigra::get<TARGET_INDEX>(*this);
-    }
-
-    // NOTE: dangerous function - only use it when you know what you are doing
-    void internal_reset(const_pointer p)
-    {
-        pointer_ = const_cast<pointer>(p);
-    }
-
-    pointer pointer_;
-    shape_type strides_;
+    handle_type handle_;
 };
-#endif
 
 template <int N>
 class HandleNDChain<Shape<N>, void>
+: public HandleNDTag
 {
 public:
     static const unsigned int index      = 0; // index of this member of the chain
@@ -450,21 +368,49 @@ public:
     typedef value_type                     shape_type;
     typedef value_type                     difference_type;
     typedef HandleNDChain                  self_type;
+    typedef const_reference                result_type;
 
     HandleNDChain() = default;
 
-    template <class SHAPE,
-              VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value> >
-    explicit HandleNDChain(SHAPE const & shape)
+    explicit HandleNDChain(shape_type const & shape)
     : point_(tags::size = shape.size())
     , shape_(shape)
     {}
 
-    // HandleNDChain(typename MultiArrayShape<N+1>::type const & shape)
-    // : point_(),
-      // shape_(shape.begin()),
-      // scanOrderIndex_()
-    // {}
+    template <class SHAPE>
+    constexpr ArrayIndex isConsecutive(SHAPE const &, int) const
+    {
+        return 0;
+    }
+
+    constexpr bool noMemoryOverlap(char *, char *) const
+    {
+        return true;
+    }
+
+    template <class SHAPE>
+    constexpr bool compatibleMemoryLayout(char *, SHAPE const &) const
+    {
+        return true;
+    }
+
+    inline void inc()
+    {
+        static_assert(false,
+            "ShapeHandle::inc(): not allowed because handle has no consecutive memory.");
+    }
+
+    inline void dec()
+    {
+        static_assert(false,
+            "ShapeHandle::dec(): not allowed because handle has no consecutive memory.");
+    }
+
+    void move(ArrayIndex) const
+    {
+        static_assert(false,
+            "ShapeHandle::move(ArrayIndex): not allowed because handle has no consecutive memory.");
+    }
 
     inline void inc(int dim)
     {
@@ -522,9 +468,7 @@ public:
         return &point_;
     }
 
-    template <class SHAPE,
-              VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value> >
-    value_type operator[](SHAPE const & diff) const
+    value_type operator[](shape_type const & diff) const
     {
         return point_ + diff;
     }
@@ -552,119 +496,11 @@ public:
         // return detail::BorderTypeImpl<N>::exec(point_, shape_);
     // }
 
-    // template <unsigned int TARGET_INDEX>
-    // typename CoupledHandleCast<TARGET_INDEX, CoupledHandle, index>::reference
-    // get()
-    // {
-        // return vigra::get<TARGET_INDEX>(*this);
-    // }
-
-    // template <unsigned int TARGET_INDEX>
-    // typename CoupledHandleCast<TARGET_INDEX, CoupledHandle, index>::const_reference
-    // get() const
-    // {
-        // return vigra::get<TARGET_INDEX>(*this);
-    // }
-
     value_type point_, shape_;
 };
 
-template <class T, class NEXT>
-class HandleNDChain
-: public NEXT
-{
-  public:
-    typedef NEXT                          base_type;
-    static const unsigned int index     = base_type::index+1; // index of this member of the chain
-    static const unsigned int dimension = base_type::dimension;
-    typedef HandleND<dimension, T>        handle_type;
-
-    typedef typename handle_type::value_type       value_type;
-    typedef typename handle_type::pointer          pointer;
-    typedef typename handle_type::const_pointer    const_pointer;
-    typedef typename handle_type::reference        reference;
-    typedef typename handle_type::const_reference  const_reference;
-    typedef typename base_type::shape_type         shape_type;
-    typedef typename base_type::difference_type    difference_type;
-    typedef HandleNDChain               self_type;
-
-    HandleNDChain() = default;
-
-    HandleNDChain(HandleND<dimension, T> const & handle, NEXT const & next)
-    : base_type(next)
-    , handle_(handle)
-    {}
-
-    // HandleNDChain(typename MultiArrayShape<N+1>::type const & shape)
-    // : point_(),
-      // shape_(shape.begin()),
-      // scanOrderIndex_()
-    // {}
-
-    inline void inc(int dim)
-    {
-        base_type::inc(dim);
-        handle_.inc(dim);
-    }
-
-    inline void dec(int dim)
-    {
-        base_type::dec(dim);
-        handle_.dec(dim);
-    }
-
-    void move(int dim, ArrayIndex diff)
-    {
-        base_type::move(dim, diff);
-        handle_.move(dim, diff);
-    }
-
-    void move(difference_type const & diff)
-    {
-        base_type::move(diff);
-        handle_.move(diff);
-    }
-
-    // void restrictToSubarray(shape_type const & start, shape_type const & end)
-    // {
-        // point_ = shape_type();
-        // shape_ = end - start;
-    // }
-
-    reference operator*()
-    {
-        return *handle_;
-    }
-
-    const_reference operator*() const
-    {
-        return *handle_;
-    }
-
-    pointer operator->()
-    {
-        return handle_.ptr();
-    }
-
-    const_pointer operator->() const
-    {
-        return handle_.ptr();
-    }
-
-    template <class SHAPE,
-              VIGRA_REQUIRE<std::is_convertible<SHAPE, shape_type>::value> >
-    value_type operator[](SHAPE const & diff) const
-    {
-        return handle_[diff];
-    }
-
-    const_pointer ptr() const
-    {
-        return handle_.ptr();
-    }
-
-    handle_type handle_;
-};
+template <int N>
+using ShapeHandle = HandleNDChain<Shape<N>, void>;
 
 namespace array_detail {
 
