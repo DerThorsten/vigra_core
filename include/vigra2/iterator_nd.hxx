@@ -60,6 +60,13 @@ namespace vigra {
 */
 //@{
 
+namespace array_detail {
+
+/********************************************************/
+/*                                                      */
+/*                  IteratorNDAxisInfo                  */
+/*                                                      */
+/********************************************************/
 
 template <int N, int ORDER>
 struct IteratorNDAxisInfo;
@@ -123,6 +130,12 @@ struct IteratorNDAxisInfo<runtime_size, runtime_order>
 
     int minor_;
 };
+
+/********************************************************/
+/*                                                      */
+/*          IteratorNDBase<..., F_ORDER>                */
+/*                                                      */
+/********************************************************/
 
 template <class HANDLES, int ORDER>
 class IteratorNDBase;
@@ -213,6 +226,12 @@ struct IteratorNDBase<HANDLES, F_ORDER>
     }
 };
 
+/********************************************************/
+/*                                                      */
+/*          IteratorNDBase<..., C_ORDER>                */
+/*                                                      */
+/********************************************************/
+
 template <class HANDLES>
 struct IteratorNDBase<HANDLES, C_ORDER>
 : protected IteratorNDAxisInfo<HANDLES::dimension, C_ORDER>
@@ -298,6 +317,11 @@ struct IteratorNDBase<HANDLES, C_ORDER>
     }
 };
 
+/********************************************************/
+/*                                                      */
+/*          IteratorNDBase<..., runtime_order>          */
+/*                                                      */
+/********************************************************/
 
 template <class HANDLES>
 struct IteratorNDBase<HANDLES, runtime_order>
@@ -387,6 +411,14 @@ struct IteratorNDBase<HANDLES, runtime_order>
     }
 };
 
+} // namespace array_detail
+
+/********************************************************/
+/*                                                      */
+/*                  IteratorND                          */
+/*                                                      */
+/********************************************************/
+
 // FIXME: benchmark if hard-coding F_ORDER and C_ORDER is beneficial in IteratorND
 
 /** \brief Iterate over multiple images simultaneously in scan order.
@@ -428,14 +460,14 @@ struct IteratorNDBase<HANDLES, runtime_order>
 */
 template <class HANDLES, int ORDER = runtime_order>
 class IteratorND
-: public IteratorNDBase<HANDLES, ORDER>
+: public array_detail::IteratorNDBase<HANDLES, ORDER>
 {
     static_assert(ORDER == runtime_order || ORDER == C_ORDER || ORDER == F_ORDER,
         "IteratorND<N, HANDLES, ORDER>: Order must be one of runtime_order, C_ORDER, F_ORDER.");
   public:
 
     static const int N = HANDLES::dimension;
-    typedef IteratorNDBase<HANDLES, ORDER>           base_type;
+    typedef array_detail::IteratorNDBase<HANDLES, ORDER>  base_type;
     typedef IteratorND                               self_type;
     typedef HANDLES                                  value_type;
     typedef ArrayIndex                               difference_type;
@@ -469,24 +501,6 @@ class IteratorND
                enable_if_t<O == runtime_order, bool> = true)
     : base_type(handles, order)
     {}
-
-    // template <unsigned int DIM>
-    // typename IteratorND<N, HANDLES, DIM>::dimension_proxy &
-    // dim()
-    // {
-        // typedef IteratorND<N, HANDLES, DIM> Iter;
-        // typedef typename Iter::dimension_proxy Proxy;
-        // return static_cast<Proxy &>(static_cast<Iter &>(*this));
-    // }
-
-    // template <unsigned int DIM>
-    // typename IteratorND<N, HANDLES, DIM>::dimension_proxy const &
-    // dim() const
-    // {
-        // typedef IteratorND<N, HANDLES, DIM> Iter;
-        // typedef typename Iter::dimension_proxy Proxy;
-        // return static_cast<Proxy const &>(static_cast<Iter const &>(*this));
-    // }
 
     void inc()
     {
@@ -737,20 +751,6 @@ class IteratorND
         // return handles_.borderType();
     // }
 
-    // template<unsigned int TARGET_INDEX>
-    // typename Reference<TARGET_INDEX>::type
-    // get()
-    // {
-        // return vigra::get<TARGET_INDEX>(handles_);
-    // }
-
-    // template<unsigned int TARGET_INDEX>
-    // typename ConstReference<TARGET_INDEX>::type
-    // get() const
-    // {
-        // return vigra::get<TARGET_INDEX>(handles_);
-    // }
-
     reference handles()
     {
         return handles_;
@@ -760,20 +760,13 @@ class IteratorND
     {
         return handles_;
     }
-
-  // protected:
-  public:
-    // void reset()
-    // {
-        // handles_.template decrement<dimension>(shape()[dimension]);
-    // }
-
-    // void inverseReset()
-    // {
-        // handles_.template increment<dimension>(shape()[dimension]);
-    // }
 };
 
+/********************************************************/
+/*                                                      */
+/*                  CoordinateIterator                  */
+/*                                                      */
+/********************************************************/
 
     /** \brief Iterate over a virtual array where each element contains its coordinate.
 
@@ -828,8 +821,7 @@ class CoordinateIterator
     typedef typename handle_type::pointer          pointer;
     typedef typename handle_type::const_pointer    const_pointer;
     typedef typename handle_type::shape_type       shape_type;
-    // typedef typename handle_type::difference_type  difference_type;
-    typedef Shape<N>  difference_type;
+    typedef Shape<N>                               difference_type;
     typedef std::random_access_iterator_tag        iterator_category;
 
     CoordinateIterator() = default;
@@ -1006,6 +998,12 @@ class CoordinateIterator
     {}
 };
 
+/********************************************************/
+/*                                                      */
+/*                    ArrayNDIterator                   */
+/*                                                      */
+/********************************************************/
+
 template <int N, class T, int ORDER = runtime_order>
 class ArrayNDIterator
 : public IteratorND<HandleNDChain<T, HandleNDChain<Shape<N>>>, ORDER>
@@ -1025,11 +1023,15 @@ class ArrayNDIterator
     typedef typename handle_type::pointer          pointer;
     typedef typename handle_type::const_pointer    const_pointer;
     typedef typename handle_type::shape_type       shape_type;
-    // typedef typename handle_type::difference_type  difference_type;
     typedef Shape<N>                               difference_type;
     typedef std::random_access_iterator_tag        iterator_category;
 
     ArrayNDIterator() = default;
+
+    // ArrayNDIterator(ArrayViewND<N, T> const & array,
+                    // MemoryOrder order = C_ORDER)
+    // : base_type(handle_type(array.handle(), HandleNDChain<Shape<N>>(shape)), order)
+    // {}
 
     ArrayNDIterator(HandleND<N, T> const & handle, shape_type const & shape,
                     MemoryOrder order = C_ORDER)
@@ -1040,44 +1042,6 @@ class ArrayNDIterator
                     shape_type const & order)
     : base_type(handle_type(handle, HandleNDChain<Shape<N>>(shape)), order)
     {}
-
-    // template <class SHAPE, int O = ORDER,
-              // VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value &&
-                            // O == runtime_order> >
-    // ArrayNDIterator(SHAPE const & shape,
-                       // SHAPE const & order)
-    // : base_type(handle_type(shape), order)
-    // {}
-
-    // template <class SHAPE, int O = ORDER,
-              // VIGRA_REQUIRE<std::is_convertible<SHAPE, value_type>::value &&
-                            // O != runtime_order> >
-    // ArrayNDIterator(SHAPE const & shape)
-    // : base_type(handle_type(shape))
-    // {}
-
-    // explicit ArrayNDIterator(shape_type const & start, shape_type const & end)
-        // : base_type(handle_type(end))
-    // {
-        // this->restrictToSubarray(start, end);
-    // }
-
-    // template<class DirectedTag>
-    // explicit ArrayNDIterator(GridGraph<N, DirectedTag> const & g)
-       // : base_type(handle_type(g.shape()))
-    // {}
-
-
-    // template<class DirectedTag>
-    // explicit ArrayNDIterator(GridGraph<N, DirectedTag> const & g, const typename  GridGraph<N, DirectedTag>::Node & node)
-       // : base_type(handle_type(g.shape()))
-    // {
-        // if( isInside(g,node))
-            // (*this)+=node;
-        // else
-            // *this=this->getEndIterator();
-    // }
-
 
     reference operator*()
     {
@@ -1208,12 +1172,26 @@ class ArrayNDIterator
     {}
 };
 
+/********************************************************/
+/*                                                      */
+/*                get<INDEX>(IteratorND)                */
+/*                                                      */
+/********************************************************/
+
+template <int INDEX, class HANDLES, int ORDER>
+auto
+get(IteratorND<HANDLES, ORDER> const & i)
+-> decltype(get<INDEX>(i.handles()))
+{
+    return get<INDEX>(i.handles());
+}
+
 template <int INDEX, class HANDLES, int ORDER>
 auto
 get(IteratorND<HANDLES, ORDER> & i)
--> decltype(*array_detail::HandleChainCast<INDEX, HANDLES>::cast(i.handles()))
+-> decltype(get<INDEX>(i.handles()))
 {
-    return *array_detail::HandleChainCast<INDEX, HANDLES>::cast(i.handles());
+    return get<INDEX>(i.handles());
 }
 
 } // namespace vigra

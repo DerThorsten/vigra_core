@@ -845,7 +845,7 @@ struct ArrayNDTest
                     shouldEqual((a3[{i, j, k}]), count - 1);
                     shouldEqual(get<0>(iter), (S{ i,j,k }));
                     shouldEqual(get<1>(iter), count);
-                    shouldEqual(get<2>(iter), count + 1);
+                    shouldEqual(get<2>(*iter), count + 1);
                     shouldEqual(get<3>(iter), count - 1);
                     get<1>(iter) = 0;
                 }
@@ -867,6 +867,18 @@ struct ArrayNDTest
                     get<1>(fiter) = 0;
                 }
         shouldNot(a2.any());
+
+        count = 0;
+        for (auto & h : iter)
+        {
+            shouldEqual(get<1>(h), 0);
+            shouldEqual(get<2>(h), 0);
+            shouldEqual(get<3>(h), count);
+            get<3>(h) = 0;
+            ++count;
+        }
+        shouldEqual(count, 24);
+        shouldNot(a3.any());
     }
 };
 

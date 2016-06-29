@@ -879,6 +879,24 @@ genericArrayFunction(ARRAY1 & a1, ARRAY2 const & h2, FCT f)
 
 } // namespace array_detail
 
+
+template <int INDEX, class T, class NEXT>
+auto
+get(HandleNDChain<T, NEXT> const & h)
+-> decltype(*array_detail::HandleChainCast<INDEX, HandleNDChain<T, NEXT>>::cast(h))
+{
+    return *array_detail::HandleChainCast<INDEX, HandleNDChain<T, NEXT>>::cast(h);
+}
+
+template <int INDEX, class T, class NEXT>
+auto
+get(HandleNDChain<T, NEXT> & h)
+-> decltype(*array_detail::HandleChainCast<INDEX, HandleNDChain<T, NEXT>>::cast(h))
+{
+    return *array_detail::HandleChainCast<INDEX, HandleNDChain<T, NEXT>>::cast(h);
+}
+
+
 } // namespace vigra
 
 #endif // VIGRA2_HANDLE_ND_HXX
