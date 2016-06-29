@@ -215,6 +215,11 @@ struct ArrayMathUnaryOperator
         return 0;
     }
 
+    bool hasData() const
+    {
+        return arg_.hasData();
+    }
+
     bool noMemoryOverlap(char * p1, char * q1) const
     {
         return arg_.noMemoryOverlap(p1, q1);
@@ -343,88 +348,109 @@ VIGRA_ARRAY_MATH_UNARY(Arg, arg, arg)
 
 #undef VIGRA_ARRAY_MATH_UNARY
 
+template <class ARG>
+using ArrayMathArgType =
+    typename std::conditional<ArrayNDConcept<ARG>::value,
+                     ArrayMathArrayOperator<ARG>,
+                     typename std::conditional<ArrayMathConcept<ARG>::value,
+                         ARG,
+                         ArrayMathValueOperator<ARG>>::type>::type;
+
+template <int N, int M>
+struct ArrayMathUnifyShape
+{
+    typedef integral_minmax<N, M>      minmax;
+    static const int dimension       = minmax::max > 0
+                                          ? minmax::max
+                                          : minmax::min;
+    static const int shape_dimension = dimension == 0
+                                          ? runtime_size
+                                          : dimension;
+    typedef Shape<shape_dimension>     shape_type;
+
+    template <class SHAPE1, class SHAPE2>
+    static shape_type exec(SHAPE1 const & s1, SHAPE2 const & s2,
+                           bool throw_on_error = true)
+    {
+        if(s1.size() == 0)
+        {
+            return s2;
+        }
+        else if(s2.size() == 0)
+        {
+            return s1;
+        }
+        else if(s1.size() == s2.size())
+        {
+            shape_type res(s1.size(), DontInit);
+            for(int k=0; k<s1.size(); ++k)
+            {
+                if(s1[k] == 1 || s1[k] == s2[k])
+                {
+                    res[k] = s2[k];
+                }
+                else if(s2[k] == 1)
+                {
+                    res[k] = s1[k];
+                }
+                else if(throw_on_error)
+                {
+                    std::stringstream message;
+                    message << "arrayMathUnifyShape(): shape mismatch: " <<
+                               s1 << " vs. " << s2 << ".";
+                    vigra_precondition(false, message.str());
+                }
+                else
+                {
+                    return lemon::INVALID;
+                }
+            }
+            return res;
+        }
+        else if(throw_on_error)
+        {
+            vigra_precondition(false,
+                "arrayMathUnifyShape(): ndim mismatch.");
+        }
+        else
+        {
+            return lemon::INVALID;
+        }
+    }
+};
+
 template <class ARG1, class ARG2>
 struct ArrayMathBinaryOperator
 : public ArrayMathTag
 {
-    typedef typename
-        std::conditional<ArrayNDConcept<ARG1>::value,
-            ArrayMathArrayOperator<ARG1>,
-            typename std::conditional<ArrayMathConcept<ARG1>::value,
-                ARG1,
-                ArrayMathValueOperator<ARG1>>::type>::type arg1_type;
+    typedef ArrayMathArgType<ARG1> arg1_type;
+    typedef ArrayMathArgType<ARG2> arg2_type;
 
-    typedef typename
-        std::conditional<ArrayNDConcept<ARG2>::value,
-            ArrayMathArrayOperator<ARG2>,
-            typename std::conditional<ArrayMathConcept<ARG2>::value,
-                ARG2,
-                ArrayMathValueOperator<ARG2>>::type>::type arg2_type;
+    typedef ArrayMathUnifyShape<arg1_type::dimension, arg2_type::dimension> ShapeHelper;
 
-    // static const int dimension = arg1_type::dimension < arg2_type::dimension
-                                     // ? arg2_type::dimension
-                                     // : arg1_type::dimension;
-    // typedef Shape<dimension> difference_type;
+    static const int dimension = ShapeHelper::dimension;
+    typedef typename ShapeHelper::shape_type difference_type;
 
-    typedef integral_minmax<arg1_type::dimension, arg2_type::dimension> minmax;
-    static const int dimension = minmax::max > 0
-                                    ? minmax::max
-                                    : minmax::min;
-    static const int shape_dimension = dimension == 0 ? runtime_size : dimension;
-    typedef Shape<shape_dimension> difference_type;
-
-    difference_type shape_, permutation_;
     arg1_type arg1_;
     arg2_type arg2_;
+    difference_type shape_, permutation_;
 
     ArrayMathBinaryOperator(ARG1 const & a1, ARG2 const & a2)
-    : shape_(DontInit)
-    , permutation_(DontInit)
-    , arg1_(a1)
+    : arg1_(a1)
     , arg2_(a2)
-    {
-        // take care of scalar arguments and singleton dimensions
-        if(arg1_.shape().size() == 0)
-        {
-            shape_ = arg2_.shape();
-        }
-        else if(arg2_.shape().size() == 0)
-        {
-            shape_ = arg1_.shape();
-        }
-        else if(arg1_.shape().size() == arg2_.shape().size())
-        {
-            difference_type shape(arg1_.shape().size(), DontInit);
-            for(int k=0; k<shape.size(); ++k)
-            {
-                if(arg1_.shape()[k] == 1 ||
-                   arg1_.shape()[k] == arg2_.shape()[k])
-                {
-                    shape[k] = arg2_.shape()[k];
-                }
-                else if(arg2_.shape()[k] == 1)
-                {
-                    shape[k] = arg1_.shape()[k];
-                }
-                else
-                {
-                    std::stringstream message;
-                    message << "ArrayMathBinaryOperator(): shape mismatch: " <<
-                               arg1_.shape() << " vs. " << arg2_.shape() << ".";
-                    vigra_precondition(false, message.str());
-                }
-            }
-            shape_ = std::move(shape);
-        }
-        else
-            vigra_precondition(false,
-                "ArrayMathBinaryOperator(): ndim mismatch.");
-    }
+    , shape_(ShapeHelper::exec(arg1_.shape(), arg2_.shape()))
+    , permutation_(DontInit)
+    {}
 
     template <class SHAPE>
     ArrayIndex isConsecutive(SHAPE const &, int) const
     {
         return 0;
+    }
+
+    bool hasData() const
+    {
+        return arg1_.hasData() && arg2_.hasData();
     }
 
     bool noMemoryOverlap(char * p1, char * q1) const
@@ -634,8 +660,6 @@ VIGRA_ARRAYMATH_MINMAX_FUNCTION(Max, max)
 
 #undef VIGRA_ARRAYMATH_MINMAX_FUNCTION
 
-// FIXME: implement reducing operators and arithmetic assignment
-
 } // namespace array_math
 
 using array_math::min;
@@ -712,54 +736,31 @@ prod(ARG const & a, U res = U{1})
 }
 
 template <class ARG1, class ARG2>
-struct ArrayMathNotEqual
-: public array_math::ArrayMathBinaryOperator<ARG1, ARG2>
-{
-    typedef array_math::ArrayMathBinaryOperator<ARG1, ARG2>  base_type;
-    typedef bool                                             result_type;
-    typedef bool                                             value_type;
-
-    ArrayMathNotEqual(ARG1 const & a1, ARG2 const & a2)
-    : base_type(a1, a2)
-    {}
-
-    bool const * ptr() const { return 0; }
-
-    result_type operator*() const
-    {
-        return *this->arg1_ != *this->arg2_;
-    }
-
-    template <class SHAPE>
-    result_type operator[](SHAPE const & s) const
-    {
-        return this->arg1_[s] != this->arg2_[s];
-    }
-};
-
-template <class ARG1, class ARG2>
 enable_if_t<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
             bool>
-operator==(ARG1 const & a1, ARG2 const & a2)
+operator==(ARG1 const & arg1, ARG2 const & arg2)
 {
-    typedef ArrayMathNotEqual<ARG1, ARG2> Expression;
-    typedef typename Expression::arg1_type A1;
-    typedef typename Expression::arg2_type A2;
+    typedef array_math::ArrayMathArgType<ARG1> A1;
+    typedef array_math::ArrayMathArgType<ARG2> A2;
+    typedef array_math::ArrayMathUnifyShape<A1::dimension, A2::dimension> ShapeHelper;
+    typedef typename ShapeHelper::shape_type   shape_type;
 
-    if(!std::is_same<A1, array_math::ArrayMathValueOperator<ARG1> >::value &&
-       !std::is_same<A2, array_math::ArrayMathValueOperator<ARG2> >::value &&
-       A1(a1).shape() != A2(a2).shape())
+    A1 a1(arg1);
+    A2 a2(arg2);
+
+    shape_type shape = ShapeHelper::exec(a1.shape(), a2.shape(), false);
+
+    if(!a1.hasData() || !a2.hasData() || shape == lemon::INVALID)
         return false;
 
     // FIXME: optimize memory order
-    Expression handle(a1, a2);
     // auto p  = permutationToOrder(a1.shape_, a1.strides_, C_ORDER);
     // handle.transpose(p);
     bool res = true;
-    array_detail::genericArrayFunctionImpl(handle, handle.shape(),
-        [&res](bool u)
+    array_detail::genericArrayFunctionImpl(a1, a2, shape,
+        [&res](typename A1::value_type const & u, typename A2::value_type const & v)
         {
-            if(u)
+            if(u != v)
                 res = false;
         });
     return res;
