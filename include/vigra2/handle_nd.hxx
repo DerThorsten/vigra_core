@@ -100,6 +100,11 @@ class HandleND
         return size;
     }
 
+    bool hasData() const
+    {
+        return data_ != 0;
+    }
+
         // only apply when array is consecutive!
     void inc() const
     {
@@ -218,6 +223,11 @@ class HandleND<0, T>
         for(int k=dim; k<s.size(); ++k)
             res *= s[k];
         return res;
+    }
+
+    constexpr bool hasData() const
+    {
+        return true;
     }
 
     constexpr bool noMemoryOverlap(char *, char *) const
@@ -624,9 +634,16 @@ genericArrayFunctionImpl(HANDLE & h, SHAPE const & shape, FCT f, int dim = 0)
     auto N = h.isConsecutive(shape, dim);
     if(N)
     {
-        auto p = h.ptr();
-        for(ArrayIndex k=0; k<N; ++k, ++p)
-            f(*p);
+        // auto p = h.ptr();
+        // for(ArrayIndex k=0; k<N; ++k, ++p)
+            // f(*p);
+
+            // Use h.inc() and *h to make the loop work for scalar handles
+            // (who have zero stride) as well. To specialize for
+            // low-level optimizations like AVX, we need to distinguish
+            // if handles refer to arrays or scalars.
+        for(ArrayIndex k=0; k<N; ++k, h.inc())
+            f(*h);
     }
     else
     {
@@ -667,10 +684,17 @@ genericArrayFunctionImpl(HANDLE1 & h1, HANDLE2 & h2, SHAPE const & shape,
     auto N = h1.isConsecutive(shape, dim);
     if(N && N == h2.isConsecutive(shape, dim))
     {
-        auto p1 = h1.ptr();
-        auto p2 = h2.ptr();
-        for(ArrayIndex k=0; k<N; ++k, ++p1, ++p2)
-            f(*p1, *p2);
+        // auto p1 = h1.ptr();
+        // auto p2 = h2.ptr();
+        // for(ArrayIndex k=0; k<N; ++k, ++p1, ++p2)
+            // f(*p1, *p2);
+
+            // Use h1.inc() and *h1 to make the loop work for scalar handles
+            // (who have zero stride) as well. To specialize for
+            // low-level optimizations like AVX, we need to distinguish
+            // if handles refer to arrays or scalars.
+        for(ArrayIndex k=0; k<N; ++k, h1.inc(), h2.inc())
+            f(*h1, *h2);
     }
     else
     {
