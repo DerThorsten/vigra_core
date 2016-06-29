@@ -1002,9 +1002,6 @@ class CoordinateIterator
 /*                                                      */
 /********************************************************/
 
-template <int N, class T>
-class ArrayViewND;
-
 template <int N, class T, int ORDER = runtime_order>
 class ArrayNDIterator
 : public IteratorND<HandleNDChain<T, HandleNDChain<Shape<N>>>, ORDER>

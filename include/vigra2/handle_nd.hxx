@@ -56,6 +56,12 @@
 namespace vigra {
 
 template <int N, class T>
+class ArrayViewND;
+
+template <int N, class T, class Alloc = std::allocator<T> >
+class ArrayND;
+
+template <int N, class T>
 class HandleND
 : public HandleNDTag
 {
@@ -504,9 +510,53 @@ using ShapeHandle = HandleNDChain<Shape<N>, void>;
 
 namespace array_detail {
 
+template <class HANDLE, class ... REST>
+struct HandleTypeImpl;
+
+template <class HANDLE, class T, class ... REST>
+struct HandleTypeImpl<HANDLE, T, REST...>
+{
+    typedef typename HandleTypeImpl<HandleNDChain<T, HANDLE>,
+                                         REST...>::type    type;
+};
+
+template <class HANDLE, int N, class T, class ... REST>
+struct HandleTypeImpl<HANDLE, ArrayViewND<N, T>, REST...>
+{
+    static_assert(CompatibleDimensions<N, HANDLE::dimension>::value,
+        "HandleType<...>: dimension mismatch.");
+    typedef typename HandleTypeImpl<HandleNDChain<T, HANDLE>,
+                                         REST...>::type    type;
+};
+
+template <class HANDLE, int N, class T, class A, class ... REST>
+struct HandleTypeImpl<HANDLE, ArrayND<N, T, A>, REST...>
+{
+    static_assert(CompatibleDimensions<N, HANDLE::dimension>::value,
+        "HandleType<...>: dimension mismatch.");
+    typedef typename HandleTypeImpl<HandleNDChain<T, HANDLE>,
+                                         REST...>::type    type;
+};
+
+template <class T, class U>
+struct HandleTypeImpl<HandleNDChain<T, U>>
+{
+    typedef HandleNDChain<T, U> type;
+};
+
+} // namespace array_detail
+
+template <int N, class ... REST>
+using HandleType = typename array_detail::HandleTypeImpl<ShapeHandle<N>, REST...>::type;
+
+namespace array_detail {
+
 template <int K, class HANDLE, bool MATCH = (K == HANDLE::index)>
 struct HandleChainCast
 {
+    static_assert( 0 <= K && K < HANDLE::index,
+        "get<INDEX>(): index out of range.");
+
     typedef HandleChainCast<K, typename HANDLE::base_type> Next;
     typedef typename Next::type type;
 

@@ -62,12 +62,6 @@ namespace vigra {
 
 using std::swap;
 
-template <int N, class T>
-class ArrayViewND;
-
-template <int N, class T, class Alloc = std::allocator<T> >
-class ArrayND;
-
 template <class T>
 class FFTWComplex;
 
@@ -76,7 +70,11 @@ class RGBValue;
 
 namespace array_detail {
 
-struct UnsuitableTypeForExpandElements {};
+/********************************************************/
+/*                                                      */
+/*                   VectorElementSize                  */
+/*                                                      */
+/********************************************************/
 
 template <class T>
 struct VectorElementSize;
@@ -161,6 +159,12 @@ scanOrderToOffset(ArrayIndex d,
 }
 
 } // namespace array_detail
+
+/********************************************************/
+/*                                                      */
+/*                      ArrayViewND                     */
+/*                                                      */
+/********************************************************/
 
 template <int N, class T>
 class ArrayViewND
@@ -1484,6 +1488,12 @@ public:
     }
 };
 
+/********************************************************/
+/*                                                      */
+/*                 ArrayViewND functions                */
+/*                                                      */
+/********************************************************/
+
 template <int N, class T>
 SquaredNormType<ArrayViewND<N, T> >
 squaredNorm(ArrayViewND<N, T> const & a)
@@ -1608,6 +1618,12 @@ swap(ArrayViewND<N,T> & array1, ArrayViewND<N,T> & array2)
 {
     array1.swap(array2);
 }
+
+/********************************************************/
+/*                                                      */
+/*                       ArrayND                        */
+/*                                                      */
+/********************************************************/
 
 template <int N, class T, class Alloc /* default already declared */ >
 class ArrayND
@@ -2050,15 +2066,18 @@ swap(ArrayND<N,T,A> & array1, ArrayND<N,T,A> & array2)
     array1.swap(array2);
 }
 
+/********************************************************/
+/*                                                      */
+/*                  makeCoupledIterator                 */
+/*                                                      */
+/********************************************************/
+
 namespace array_detail {
 
-
-
 template <class HANDLE, int N, class T, class ... REST>
-auto
+IteratorND<typename HandleTypeImpl<HANDLE, T, REST...>::type>
 makeCoupledIteratorImpl(MemoryOrder order, HANDLE const & inner_handle,
                         ArrayViewND<N, T> const & a, REST const & ... rest)
-    -> decltype(makeCoupledIteratorImpl(order, *(HandleNDChain<T, HANDLE>*)0, rest...))
 {
     static_assert(CompatibleDimensions<N, HANDLE::dimension>::value,
         "makeCoupledIterator(): arrays have incompatible dimensions.");
@@ -2078,18 +2097,16 @@ makeCoupledIteratorImpl(MemoryOrder order, HANDLE const & handle)
 } // namespace array_detail
 
 template <int N, class T, class ... REST>
-auto
+IteratorND<HandleType<N, T, REST...> >
 makeCoupledIterator(ArrayViewND<N, T> const & a, REST const & ... rest)
-    -> decltype(array_detail::makeCoupledIteratorImpl(C_ORDER, *(HandleNDChain<T, ShapeHandle<N>>*)0, rest...))
 {
     HandleNDChain<T, ShapeHandle<N>> handle(a.handle(), ShapeHandle<N>(a.shape()));
     return array_detail::makeCoupledIteratorImpl(C_ORDER, handle, rest ...);
 }
 
 template <int N, class T, class ... REST>
-auto
+IteratorND<HandleType<N, T, REST...> >
 makeCoupledIterator(MemoryOrder order, ArrayViewND<N, T> const & a, REST const & ... rest)
-    -> decltype(array_detail::makeCoupledIteratorImpl(order, *(HandleNDChain<T, ShapeHandle<N>>*)0, rest...))
 {
     HandleNDChain<T, ShapeHandle<N>> handle(a.handle(), ShapeHandle<N>(a.shape()));
     return array_detail::makeCoupledIteratorImpl(order, handle, rest ...);
