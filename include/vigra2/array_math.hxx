@@ -660,6 +660,49 @@ VIGRA_ARRAYMATH_MINMAX_FUNCTION(Max, max)
 
 #undef VIGRA_ARRAYMATH_MINMAX_FUNCTION
 
+template <int N>
+class ArrayMathMGrid
+: public ArrayMathTag
+, public ShapeHandle<N>
+{
+public:
+    typedef ShapeHandle<N>                 base_type;
+    typedef Shape<N>                       shape_type;
+
+    explicit ArrayMathMGrid(shape_type const & shape)
+    : base_type(shape)
+    {}
+
+    inline void inc() const
+    {
+        const_cast<ArrayMathMGrid*>(this)->base_type::inc();
+    }
+
+    inline void inc(int dim) const
+    {
+        const_cast<ArrayMathMGrid*>(this)->base_type::inc(dim);
+    }
+
+    void move(int dim, ArrayIndex diff) const
+    {
+        const_cast<ArrayMathMGrid*>(this)->base_type::move(dim, diff);
+    }
+
+    template <class SHAPE>
+    void transpose(SHAPE const & permutation) const
+    {
+        const_cast<ArrayMathMGrid*>(this)->shape_.transpose(permutation);
+        const_cast<ArrayMathMGrid*>(this)->point_.transpose(permutation);
+    }
+};
+
+template <int N>
+ArrayMathMGrid<N>
+mgrid(Shape<N> const & shape)
+{
+    return ArrayMathMGrid<N>(shape);
+}
+
 } // namespace array_math
 
 using array_math::min;

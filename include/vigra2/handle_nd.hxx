@@ -370,7 +370,6 @@ class HandleNDChain
 
 template <int N>
 class HandleNDChain<Shape<N>, void>
-: public HandleNDTag
 {
 public:
     static const unsigned int index      = 0; // index of this member of the chain
@@ -412,19 +411,19 @@ public:
 
     inline void inc()
     {
-        static_assert(false,
+        vigra_invariant(false,
             "ShapeHandle::inc(): not allowed because handle has no consecutive memory.");
     }
 
     inline void dec()
     {
-        static_assert(false,
+        vigra_invariant(false,
             "ShapeHandle::dec(): not allowed because handle has no consecutive memory.");
     }
 
-    void move(ArrayIndex) const
+    void move(ArrayIndex)
     {
-        static_assert(false,
+        vigra_invariant(false,
             "ShapeHandle::move(ArrayIndex): not allowed because handle has no consecutive memory.");
     }
 

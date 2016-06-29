@@ -53,6 +53,7 @@ struct ArrayMathTest
     typedef ArrayViewND<N, int>     View;
     typedef TinyArray<int, 3>       Vector;
     typedef ArrayViewND<N, Vector>  VectorView;
+    typedef ArrayND<N, Vector>      VArray;
     typedef Shape<N>                S;
 
     S s{ 4,3,2 };
@@ -307,6 +308,22 @@ struct ArrayMathTest
         should(!any(t * 2));
         should(!any(2 * t));
     }
+
+    void testVectorTypes()
+    {
+        using namespace array_math;
+
+        VArray va = mgrid(s);
+
+        shouldEqual(va.shape(), s);
+
+        for (int i = 0; i < s[0]; ++i)
+            for (int j = 0; j < s[1]; ++j)
+                for (int k = 0; k < s[2]; ++k)
+                {
+                    shouldEqual((va[{i, j, k}]), (S{ i,j,k }));
+                }
+    }
 };
 
 struct ArrayMathTestSuite
@@ -326,6 +343,7 @@ struct ArrayMathTestSuite
         add(testCase(&ArrayMathTest<N>::testUnary));
         add(testCase(&ArrayMathTest<N>::testBinary));
         add(testCase(&ArrayMathTest<N>::testArithmeticAssignment));
+        add(testCase(&ArrayMathTest<N>::testVectorTypes));
     }
 };
 
