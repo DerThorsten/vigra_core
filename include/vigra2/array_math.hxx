@@ -116,7 +116,7 @@ struct ArrayMathValueOperator
     template <class SHAPE>
     void transpose(SHAPE const & permutation) const
     {
-        if(ndim() > 0)
+        if(this->ndim() > 0)
             const_cast<difference_type&>(shape_) = shape_.transpose(permutation);
     }
 

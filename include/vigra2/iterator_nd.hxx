@@ -160,7 +160,7 @@ struct IteratorNDBase<HANDLES, F_ORDER>
         handles_.inc(0);
         if(handles_.coord(0) == handles_.shape(0))
         {
-            for(int k=1; k<=minor_; ++k)
+            for(int k=1; k<=this->minor_; ++k)
             {
                 handles_.move(k-1, -handles_.shape(k-1));
                 handles_.inc(k);
@@ -175,7 +175,7 @@ struct IteratorNDBase<HANDLES, F_ORDER>
         handles_.dec(0);
         if(handles_.coord(0) < 0)
         {
-            for(int k=1; k<=minor_; ++k)
+            for(int k=1; k<=this->minor_; ++k)
             {
                 handles_.move(k-1, handles_.shape(k-1));
                 handles_.dec(k);
@@ -187,7 +187,7 @@ struct IteratorNDBase<HANDLES, F_ORDER>
 
     bool operator!=(HANDLES const & other) const
     {
-        for(int k = minor_; k >= 0; --k)
+        for(int k = this->minor_; k >= 0; --k)
             if(handles_.coord(k) != other.coord(k))
                 return true;
         return false;
@@ -196,7 +196,7 @@ struct IteratorNDBase<HANDLES, F_ORDER>
     Shape<N> scanOrderToCoordinate(ArrayIndex d) const
     {
         Shape<N> res(handles_.ndim(), DontInit);
-        for(int k=0; k<=minor_; ++k)
+        for(int k=0; k<=this->minor_; ++k)
         {
             res[k] = d % handles_.shape(k);
             d /= handles_.shape(k);
@@ -208,7 +208,7 @@ struct IteratorNDBase<HANDLES, F_ORDER>
     ArrayIndex scanOrderIndex(SHAPE const & s) const
     {
         ArrayIndex stride = 1, res = 0;
-        for(int k=0; k<=minor_; ++k)
+        for(int k=0; k<=this->minor_; ++k)
         {
             res += stride*s[k];
             stride *= handles_.shape(k);
@@ -249,10 +249,10 @@ struct IteratorNDBase<HANDLES, C_ORDER>
 
     void operator++()
     {
-        handles_.inc(major_);
-        if(handles_.coord(major_) == handles_.shape(major_))
+        handles_.inc(this->major_);
+        if(handles_.coord(this->major_) == handles_.shape(this->major_))
         {
-            for(int k=major_-1; k>=0; --k)
+            for(int k=this->major_-1; k>=0; --k)
             {
                 handles_.move(k+1, -handles_.shape(k+1));
                 handles_.inc(k);
@@ -264,10 +264,10 @@ struct IteratorNDBase<HANDLES, C_ORDER>
 
     void operator--()
     {
-        handles_.dec(major_);
-        if(handles_.coord(major_) < 0)
+        handles_.dec(this->major_);
+        if(handles_.coord(this->major_) < 0)
         {
-            for(int k=major_-1; k>=0; --k)
+            for(int k=this->major_-1; k>=0; --k)
             {
                 handles_.move(k+1, handles_.shape(k+1));
                 handles_.dec(k);
@@ -279,7 +279,7 @@ struct IteratorNDBase<HANDLES, C_ORDER>
 
     bool operator!=(HANDLES const & other) const
     {
-        for(int k = 0; k <= major_; ++k)
+        for(int k = 0; k <= this->major_; ++k)
             if(handles_.coord(k) != other.coord(k))
                 return true;
         return false;
@@ -288,7 +288,7 @@ struct IteratorNDBase<HANDLES, C_ORDER>
     Shape<N> scanOrderToCoordinate(ArrayIndex d) const
     {
         Shape<N> res(handles_.ndim(), DontInit);
-        for(int k=major_; k>=0; --k)
+        for(int k=this->major_; k>=0; --k)
         {
             res[k] = d % handles_.shape(k);
             d /= handles_.shape(k);
@@ -300,7 +300,7 @@ struct IteratorNDBase<HANDLES, C_ORDER>
     ArrayIndex scanOrderIndex(SHAPE const & s) const
     {
         ArrayIndex stride = 1, res = 0;
-        for(int k=major_; k>=0; --k)
+        for(int k=this->major_; k>=0; --k)
         {
             res += stride*s[k];
             stride *= handles_.shape(k);
@@ -514,22 +514,22 @@ class IteratorND
 
     void inc(int dim)
     {
-        handles_.inc(dim);
+        this->handles_.inc(dim);
     }
 
     void dec(int dim)
     {
-        handles_.dec(dim);
+        this->handles_.dec(dim);
     }
 
     void move(int dim, ArrayIndex d)
     {
-        handles_.move(dim, d);
+        this->handles_.move(dim, d);
     }
 
     void move(shape_type const & diff)
     {
-        handles_.move(diff);
+        this->handles_.move(diff);
     }
 
     IteratorND & operator++()
@@ -547,13 +547,13 @@ class IteratorND
 
     IteratorND & operator+=(ArrayIndex i)
     {
-        handles_.move(scanOrderToCoordinate(i+scanOrderIndex())-coord());
+        this->handles_.move(this->scanOrderToCoordinate(i+this->scanOrderIndex())-coord());
         return *this;
     }
 
     IteratorND & operator+=(shape_type const & coordOffset)
     {
-        handles_.move(coordOffset);
+        this->handles_.move(coordOffset);
         return *this;
     }
 
@@ -650,48 +650,48 @@ class IteratorND
 
     bool isValid() const
     {
-        return coord(minor_) < shape(minor_) && coord(minor_) >= 0;
+        return coord(this->minor_) < shape(this->minor_) && coord(this->minor_) >= 0;
     }
 
     bool atEnd() const
     {
-        return coord(minor_) >= shape(minor_) || coord(minor_) < 0;
+        return coord(this->minor_) >= shape(this->minor_) || coord(this->minor_) < 0;
     }
 
     shape_type const & coord() const
     {
-        return handles_.coord();
+        return this->handles_.coord();
     }
 
     ArrayIndex coord(int dim) const
     {
-        return handles_.coord(dim);
+        return this->handles_.coord(dim);
     }
 
     shape_type const & shape() const
     {
-        return handles_.shape();
+        return this->handles_.shape();
     }
 
     ArrayIndex shape(int dim) const
     {
-        return handles_.shape(dim);
+        return this->handles_.shape(dim);
     }
 
     reference operator*()
     {
-        return handles_;
+        return this->handles_;
     }
 
     const_reference operator*() const
     {
-        return handles_;
+        return this->handles_;
     }
 
     template <int M = N>
     int ndim(enable_if_t<M == runtime_size, bool> = true) const
     {
-        return handles_.ndim();
+        return this->handles_.ndim();
     }
 
     template <int M = N>
@@ -728,7 +728,7 @@ class IteratorND
     {
         IteratorND res(*this);
         auto diff = -coord();
-        diff[minor_] += shape(minor_);
+        diff[this->minor_] += shape(this->minor_);
         res.move(diff);
         return res;
     }
@@ -753,12 +753,12 @@ class IteratorND
 
     reference handles()
     {
-        return handles_;
+        return this->handles_;
     }
 
     const_reference handles() const
     {
-        return handles_;
+        return this->handles_;
     }
 };
 
@@ -1039,12 +1039,12 @@ class ArrayNDIterator
 
     reference operator*()
     {
-        return *handles_;
+        return *this->handles_;
     }
 
     const_reference operator*() const
     {
-        return *handles_;
+        return *this->handles_;
     }
 
     pointer operator->()

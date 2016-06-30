@@ -243,7 +243,7 @@ struct ArrayNDTest
         shouldEqual(decltype(v7)::actual_dimension, -1);
         should(v7 == v0);
 
-        auto v8 = v0.view<3>();
+        auto v8 = v0.template view<3>();
         shouldEqual(decltype(v8)::actual_dimension, 3);
         should(v8 == v0);
 
@@ -546,8 +546,8 @@ struct ArrayNDTest
         using namespace tags;
         View v(S{4,2,2}, &data1[0]);
 
-        const int M = (N == runtime_size) 
-                          ? N 
+        const int M = (N == runtime_size)
+                          ? N
                           : 2;
         auto v1 = v.reshape(Shape<M>{4, 4}, AxisTags<M>{axis_y, axis_x});
         shouldEqual(v1.axistags(), (AxisTags<M>{axis_y, axis_x}));
@@ -605,11 +605,11 @@ struct ArrayNDTest
         shouldEqual(v1.minmax(), Shape<2>(1,24));
         shouldEqual(v0.sum(), 24);
         shouldEqual(sum(v0, 0.0), 24);
-        shouldEqual(v1.sum<double>(), 300);
+        shouldEqual(v1.template sum<double>(), 300);
         shouldEqual(sum(v1), 300);
         shouldEqual(v0.prod(), 1);
         shouldEqual(prod(v0), 1);
-        shouldEqualTolerance(v1.prod<double>(), 6.204484017332394e+23, 1e-13);
+        shouldEqualTolerance(v1.template prod<double>(), 6.204484017332394e+23, 1e-13);
         shouldEqualTolerance(prod(v1, 1.0), 6.204484017332394e+23, 1e-13);
         shouldEqual(squaredNorm(v0), 24);
         shouldEqual(squaredNorm(v1), 4900);
@@ -899,7 +899,7 @@ struct ArrayNDTestSuite
     void addTests()
     {
         add(testCase(&ArrayNDTest<N>::testConstruction));
-        add(testCase(&ArrayNDTest<N>::testBind)); 
+        add(testCase(&ArrayNDTest<N>::testBind));
         add(testCase(&ArrayNDTest<N>::testTranspose));
         add(testCase(&ArrayNDTest<N>::testAssignment));
         add(testCase(&ArrayNDTest<N>::testOverlappingMemory));

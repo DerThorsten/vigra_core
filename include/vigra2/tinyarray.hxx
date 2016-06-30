@@ -1160,7 +1160,7 @@ class TinyArray
               value_type const & v = value_type())
     : BaseType(v)
     {
-        vigra_assert(size.value == static_size,
+        vigra_assert(size.value == BaseType::static_size,
             "TinyArray(size): size argument conflicts with array length.");
     }
 
@@ -1168,7 +1168,7 @@ class TinyArray
     TinyArray(tags::SizeProxy size, SkipInitialization)
     : BaseType(DontInit)
     {
-        vigra_assert(size::value == static_size,
+        vigra_assert(size.value == BaseType::static_size,
             "TinyArray(size): size argument conflicts with array length.");
     }
 
@@ -1176,7 +1176,7 @@ class TinyArray
     TinyArray(ArrayIndex size, SkipInitialization)
     : BaseType(DontInit)
     {
-        vigra_assert(size == static_size,
+        vigra_assert(size == BaseType::static_size,
             "TinyArray(size): size argument conflicts with array length.");
     }
 
@@ -1314,7 +1314,7 @@ class TinyArray<VALUETYPE, runtime_size>
     : BaseType(size)
     {
         this->data_ = alloc_.allocate(this->size_);
-        if(!may_use_uninitialized_memory)
+        if(!BaseType::may_use_uninitialized_memory)
             std::uninitialized_fill(this->begin(), this->end(), value_type());
     }
 
@@ -1407,7 +1407,7 @@ class TinyArray<VALUETYPE, runtime_size>
 
     ~TinyArray()
     {
-        if(!may_use_uninitialized_memory)
+        if(!BaseType::may_use_uninitialized_memory)
         {
             for(ArrayIndex i=0; i<this->size_; ++i)
                 (this->data_+i)->~value_type();
@@ -2594,10 +2594,10 @@ squaredNorm(TinySymmetricView<V, N> const & t)
     Type result = Type();
     for (int i = 0; i < N; ++i)
     {
-        result += squaredNorm(operator()(i, i));
+        result += squaredNorm(t(i, i));
         for (int j = i + 1; j < N; ++j)
         {
-            auto c = squaredNorm(operator()(i, j));
+            auto c = squaredNorm(t(i, j));
             result += c + c;
         }
     }

@@ -502,7 +502,7 @@ public:
                 ArrayViewND &> \
     operator OP(ARG const & rhs) \
     { \
-        typedef typename typename ARG::value_type U; \
+        typedef typename ARG::value_type U; \
         static_assert(std::is_convertible<U, value_type>::value, \
             "ArrayViewND::operator" #OP "(ARRAY const &): value_types of lhs and rhs are incompatible."); \
             \
@@ -1629,13 +1629,15 @@ template <int N, class T, class Alloc /* default already declared */ >
 class ArrayND
 : public ArrayViewND<N, T>
 {
+  public:
+    typedef ArrayViewND<N, T> view_type;
+
+  private:
     typedef std::vector<typename view_type::value_type, Alloc> DataVector;
 
     DataVector allocated_data_;
 
   public:
-
-    typedef ArrayViewND<N, T> view_type;
 
     using view_type::actual_dimension;
 
@@ -1738,7 +1740,7 @@ class ArrayND
     , allocated_data_(this->size(), init, alloc)
     {
         this->data_  = &allocated_data_[0];
-        this->flags_ |= ConsecutiveMemory | OwnsMemory;
+        this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
         /** construct from shape with an initial value
@@ -1752,7 +1754,7 @@ class ArrayND
     , allocated_data_(this->size(), init, alloc)
     {
         this->data_  = &allocated_data_[0];
-        this->flags_ |= ConsecutiveMemory | OwnsMemory;
+        this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
         // /** construct from shape and initialize with a linear sequence in scan order
@@ -1771,7 +1773,7 @@ class ArrayND
     , allocated_data_(init, init + this->size(), alloc)
     {
         this->data_  = &allocated_data_[0];
-        this->flags_ |= ConsecutiveMemory | OwnsMemory;
+        this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
         /** construct from shape and and axistags and copy values from the given C array
@@ -1785,7 +1787,7 @@ class ArrayND
     , allocated_data_(init, init + this->size(), alloc)
     {
         this->data_  = &allocated_data_[0];
-        this->flags_ |= ConsecutiveMemory | OwnsMemory;
+        this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
         /** copy constructor
@@ -1795,7 +1797,7 @@ class ArrayND
     , allocated_data_(rhs.allocated_data_)
     {
         this->data_  = &allocated_data_[0];
-        this->flags_ |= ConsecutiveMemory | OwnsMemory;
+        this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
         /** move constructor
@@ -1806,7 +1808,7 @@ class ArrayND
     {
         this->swapImpl(rhs);
         this->data_  = &allocated_data_[0];
-        this->flags_ |= ConsecutiveMemory | OwnsMemory;
+        this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
         /** construct by copying from a ArrayViewND
@@ -1828,7 +1830,7 @@ class ArrayND
             });
 
         this->data_  = &allocated_data_[0];
-        this->flags_ |= ConsecutiveMemory | OwnsMemory;
+        this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
         /** constructor from an array expression
@@ -1857,7 +1859,7 @@ class ArrayND
             });
 
         this->data_  = &allocated_data_[0];
-        this->flags_ |= ConsecutiveMemory | OwnsMemory;
+        this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
         /** Assignment.<br>
@@ -2029,7 +2031,7 @@ class ArrayND
         if(this->size() == vigra::prod(new_shape))
         {
             this->swapImpl(this->reshape(new_shape, new_axistags, order));
-            this->flags_ |= OwnsMemory;
+            this->flags_ |= this->OwnsMemory;
         }
         else
         {
