@@ -1129,8 +1129,8 @@ public:
             double sum = A.sum<double>();
             \endcode
          */
-    template <class U = PromoteType<T> >
-    U sum(U res = U{}) const
+    template <typename U = T>
+    PromoteType<U> sum(PromoteType<U> res = PromoteType<U>{}) const
     {
         array_detail::genericArrayFunction(*this,
             [&res](value_type const & v)
@@ -1182,8 +1182,8 @@ public:
             double prod = A.product<double>();
             \endcode
          */
-    template <class U = PromoteType<T> >
-    U prod(U res = U{1}) const
+    template <class U = T>
+    PromoteType<U> prod(PromoteType<U> res = PromoteType<U>{1}) const
     {
         array_detail::genericArrayFunction(*this,
             [&res](value_type const & v)
@@ -1823,7 +1823,8 @@ class ArrayND
 
         auto p = array_detail::permutationToOrder(this->shape(),
                                                   this->strides(), C_ORDER);
-        array_detail::genericArrayFunction(rhs.transpose(p),
+        auto rhs_t = rhs.transpose(p);
+        array_detail::genericArrayFunction(rhs_t,
             [&data=allocated_data_](U const & u)
             {
                 data.emplace_back(u);
@@ -2030,7 +2031,8 @@ class ArrayND
     {
         if(this->size() == vigra::prod(new_shape))
         {
-            this->swapImpl(this->reshape(new_shape, new_axistags, order));
+            auto this_r = this->reshape(new_shape, new_axistags, order);
+            this->swapImpl(this_r);
             this->flags_ |= this->OwnsMemory;
         }
         else
