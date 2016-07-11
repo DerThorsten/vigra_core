@@ -158,6 +158,61 @@ scanOrderToOffset(ArrayIndex d,
     return res;
 }
 
+template <class ARRAY, class FCT,
+          VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
+void
+universalArrayNDFunction(ARRAY & a, FCT f)
+{
+    auto p = permutationToOrder(a.shape(), a.strides(), C_ORDER);
+    auto h = a.pointer_nd(p);
+    auto s = transpose(a.shape(), p);
+    universalPointerNDFunction(h, s, f);
+}
+
+template <class ARRAY1, class ARRAY2, class FCT>
+enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
+universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f)
+{
+    auto last = a1.shape() - 1;
+    char * p1 = (char *)a1.data();
+    char * q1 = (char *)(&a1[last]+1);
+    char * p2 = (char *)a2.data();
+    char * q2 = (char *)(&a2[last]+1);
+
+    bool no_overlap        = q1 <= p2 || q2 <= p1;
+    bool compatible_layout = p1 <= p2 && a1.strides() == a2.strides();
+
+    auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
+    auto h1 = a1.pointer_nd(p);
+    auto s  = transpose(a1.shape(), p);
+
+    if(no_overlap || compatible_layout)
+    {
+        auto h2 = a2.pointer_nd(p);
+        universalPointerNDFunction(h1, h2, s, f);
+    }
+    else
+    {
+        using TmpArray = ArrayND<ARRAY2::dimension, typename ARRAY2::value_type>;
+        TmpArray t2(a2);
+        auto h2 = t2.pointer_nd(p);
+        universalPointerNDFunction(h1, h2, s, f);
+    }
+}
+
+    // if both arrays are read-only, we need not worry about overlapping memory
+template <class ARRAY1, class ARRAY2, class FCT>
+enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
+universalArrayNDFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f)
+{
+    auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
+    auto h1 = a1.pointer_nd(p);
+    auto h2 = a2.pointer_nd(p);
+    auto s  = transpose(a1.shape(), p);
+
+    universalPointerNDFunction(h1, h2, s, f);
+}
+
 } // namespace array_detail
 
 /********************************************************/
@@ -298,7 +353,7 @@ class ArrayViewND
     {
         vigra_precondition(shape() == rhs.shape(),
             "ArrayViewND::operator=(ArrayViewND const &): shape mismatch.");
-        array_detail::genericArrayFunction(*this, rhs,
+        array_detail::universalArrayNDFunction(*this, rhs,
             [](value_type & v, U const & u)
             {
                 v = detail::RequiresExplicitCast<value_type>::cast(u);
@@ -453,7 +508,7 @@ public:
     ArrayViewND &
     operator=(value_type const & u)
     {
-        array_detail::genericArrayFunction(*this,
+        array_detail::universalArrayNDFunction(*this,
                                            [u](value_type & v) { v = u; });
         return *this;
     }
@@ -463,56 +518,71 @@ public:
             of\a rhs or fails with a <tt>PreconditionViolation</tt> exception when
             the shapes do not match.
          */
-    template<class ARRAY>
-    ArrayViewND & operator=(ARRAY const & rhs);
+    template<class ARRAY_LIKE>
+    ArrayViewND & operator=(ARRAY_LIKE const & rhs);
 
         /** Add-assignment of a differently typed array or an array expression.
             It adds the elements of \a rhs or fails with a <tt>PreconditionViolation</tt>
             exception when the shapes do not match.
          */
-    template <class ARRAY>
-    ArrayViewND & operator+=(ARRAY const & rhs);
+    template <class ARRAY_LIKE>
+    ArrayViewND & operator+=(ARRAY_LIKE const & rhs);
 
         /** Subtract-assignment of a differently typed array or an array expression.
             It subtracts the elements of \a rhs or fails with a <tt>PreconditionViolation</tt>
             exception when the shapes do not match.
          */
-    template <class ARRAY>
-    ArrayViewND & operator-=(ARRAY const & rhs);
+    template <class ARRAY_LIKE>
+    ArrayViewND & operator-=(ARRAY_LIKE const & rhs);
 
         /** Multiply-assignment of a differently typed array or an array expression.
             It multiplies with the elements of \a rhs or fails with a
             <tt>PreconditionViolation</tt> exception when the shapes do not match.
          */
-    template <class ARRAY>
-    ArrayViewND & operator*=(ARRAY const & rhs);
+    template <class ARRAY_LIKE>
+    ArrayViewND & operator*=(ARRAY_LIKE const & rhs);
 
         /** Divide-assignment of a differently typed array or an array expression.
             It divides by the elements of \a rhs or fails with a <tt>PreconditionViolation</tt>
             exception when the shapes do not match.
          */
-    template <class ARRAY>
-    ArrayViewND & operator/=(ARRAY const & rhs);
+    template <class ARRAY_LIKE>
+    ArrayViewND & operator/=(ARRAY_LIKE const & rhs);
 
 #else
 
 #define VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(OP) \
-    template <class ARG> \
-    enable_if_t<ArrayNDConcept<ARG>::value || ArrayMathConcept<ARG>::value, \
-                ArrayViewND &> \
-    operator OP(ARG const & rhs) \
+    template <int M, class U> \
+    ArrayViewND & \
+    operator OP(ArrayViewND<M, U> const & rhs) \
     { \
-        typedef typename ARG::value_type U; \
         static_assert(std::is_convertible<U, value_type>::value, \
-            "ArrayViewND::operator" #OP "(ARRAY const &): value_types of lhs and rhs are incompatible."); \
+            "ArrayViewND::operator" #OP "(ArrayViewND const &): value_types of lhs and rhs are incompatible."); \
             \
         vigra_precondition(shape() == rhs.shape(), \
             "ArrayViewND::operator" #OP "(ArrayViewND const &): shape mismatch."); \
-        array_detail::genericArrayFunction(*this, rhs, \
+        array_detail::universalArrayNDFunction(*this, rhs, \
             [](value_type & v, U const & u) \
             { \
                 v OP detail::RequiresExplicitCast<value_type>::cast(u); \
             }); \
+        return *this; \
+    } \
+    template <class Expression> \
+        enable_if_t<ArrayMathConcept<Expression>::value,  ArrayViewND &> \
+        operator OP(Expression const & rhs) \
+    { \
+        typedef typename Expression::value_type U; \
+        static_assert(std::is_convertible<U, value_type>::value, \
+            "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &): value_types of lhs and rhs are incompatible."); \
+        \
+        vigra_precondition(shape() == rhs.shape(), \
+            "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &): shape mismatch."); \
+        array_detail::universalArrayMathFunction(*this, rhs, \
+            [](value_type & v, U const & u) \
+    { \
+            v OP detail::RequiresExplicitCast<value_type>::cast(u); \
+    }); \
         return *this; \
     }
 
@@ -530,7 +600,7 @@ public:
          */
     ArrayViewND & operator+=(value_type const & u)
     {
-        array_detail::genericArrayFunction(*this,
+        array_detail::universalArrayNDFunction(*this,
                                            [u](value_type & v) { v += u; });
         return *this;
     }
@@ -539,7 +609,7 @@ public:
          */
     ArrayViewND & operator-=(value_type const & u)
     {
-        array_detail::genericArrayFunction(*this,
+        array_detail::universalArrayNDFunction(*this,
                                            [u](value_type & v) { v -= u; });
         return *this;
     }
@@ -548,7 +618,7 @@ public:
          */
     ArrayViewND & operator*=(value_type const & u)
     {
-        array_detail::genericArrayFunction(*this,
+        array_detail::universalArrayNDFunction(*this,
                                            [u](value_type & v) { v *= u; });
         return *this;
     }
@@ -557,7 +627,7 @@ public:
          */
     ArrayViewND & operator/=(value_type const & u)
     {
-        array_detail::genericArrayFunction(*this,
+        array_detail::universalArrayNDFunction(*this,
                                            [u](value_type & v) { v /= u; });
         return *this;
     }
@@ -1059,7 +1129,7 @@ public:
     {
         bool res = true;
         value_type zero = value_type();
-        array_detail::genericArrayFunction(*this,
+        array_detail::universalArrayNDFunction(*this,
             [zero, &res](value_type const & v)
             {
                 if(v == zero)
@@ -1075,7 +1145,7 @@ public:
     {
         bool res = false;
         value_type zero = value_type();
-        array_detail::genericArrayFunction(*this,
+        array_detail::universalArrayNDFunction(*this,
             [zero, &res](value_type const & v)
             {
                 if(v != zero)
@@ -1091,7 +1161,7 @@ public:
     TinyArray<T, 2> minmax() const
     {
         TinyArray<T, 2> res(NumericTraits<T>::max(), NumericTraits<T>::min());
-        array_detail::genericArrayFunction(*this,
+        array_detail::universalArrayNDFunction(*this,
             [&res](value_type const & v)
             {
                 if(v < res[0])
@@ -1132,7 +1202,7 @@ public:
     template <typename U = T>
     PromoteType<U> sum(PromoteType<U> res = PromoteType<U>{}) const
     {
-        array_detail::genericArrayFunction(*this,
+        array_detail::universalArrayNDFunction(*this,
             [&res](value_type const & v)
             {
                 res += v;
@@ -1185,7 +1255,7 @@ public:
     template <class U = T>
     PromoteType<U> prod(PromoteType<U> res = PromoteType<U>{1}) const
     {
-        array_detail::genericArrayFunction(*this,
+        array_detail::universalArrayNDFunction(*this,
             [&res](value_type const & v)
             {
                 res *= v;
@@ -1214,7 +1284,7 @@ public:
             "ArrayViewND::swapData(): incompatible dimensions.");
         vigra_precondition(shape() == rhs.shape(),
             "ArrayViewND::swapData(): shape mismatch.");
-        array_detail::genericArrayFunction(*this, rhs,
+        array_detail::universalArrayNDFunction(*this, rhs,
             [](value_type & v, U & u)
             {
                 vigra::swap(u, v);
@@ -1499,7 +1569,7 @@ SquaredNormType<ArrayViewND<N, T> >
 squaredNorm(ArrayViewND<N, T> const & a)
 {
     auto res = SquaredNormType<ArrayViewND<N, T> >();
-    array_detail::genericArrayFunction(a,
+    array_detail::universalArrayNDFunction(a,
         [&res](T const & v)
         {
             res += v*v;
@@ -1530,7 +1600,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
       case -1:
       {
         auto res = NormType<ArrayViewND<N, T> >();
-        array_detail::genericArrayFunction(array,
+        array_detail::universalArrayNDFunction(array,
             [&res](T const & v)
             {
                 if(res < abs(v))
@@ -1542,7 +1612,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
       {
         auto res = NormType<ArrayViewND<N, T> >();
         auto zero = T();
-        array_detail::genericArrayFunction(array,
+        array_detail::universalArrayNDFunction(array,
             [&res, zero](T const & v)
             {
                 if(v != zero)
@@ -1553,7 +1623,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
       case 1:
       {
         auto res = NormType<ArrayViewND<N, T> >();
-        array_detail::genericArrayFunction(array,
+        array_detail::universalArrayNDFunction(array,
             [&res](T const & v)
             {
                 res += abs(v);
@@ -1563,7 +1633,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
       case 2:
       {
         auto res = SquaredNormType<ArrayViewND<N, T> >();
-        array_detail::genericArrayFunction(array,
+        array_detail::universalArrayNDFunction(array,
             [&res](T const & v)
             {
                 res += v*v;
@@ -1824,7 +1894,7 @@ class ArrayND
         auto p = array_detail::permutationToOrder(this->shape(),
                                                   this->strides(), C_ORDER);
         auto rhs_t = rhs.transpose(p);
-        array_detail::genericArrayFunction(rhs_t,
+        array_detail::universalArrayNDFunction(rhs_t,
             [&data=allocated_data_](U const & u)
             {
                 data.emplace_back(u);
@@ -1852,8 +1922,8 @@ class ArrayND
             rhs.transpose(p);
         }
 
-        using U = typename Expression::value_type;
-        array_detail::universalPointerNDFunction(rhs, rhs.shape(),
+        using U = typename Expression::result_type;
+        array_detail::universalArrayMathFunction(rhs,
             [&data=allocated_data_](U const & u)
             {
                 data.emplace_back(u);
@@ -1913,8 +1983,8 @@ class ArrayND
             If the left array has no data or the shapes match, it becomes a copy
             of \a rhs. Otherwise, the function fails with an exception.
          */
-    template<class ARRAY>
-    ArrayND & operator=(ARRAY const & rhs);
+    template<class ARRAY_LIKE>
+    ArrayND & operator=(ARRAY_LIKE const & rhs);
 
         /** Add-assignment of a differently typed array or an array expression.
 
@@ -1922,8 +1992,8 @@ class ArrayND
             the left array has no data (hasData() is false), in which case the function acts as
             a normal assignment.
          */
-    template <class ARRAY>
-    ArrayND & operator+=(ARRAY const & rhs);
+    template <class ARRAY_LIKE>
+    ArrayND & operator+=(ARRAY_LIKE const & rhs);
 
         /** Subtract-assignment of a differently typed array or an array expression.
 
@@ -1931,8 +2001,8 @@ class ArrayND
             the left array has no data (hasData() is false), in which case the function acts as
             a normal assignment.
          */
-    template <class ARRAY>
-    ArrayND & operator-=(ARRAY const & rhs);
+    template <class ARRAY_LIKE>
+    ArrayND & operator-=(ARRAY_LIKE const & rhs);
 
         /** Multiply-assignment of a differently typed array or an array expression.
 
@@ -1940,8 +2010,8 @@ class ArrayND
             the left array has no data (hasData() is false), in which case the function acts as
             a normal assignment.
          */
-    template <class ARRAY>
-    ArrayND & operator*=(ARRAY const & rhs);
+    template <class ARRAY_LIKE>
+    ArrayND & operator*=(ARRAY_LIKE const & rhs);
 
         /** Divide-assignment of a differently typed array or an array expression.
 
@@ -1949,8 +2019,8 @@ class ArrayND
             the left array has no data (hasData() is false), in which case the function acts as
             a normal assignment.
          */
-    template <class ARRAY>
-    ArrayND & operator/=(ARRAY const & rhs);
+    template <class ARRAY_LIKE>
+    ArrayND & operator/=(ARRAY_LIKE const & rhs);
 
 #else
 
@@ -1959,8 +2029,6 @@ class ArrayND
                 ArrayND &>
     operator=(ARG const & rhs)
     {
-        static_assert(std::is_convertible<typename ARG::value_type, value_type>::value,
-            "ArrayND::operator=(ARRAY const &): value_types of lhs and rhs are incompatible.");
         if(this->shape() == rhs.shape())
             view_type::operator=(rhs);
         else
@@ -1974,8 +2042,6 @@ class ArrayND
                 ArrayND &> \
     operator OP(ARG const & rhs) \
     { \
-        static_assert(std::is_convertible<typename ARG::value_type, value_type>::value, \
-            "ArrayND::operator" #OP "(ARRAY const &): value_types of lhs and rhs are incompatible."); \
         if(this->hasData()) \
             view_type::operator OP(rhs); \
         else \

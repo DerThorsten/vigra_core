@@ -647,17 +647,6 @@ universalPointerNDFunction(POINTER_ND & h, SHAPE const & shape, FCT f, int dim =
     }
 }
 
-template <class ARRAY, class FCT,
-          VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
-void
-genericArrayFunction(ARRAY & a, FCT f)
-{
-    auto p = permutationToOrder(a.shape(), a.strides(), C_ORDER);
-    auto h = a.pointer_nd(p);
-    auto s = transpose(a.shape(), p);
-    universalPointerNDFunction(h, s, f);
-}
-
 template <class POINTER_ND1, class POINTER_ND2, class SHAPE, class FCT,
           VIGRA_REQUIRE<PointerNDConcept<POINTER_ND1>::value && PointerNDConcept<POINTER_ND2>::value> >
 void
@@ -696,79 +685,6 @@ universalPointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & sha
         }
         h1.move(dim, -N);
         h2.move(dim, -N);
-    }
-}
-
-template <class ARRAY1, class ARRAY2, class FCT>
-enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
-genericArrayFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f)
-{
-    auto last = a1.shape() - 1;
-    char * p1 = (char *)a1.data();
-    char * q1 = (char *)(&a1[last]+1);
-    char * p2 = (char *)a2.data();
-    char * q2 = (char *)(&a2[last]+1);
-
-    bool no_overlap        = q1 <= p2 || q2 <= p1;
-    bool compatible_layout = p1 <= p2 && a1.strides() == a2.strides();
-
-    auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
-    auto h1 = a1.pointer_nd(p);
-    auto s  = transpose(a1.shape(), p);
-
-    if(no_overlap || compatible_layout)
-    {
-        auto h2 = a2.pointer_nd(p);
-        universalPointerNDFunction(h1, h2, s, f);
-    }
-    else
-    {
-        using TmpArray = ArrayND<ARRAY2::dimension, typename ARRAY2::value_type>;
-        TmpArray t2(a2);
-        auto h2 = t2.pointer_nd(p);
-        universalPointerNDFunction(h1, h2, s, f);
-    }
-}
-
-    // if both arrays are read-only, we need not worry about overlapping memory
-template <class ARRAY1, class ARRAY2, class FCT>
-enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
-genericArrayFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f)
-{
-    auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
-    auto h1 = a1.pointer_nd(p);
-    auto h2 = a2.pointer_nd(p);
-    auto s  = transpose(a1.shape(), p);
-
-    universalPointerNDFunction(h1, h2, s, f);
-}
-
-template <class ARRAY1, class ARRAY2, class FCT>
-enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayMathConcept<ARRAY2>::value>
-genericArrayFunction(ARRAY1 & a1, ARRAY2 const & h2, FCT f)
-{
-    auto last = a1.shape() - 1;
-    char * p1 = (char *)a1.data();
-    char * q1 = (char *)(&a1[last]+1);
-
-    bool no_overlap        = h2.noMemoryOverlap(p1, q1);
-    bool compatible_layout = h2.compatibleMemoryLayout(p1, a1.strides());
-
-    auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
-    auto h1 = a1.pointer_nd(p);
-    auto s  = transpose(a1.shape(), p);
-
-    if(no_overlap || compatible_layout)
-    {
-        h2.transpose(p);
-        universalPointerNDFunction(h1, h2, s, f);
-    }
-    else
-    {
-        using TmpArray = ArrayND<ARRAY1::dimension, typename ARRAY2::value_type>;
-        TmpArray t2(h2);
-        auto ht = t2.pointer_nd(p);
-        universalPointerNDFunction(h1, ht, s, f);
     }
 }
 

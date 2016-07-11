@@ -48,6 +48,46 @@
 
 namespace vigra {
 
+namespace array_detail {
+
+template <class ARRAY, class ARRAY_MATH, class FCT>
+enable_if_t<ArrayNDConcept<ARRAY>::value && ArrayMathConcept<ARRAY_MATH>::value>
+universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f)
+{
+    auto last = a1.shape() - 1;
+    char * p1 = (char *)a1.data();
+    char * q1 = (char *)(&a1[last]+1);
+
+    bool no_overlap        = h2.noMemoryOverlap(p1, q1);
+    bool compatible_layout = h2.compatibleMemoryLayout(p1, a1.strides());
+
+    auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
+    auto h1 = a1.pointer_nd(p);
+    auto s  = transpose(a1.shape(), p);
+
+    if(no_overlap || compatible_layout)
+    {
+        h2.transpose(p);
+        universalPointerNDFunction(h1, h2, s, f);
+    }
+    else
+    {
+        using TmpArray = ArrayND<ARRAY::dimension, typename ARRAY_MATH::value_type>;
+        TmpArray t2(h2);
+        auto ht = t2.pointer_nd(p);
+        universalPointerNDFunction(h1, ht, s, f);
+    }
+}
+
+template <class ARRAY_MATH, class FCT>
+enable_if_t<ArrayMathConcept<ARRAY_MATH>::value>
+universalArrayMathFunction(ARRAY_MATH const & a, FCT f)
+{
+    universalPointerNDFunction(a, a.shape(), f);
+}
+
+} // namespace array_detail
+
 /** \defgroup ArrayMathModule vigra::array_math
 
     Namespace <tt>vigra::array_math</tt> holds VIGRA's support for efficient arithmetic and algebraic functions on multi-dimensional arrays (that is, \ref MultiArrayView and its subclasses). All <tt>array_math</tt> functions operate element-wise. If you need matrix multiplication, use \ref LinearAlgebraModule instead.
