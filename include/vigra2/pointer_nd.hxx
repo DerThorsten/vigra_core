@@ -91,44 +91,9 @@ class PointerND
     , data_(const_cast<pointer>(data))
     {}
 
-        // length of consecutive array starting from 'axis'
-        //
-        // This function always assumes C-order!
-        // FIXME: should isConsecutive() be moved from PointerND to another class?
-    template <class SHAPE>
-    ArrayIndex isConsecutive(SHAPE const & shape, int axis) const
-    {
-        ArrayIndex size = 1;
-        for(int k=ndim()-1; k >= axis; --k)
-        {
-            if(size != strides_[k])
-                return 0;
-            size *= shape[k];
-        }
-        return size;
-    }
-
     bool hasData() const
     {
         return data_ != 0;
-    }
-
-        // only apply when array is consecutive!
-    void inc() const
-    {
-        ++const_cast<pointer>(data_);
-    }
-
-        // only apply when array is consecutive!
-    void dec() const
-    {
-        --const_cast<pointer>(data_);
-    }
-
-        // only apply when array is consecutive!
-    void move(difference_type_1 diff) const
-    {
-        const_cast<pointer>(data_) += diff;
     }
 
     void inc(int axis) const
@@ -223,24 +188,11 @@ class PointerND<0, T>
     : data_(data)
     {}
 
-        // length of consecutive array starting from 'axis'
-    template <class SHAPE>
-    ArrayIndex isConsecutive(SHAPE const & s, int dim) const
-    {
-        ArrayIndex res = 1;
-        for(int k=dim; k<s.size(); ++k)
-            res *= s[k];
-        return res;
-    }
-
     constexpr bool hasData() const
     {
         return true;
     }
 
-    void inc() const {}
-    void dec() const {}
-    void move(difference_type_1) const {}
     void inc(int) const {}
     void dec(int) const {}
     void move(int, difference_type_1) const {}
@@ -388,30 +340,6 @@ public:
     : point_(tags::size = shape.size())
     , shape_(shape)
     {}
-
-    template <class SHAPE>
-    constexpr ArrayIndex isConsecutive(SHAPE const &, int) const
-    {
-        return 0;
-    }
-
-    inline void inc()
-    {
-        vigra_invariant(false,
-            "PointerNDShape::inc(): not allowed because PointerNDCoupled has no consecutive memory.");
-    }
-
-    inline void dec()
-    {
-        vigra_invariant(false,
-            "PointerNDShape::dec(): not allowed because PointerNDCoupled has no consecutive memory.");
-    }
-
-    void move(ArrayIndex)
-    {
-        vigra_invariant(false,
-            "PointerNDShape::move(ArrayIndex): not allowed because PointerNDCoupled has no consecutive memory.");
-    }
 
     inline void inc(int dim)
     {
@@ -608,6 +536,94 @@ permutationToOrder(SHAPE const & shape, SHAPE const & stride,
     return res;
 }
 
+   // length of C-order consecutive array starting from 'axis'
+template <int N, class T, class SHAPE>
+inline ArrayIndex
+isCConsecutive(PointerND<N, T> const & p, SHAPE const & shape, int dim)
+{
+    ArrayIndex size = 1;
+    for(int k=shape.size()-1; k >= dim; --k)
+    {
+        if(size != p.strides()[k])
+            return 0;
+        size *= shape[k];
+    }
+    return size;
+}
+
+template <class P, class SHAPE, class FCT>
+constexpr bool consecutivePointerNDFunction(P &, SHAPE const &, FCT, int)
+{
+    return false;
+}
+
+template <class P1, class P2, class SHAPE, class FCT>
+constexpr bool consecutivePointerNDFunction(P1 &, P2 &, SHAPE const &, FCT, int)
+{
+    return false;
+}
+
+template <int N, class T, class SHAPE, class FCT>
+bool consecutivePointerNDFunction(PointerND<N, T> & pn, SHAPE const & shape, FCT f, int dim)
+{
+    static_assert(N != 0,
+        "consecutivePointerNDFunction(): internal error -- N==0 should never happen.");
+
+    auto count = isCConsecutive(pn, shape, dim);
+    if(count == 0)
+        return false;
+
+    auto p = pn.ptr();
+    for(ArrayIndex k=0; k<count; ++k, ++p)
+        f(*p);
+    return true;
+}
+
+template <int M, class T, int N, class U, class SHAPE, class FCT>
+bool consecutivePointerNDFunction(PointerND<M, T> & pn1, PointerND<N, U> & pn2,
+                                  SHAPE const & shape, FCT f, int dim)
+{
+    auto count = isCConsecutive(pn1, shape, dim);
+    if(count == 0 || isCConsecutive(pn2, shape, dim) != count)
+        return false;
+
+    auto p1 = pn1.ptr();
+    auto p2 = pn2.ptr();
+    for(ArrayIndex k=0; k<count; ++k, ++p1, ++p2)
+        f(*p1, *p2);
+    return true;
+}
+
+template <class T, int N, class U, class SHAPE, class FCT>
+bool consecutivePointerNDFunction(PointerND<0, T> & pn1, PointerND<N, U> & pn2,
+                                  SHAPE const & shape, FCT f, int dim)
+{
+    auto count = isCConsecutive(pn2, shape, dim);
+    if(count == 0)
+        return false;
+
+    auto p1 = pn1.ptr();
+    auto p2 = pn2.ptr();
+    for(ArrayIndex k=0; k<count; ++k, ++p2)
+        f(*p1, *p2);
+    return true;
+}
+
+template <int N, class T, class U, class SHAPE, class FCT>
+bool consecutivePointerNDFunction(PointerND<N, T> & pn1, PointerND<0, U> & pn2,
+                                  SHAPE const & shape, FCT f, int dim)
+{
+    auto count = isCConsecutive(pn1, shape, dim);
+    if(count == 0)
+        return false;
+
+    auto p1 = pn1.ptr();
+    auto p2 = pn2.ptr();
+    for(ArrayIndex k=0; k<count; ++k, ++p1)
+        f(*p1, *p2);
+    return true;
+}
+
 template <class POINTER_ND, class SHAPE, class FCT,
           VIGRA_REQUIRE<PointerNDConcept<POINTER_ND>::value> >
 void
@@ -616,35 +632,21 @@ universalPointerNDFunction(POINTER_ND & h, SHAPE const & shape, FCT f, int dim =
     vigra_assert(dim < shape.size(),
         "universalPointerNDFunction(): internal error: dim >= shape.size() should never happen.");
 
-    auto N = h.isConsecutive(shape, dim);
-    if(N)
-    {
-        // auto p = h.ptr();
-        // for(ArrayIndex k=0; k<N; ++k, ++p)
-            // f(*p);
+    if(consecutivePointerNDFunction(h, shape, f, dim))
+        return;
 
-            // Use h.inc() and *h to make the loop work for scalar pointer_nds
-            // (who have zero stride) as well. To specialize for
-            // low-level optimizations like AVX, we need to distinguish
-            // if pointer_nds refer to arrays or scalars.
-        for(ArrayIndex k=0; k<N; ++k, h.inc())
+    auto N = shape[dim];
+    if(dim == shape.size() - 1)
+    {
+        for(ArrayIndex k=0; k<N; ++k, h.inc(dim))
             f(*h);
     }
     else
     {
-        N = shape[dim];
-        if(dim == shape.size() - 1)
-        {
-            for(ArrayIndex k=0; k<N; ++k, h.inc(dim))
-                f(*h);
-        }
-        else
-        {
-            for(ArrayIndex k=0; k<N; ++k, h.inc(dim))
-                universalPointerNDFunction(h, shape, f, dim+1);
-        }
-        h.move(dim, -N);
+        for(ArrayIndex k=0; k<N; ++k, h.inc(dim))
+            universalPointerNDFunction(h, shape, f, dim+1);
     }
+    h.move(dim, -N);
 }
 
 template <class POINTER_ND1, class POINTER_ND2, class SHAPE, class FCT,
@@ -655,37 +657,23 @@ universalPointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & sha
 {
     vigra_assert(dim < shape.size(),
         "universalPointerNDFunction(): internal error: dim >= shape.size() should never happen.");
-    auto N = h1.isConsecutive(shape, dim);
-    if(N && N == h2.isConsecutive(shape, dim))
-    {
-        // auto p1 = h1.ptr();
-        // auto p2 = h2.ptr();
-        // for(ArrayIndex k=0; k<N; ++k, ++p1, ++p2)
-            // f(*p1, *p2);
 
-            // Use h1.inc() and *h1 to make the loop work for scalar pointer_nds
-            // (who have zero stride) as well. To specialize for
-            // low-level optimizations like AVX, we need to distinguish
-            // if pointer_nds refer to arrays or scalars.
-        for(ArrayIndex k=0; k<N; ++k, h1.inc(), h2.inc())
+    if(consecutivePointerNDFunction(h1, h2, shape, f, dim))
+        return;
+
+    auto N = shape[dim];
+    if(dim == shape.size() - 1)
+    {
+        for(ArrayIndex k=0; k<N; ++k, h1.inc(dim), h2.inc(dim))
             f(*h1, *h2);
     }
     else
     {
-        N = shape[dim];
-        if(dim == shape.size() - 1)
-        {
-            for(ArrayIndex k=0; k<N; ++k, h1.inc(dim), h2.inc(dim))
-                f(*h1, *h2);
-        }
-        else
-        {
-            for(ArrayIndex k=0; k<N; ++k, h1.inc(dim), h2.inc(dim))
-                universalPointerNDFunction(h1, h2, shape, f, dim+1);
-        }
-        h1.move(dim, -N);
-        h2.move(dim, -N);
+        for(ArrayIndex k=0; k<N; ++k, h1.inc(dim), h2.inc(dim))
+            universalPointerNDFunction(h1, h2, shape, f, dim+1);
     }
+    h1.move(dim, -N);
+    h2.move(dim, -N);
 }
 
 } // namespace array_detail
@@ -706,7 +694,6 @@ get(PointerNDCoupled<T, NEXT> & h)
 {
     return *array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h);
 }
-
 
 } // namespace vigra
 

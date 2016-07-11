@@ -505,16 +505,6 @@ class IteratorND
     : base_type(pointers, order)
     {}
 
-    void inc()
-    {
-        base_type::operator++();
-    }
-
-    void dec()
-    {
-        base_type::operator--();
-    }
-
     void inc(int dim)
     {
         this->pointers_.inc(dim);

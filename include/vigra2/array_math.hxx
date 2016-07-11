@@ -344,12 +344,6 @@ struct ArrayMathUnaryOperator
     : arg_(a)
     {}
 
-    template <class SHAPE>
-    ArrayIndex isConsecutive(SHAPE const &, int) const
-    {
-        return 0;
-    }
-
     bool hasData() const
     {
         return arg_.hasData();
@@ -370,16 +364,6 @@ struct ArrayMathUnaryOperator
     void transpose(SHAPE const & permutation) const
     {
         arg_.transpose(permutation);
-    }
-
-    void inc() const
-    {
-        vigra_invariant(false, "ArrayMathUnaryOperator::inc(): internal error - should never be called.");
-    }
-
-    void move(ArrayIndex) const
-    {
-        vigra_invariant(false, "ArrayMathUnaryOperator::move(ArrayIndex): internal error - should never be called.");
     }
 
     // increment the pointer of all RHS arrays along the given 'axis'
@@ -514,12 +498,6 @@ struct ArrayMathBinaryOperator
     , permutation_(DontInit)
     {}
 
-    template <class SHAPE>
-    ArrayIndex isConsecutive(SHAPE const &, int) const
-    {
-        return 0;
-    }
-
     bool hasData() const
     {
         return arg1_.hasData() && arg2_.hasData();
@@ -542,16 +520,6 @@ struct ArrayMathBinaryOperator
         arg1_.transpose(permutation);
         arg2_.transpose(permutation);
         const_cast<difference_type&>(shape_) = vigra::transpose(shape_, permutation);
-    }
-
-    void inc() const
-    {
-        vigra_invariant(false, "ArrayMathUnaryOperator::inc(): internal error - should never be called.");
-    }
-
-    void move(ArrayIndex) const
-    {
-        vigra_invariant(false, "ArrayMathUnaryOperator::move(ArrayIndex): internal error - should never be called.");
     }
 
     // increment the pointer of all RHS arrays along the given 'axis'
@@ -754,11 +722,6 @@ public:
     constexpr bool compatibleMemoryLayout(char *, SHAPE const &) const
     {
         return true;
-    }
-
-    inline void inc() const
-    {
-        const_cast<ArrayMathMGrid*>(this)->base_type::inc();
     }
 
     inline void inc(int dim) const
