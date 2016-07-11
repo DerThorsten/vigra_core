@@ -42,7 +42,7 @@
 #include "numeric_traits.hxx"
 #include "mathutil.hxx"
 #include "tinyarray.hxx"
-#include "handle_nd.hxx"
+#include "pointer_nd.hxx"
 #include <vector>
 #include <type_traits>
 
@@ -98,13 +98,97 @@ namespace vigra {
 */
 namespace array_math {
 
-    // wrap a scalar HandleND<0, T> for use in array expressions
+template <int M, int N=M>
+struct ArrayMathUnifyNdim
+{
+    // If both M and N define a static positive ndim, they must
+    // be equal and determine the result of this metafunction.
+    // If only one defines a static positive ndim, it becomes
+    // the result of this metafunction.
+    // If both are '0' or 'runtime_ndim', the result is
+    // the minimum of the two.
+
+    typedef integral_minmax<N, M>  minmax;
+
+    static_assert(minmax::min <= 0 || N == M,
+        "array_math: incompatible array dimensions.");
+
+    static const int value = minmax::max > 0
+                                ? minmax::max
+                                : minmax::min;
+};
+
+template <int N, int M>
+struct ArrayMathUnifyShape
+{
+    // typedef integral_minmax<N, M>      minmax;
+    // static const int dimension       = minmax::max > 0
+                                          // ? minmax::max
+                                          // : minmax::min;
+    static const int dimension = ArrayMathUnifyNdim<M, N>::value;
+    static const int shape_dimension = dimension == 0
+                                          ? runtime_size
+                                          : dimension;
+    typedef Shape<shape_dimension>     shape_type;
+
+    template <class SHAPE1, class SHAPE2>
+    static shape_type exec(SHAPE1 const & s1, SHAPE2 const & s2,
+                           bool throw_on_error = true)
+    {
+        if(s1.size() == 0)
+        {
+            return s2;
+        }
+        else if(s2.size() == 0)
+        {
+            return s1;
+        }
+        else if(s1.size() == s2.size())
+        {
+            shape_type res(s1.size(), DontInit);
+            for(int k=0; k<s1.size(); ++k)
+            {
+                if(s1[k] == 1 || s1[k] == s2[k])
+                {
+                    res[k] = s2[k];
+                }
+                else if(s2[k] == 1)
+                {
+                    res[k] = s1[k];
+                }
+                else if(throw_on_error)
+                {
+                    std::stringstream message;
+                    message << "arrayMathUnifyShape(): shape mismatch: " <<
+                               s1 << " vs. " << s2 << ".";
+                    vigra_precondition(false, message.str());
+                }
+                else
+                {
+                    return lemon::INVALID;
+                }
+            }
+            return res;
+        }
+        else if(throw_on_error)
+        {
+            vigra_precondition(false,
+                "arrayMathUnifyShape(): ndim mismatch.");
+        }
+        else
+        {
+            return lemon::INVALID;
+        }
+    }
+};
+
+    // wrap a scalar PointerND<0, T> for use in array expressions
 template <class T>
 struct ArrayMathValueOperator
-: public HandleND<0, T>
+: public PointerND<0, T>
 , public ArrayMathTag
 {
-    typedef HandleND<0, T>                       base_type;
+    typedef PointerND<0, T>                       base_type;
     typedef typename base_type::difference_type  difference_type;
 
     difference_type shape_;
@@ -112,6 +196,17 @@ struct ArrayMathValueOperator
     ArrayMathValueOperator(T const & data)
     : base_type(data)
     {}
+
+    constexpr bool noMemoryOverlap(char *, char *) const
+    {
+        return true;
+    }
+
+    template <class SHAPE>
+    constexpr bool compatibleMemoryLayout(char *, SHAPE const &) const
+    {
+        return true;
+    }
 
     template <class SHAPE>
     void transpose(SHAPE const & permutation) const
@@ -139,16 +234,16 @@ struct ArrayMathValueOperator
     // wrap a an array for use in array expressions
 template <class ARG>
 struct ArrayMathArrayOperator
-: public decltype(((ARG*)0)->handle())
+: public decltype(((ARG*)0)->pointer_nd())
 , public ArrayMathTag
 {
-    typedef decltype(((ARG*)0)->handle())        base_type;
+    typedef decltype(((ARG*)0)->pointer_nd())        base_type;
     typedef typename base_type::difference_type  difference_type;
 
     difference_type shape_, permutation_;
 
     ArrayMathArrayOperator(ARG const & a)
-    : base_type(a.handle())
+    : base_type(a.pointer_nd())
     , shape_(a.shape())
     , permutation_(array_detail::permutationToOrder(a.shape(), a.strides(), C_ORDER))
     {
@@ -355,69 +450,6 @@ using ArrayMathArgType =
                      typename std::conditional<ArrayMathConcept<ARG>::value,
                          ARG,
                          ArrayMathValueOperator<ARG>>::type>::type;
-
-template <int N, int M>
-struct ArrayMathUnifyShape
-{
-    typedef integral_minmax<N, M>      minmax;
-    static const int dimension       = minmax::max > 0
-                                          ? minmax::max
-                                          : minmax::min;
-    static const int shape_dimension = dimension == 0
-                                          ? runtime_size
-                                          : dimension;
-    typedef Shape<shape_dimension>     shape_type;
-
-    template <class SHAPE1, class SHAPE2>
-    static shape_type exec(SHAPE1 const & s1, SHAPE2 const & s2,
-                           bool throw_on_error = true)
-    {
-        if(s1.size() == 0)
-        {
-            return s2;
-        }
-        else if(s2.size() == 0)
-        {
-            return s1;
-        }
-        else if(s1.size() == s2.size())
-        {
-            shape_type res(s1.size(), DontInit);
-            for(int k=0; k<s1.size(); ++k)
-            {
-                if(s1[k] == 1 || s1[k] == s2[k])
-                {
-                    res[k] = s2[k];
-                }
-                else if(s2[k] == 1)
-                {
-                    res[k] = s1[k];
-                }
-                else if(throw_on_error)
-                {
-                    std::stringstream message;
-                    message << "arrayMathUnifyShape(): shape mismatch: " <<
-                               s1 << " vs. " << s2 << ".";
-                    vigra_precondition(false, message.str());
-                }
-                else
-                {
-                    return lemon::INVALID;
-                }
-            }
-            return res;
-        }
-        else if(throw_on_error)
-        {
-            vigra_precondition(false,
-                "arrayMathUnifyShape(): ndim mismatch.");
-        }
-        else
-        {
-            return lemon::INVALID;
-        }
-    }
-};
 
 template <class ARG1, class ARG2>
 struct ArrayMathBinaryOperator
@@ -663,15 +695,26 @@ VIGRA_ARRAYMATH_MINMAX_FUNCTION(Max, max)
 template <int N>
 class ArrayMathMGrid
 : public ArrayMathTag
-, public ShapeHandle<N>
+, public PointerNDShape<N>
 {
 public:
-    typedef ShapeHandle<N>                 base_type;
+    typedef PointerNDShape<N>                 base_type;
     typedef Shape<N>                       shape_type;
 
     explicit ArrayMathMGrid(shape_type const & shape)
     : base_type(shape)
     {}
+
+    constexpr bool noMemoryOverlap(char *, char *) const
+    {
+        return true;
+    }
+
+    template <class SHAPE>
+    constexpr bool compatibleMemoryLayout(char *, SHAPE const &) const
+    {
+        return true;
+    }
 
     inline void inc() const
     {
@@ -718,7 +761,7 @@ all(ARG const & a)
     bool res = true;
     value_type zero = value_type();
     // FIXME: optimize memory order
-    array_detail::genericArrayFunctionImpl(a, a.shape(),
+    array_detail::universalPointerNDFunction(a, a.shape(),
         [zero, &res](value_type const & v)
         {
             if(v == zero)
@@ -737,7 +780,7 @@ any(ARG const & a)
     bool res = false;
     value_type zero = value_type();
     // FIXME: optimize memory order
-    array_detail::genericArrayFunctionImpl(a, a.shape(),
+    array_detail::universalPointerNDFunction(a, a.shape(),
         [zero, &res](value_type const & v)
         {
             if(v != zero)
@@ -754,7 +797,7 @@ sum(ARG const & a, U res = {})
 {
     typedef typename ARG::value_type value_type;
     // FIXME: optimize memory order
-    array_detail::genericArrayFunctionImpl(a, a.shape(),
+    array_detail::universalPointerNDFunction(a, a.shape(),
         [&res](value_type const & v)
         {
             res += v;
@@ -770,7 +813,7 @@ prod(ARG const & a, U res = U{1})
 {
     typedef typename ARG::value_type value_type;
     // FIXME: optimize memory order
-    array_detail::genericArrayFunctionImpl(a, a.shape(),
+    array_detail::universalPointerNDFunction(a, a.shape(),
         [&res](value_type const & v)
         {
             res *= v;
@@ -798,9 +841,9 @@ operator==(ARG1 const & arg1, ARG2 const & arg2)
 
     // FIXME: optimize memory order
     // auto p  = permutationToOrder(a1.shape_, a1.strides_, C_ORDER);
-    // handle.transpose(p);
+    // pointer_nd.transpose(p);
     bool res = true;
-    array_detail::genericArrayFunctionImpl(a1, a2, shape,
+    array_detail::universalPointerNDFunction(a1, a2, shape,
         [&res](typename A1::value_type const & u, typename A2::value_type const & v)
         {
             if(u != v)

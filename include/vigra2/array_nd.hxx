@@ -45,7 +45,7 @@
 #include "tinyarray.hxx"
 #include "shape.hxx"
 #include "box.hxx"
-#include "handle_nd.hxx"
+#include "pointer_nd.hxx"
 #include "iterator_nd.hxx"
 #include "array_math.hxx"
 #include "axistags.hxx"
@@ -237,9 +237,9 @@ class ArrayViewND
          */
     typedef ArrayViewND view_type;
 
-        /** the array's handle type
+        /** the array's pointer_nd type
          */
-    typedef HandleND<N, value_type> handle_type;
+    typedef PointerND<N, value_type> pointer_nd_type;
 
          /** scan-order iterator (ArrayNDIterator) type
          */
@@ -1407,19 +1407,19 @@ public:
         return flags_;
     }
 
-    handle_type handle() const
+    pointer_nd_type pointer_nd() const
     {
-        return handle_type(strides_, data_);
+        return pointer_nd_type(strides_, data_);
     }
 
-    handle_type handle(difference_type const & permutation) const
+    pointer_nd_type pointer_nd(difference_type const & permutation) const
     {
-        return handle_type(vigra::transpose(strides_, permutation), data_);
+        return pointer_nd_type(vigra::transpose(strides_, permutation), data_);
     }
 
-    handle_type handle(MemoryOrder order) const
+    pointer_nd_type pointer_nd(MemoryOrder order) const
     {
-        return handle(array_detail::permutationToOrder(shape_, strides_, order));
+        return pointer_nd(array_detail::permutationToOrder(shape_, strides_, order));
     }
 
         /** returns a scan-order iterator pointing
@@ -1853,7 +1853,7 @@ class ArrayND
         }
 
         using U = typename Expression::value_type;
-        array_detail::genericArrayFunctionImpl(rhs, rhs.shape(),
+        array_detail::universalPointerNDFunction(rhs, rhs.shape(),
             [&data=allocated_data_](U const & u)
             {
                 data.emplace_back(u);
@@ -2078,42 +2078,42 @@ swap(ArrayND<N,T,A> & array1, ArrayND<N,T,A> & array2)
 
 namespace array_detail {
 
-template <class HANDLE, int N, class T, class ... REST>
-IteratorND<typename HandleTypeImpl<HANDLE, T, REST...>::type>
-makeCoupledIteratorImpl(MemoryOrder order, HANDLE const & inner_handle,
+template <class COUPLED_POINTERS, int N, class T, class ... REST>
+IteratorND<typename PointerNDTypeImpl<COUPLED_POINTERS, T, REST...>::type>
+makeCoupledIteratorImpl(MemoryOrder order, COUPLED_POINTERS const & inner_pointers,
                         ArrayViewND<N, T> const & a, REST const & ... rest)
 {
-    static_assert(CompatibleDimensions<N, HANDLE::dimension>::value,
+    static_assert(CompatibleDimensions<N, COUPLED_POINTERS::dimension>::value,
         "makeCoupledIterator(): arrays have incompatible dimensions.");
-    vigra_precondition(a.shape() == inner_handle.shape(),
+    vigra_precondition(a.shape() == inner_pointers.shape(),
         "makeCoupledIterator(): arrays have incompatible shapes.");
-    HandleNDChain<T, HANDLE> handle(a.handle(), inner_handle);
-    return makeCoupledIteratorImpl(order, handle, rest ...);
+    PointerNDCoupled<T, COUPLED_POINTERS> pointer_nd(a.pointer_nd(), inner_pointers);
+    return makeCoupledIteratorImpl(order, pointer_nd, rest ...);
 }
 
-template <class HANDLE>
-IteratorND<HANDLE>
-makeCoupledIteratorImpl(MemoryOrder order, HANDLE const & handle)
+template <class COUPLED_POINTERS>
+IteratorND<COUPLED_POINTERS>
+makeCoupledIteratorImpl(MemoryOrder order, COUPLED_POINTERS const & pointers)
 {
-    return IteratorND<HANDLE>(handle, order);
+    return IteratorND<COUPLED_POINTERS>(pointers, order);
 }
 
 } // namespace array_detail
 
 template <int N, class T, class ... REST>
-IteratorND<HandleType<N, T, REST...> >
+IteratorND<PointerNDCoupledType<N, T, REST...> >
 makeCoupledIterator(ArrayViewND<N, T> const & a, REST const & ... rest)
 {
-    HandleNDChain<T, ShapeHandle<N>> handle(a.handle(), ShapeHandle<N>(a.shape()));
-    return array_detail::makeCoupledIteratorImpl(C_ORDER, handle, rest ...);
+    PointerNDCoupled<T, PointerNDShape<N>> pointer_nd(a.pointer_nd(), PointerNDShape<N>(a.shape()));
+    return array_detail::makeCoupledIteratorImpl(C_ORDER, pointer_nd, rest ...);
 }
 
 template <int N, class T, class ... REST>
-IteratorND<HandleType<N, T, REST...> >
+IteratorND<PointerNDCoupledType<N, T, REST...> >
 makeCoupledIterator(MemoryOrder order, ArrayViewND<N, T> const & a, REST const & ... rest)
 {
-    HandleNDChain<T, ShapeHandle<N>> handle(a.handle(), ShapeHandle<N>(a.shape()));
-    return array_detail::makeCoupledIteratorImpl(order, handle, rest ...);
+    PointerNDCoupled<T, PointerNDShape<N>> pointer_nd(a.pointer_nd(), PointerNDShape<N>(a.shape()));
+    return array_detail::makeCoupledIteratorImpl(order, pointer_nd, rest ...);
 }
 
 } // namespace vigra

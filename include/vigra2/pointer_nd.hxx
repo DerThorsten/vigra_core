@@ -35,8 +35,8 @@
 
 #pragma once
 
-#ifndef VIGRA2_HANDLE_ND_HXX
-#define VIGRA2_HANDLE_ND_HXX
+#ifndef VIGRA2_POINTER_ND_HXX
+#define VIGRA2_POINTER_ND_HXX
 
 #include <vector>
 #include <utility>
@@ -61,9 +61,14 @@ class ArrayViewND;
 template <int N, class T, class Alloc = std::allocator<T> >
 class ArrayND;
 
+    // The PointerND class combines a pointer to an array element with a stride
+    // object, so that the appropriate N-D pointer arithmetic can be implemented.
+    //
+    // The specialization PointerND<0, T> further down below is used for constants
+    // and implements all pointer arithmetic as no-ops.
 template <int N, class T>
-class HandleND
-: public HandleNDTag
+class PointerND
+: public PointerNDTag
 {
   public:
     static const int dimension                  = N;
@@ -81,12 +86,15 @@ class HandleND
     difference_type strides_;
     pointer         data_;
 
-    HandleND(difference_type const & strides, const_pointer data)
+    PointerND(difference_type const & strides, const_pointer data)
     : strides_(strides)
     , data_(const_cast<pointer>(data))
     {}
 
         // length of consecutive array starting from 'axis'
+        //
+        // This function always assumes C-order!
+        // FIXME: should isConsecutive() be moved from PointerND to another class?
     template <class SHAPE>
     ArrayIndex isConsecutive(SHAPE const & shape, int axis) const
     {
@@ -193,8 +201,8 @@ class HandleND
 };
 
 template <class T>
-class HandleND<0, T>
-: public HandleNDTag
+class PointerND<0, T>
+: public PointerNDTag
 {
   public:
     static const int dimension                  = 0;
@@ -211,7 +219,7 @@ class HandleND<0, T>
 
     T data_;
 
-    HandleND(T const & data)
+    PointerND(T const & data)
     : data_(data)
     {}
 
@@ -226,17 +234,6 @@ class HandleND<0, T>
     }
 
     constexpr bool hasData() const
-    {
-        return true;
-    }
-
-    constexpr bool noMemoryOverlap(char *, char *) const
-    {
-        return true;
-    }
-
-    template <class SHAPE>
-    constexpr bool compatibleMemoryLayout(char *, SHAPE const &) const
     {
         return true;
     }
@@ -277,56 +274,56 @@ class HandleND<0, T>
 
 
   /**
-     Handle class, used by CoupledScanOrderIterator as the value type to simultaneously itearate over multiple images.
+     Coupled PointerND objects are used by IteratorND to itearate over multiple arrays simultaneously.
   */
 template <class T, class NEXT = void>
-class HandleNDChain
+class PointerNDCoupled
 : public NEXT
 {
   public:
     typedef NEXT                          base_type;
     static const unsigned int index     = base_type::index+1; // index of this member of the chain
     static const unsigned int dimension = base_type::dimension;
-    typedef HandleND<dimension, T>        handle_type;
+    typedef PointerND<dimension, T>       pointer_nd_type;
 
-    typedef typename handle_type::value_type       value_type;
-    typedef typename handle_type::pointer          pointer;
-    typedef typename handle_type::const_pointer    const_pointer;
-    typedef typename handle_type::reference        reference;
-    typedef typename handle_type::const_reference  const_reference;
-    typedef typename base_type::shape_type         shape_type;
-    typedef typename base_type::difference_type    difference_type;
-    typedef HandleNDChain                          self_type;
+    typedef typename pointer_nd_type::value_type       value_type;
+    typedef typename pointer_nd_type::pointer          pointer;
+    typedef typename pointer_nd_type::const_pointer    const_pointer;
+    typedef typename pointer_nd_type::reference        reference;
+    typedef typename pointer_nd_type::const_reference  const_reference;
+    typedef typename base_type::shape_type             shape_type;
+    typedef typename base_type::difference_type        difference_type;
+    typedef PointerNDCoupled                           self_type;
 
-    HandleNDChain() = default;
+    PointerNDCoupled() = default;
 
-    HandleNDChain(HandleND<dimension, T> const & handle, NEXT const & next)
+    PointerNDCoupled(PointerND<dimension, T> const & pointer_nd, NEXT const & next)
     : base_type(next)
-    , handle_(handle)
+    , pointer_nd_(pointer_nd)
     {}
 
     inline void inc(int dim)
     {
         base_type::inc(dim);
-        handle_.inc(dim);
+        pointer_nd_.inc(dim);
     }
 
     inline void dec(int dim)
     {
         base_type::dec(dim);
-        handle_.dec(dim);
+        pointer_nd_.dec(dim);
     }
 
     void move(int dim, ArrayIndex diff)
     {
         base_type::move(dim, diff);
-        handle_.move(dim, diff);
+        pointer_nd_.move(dim, diff);
     }
 
     void move(difference_type const & diff)
     {
         base_type::move(diff);
-        handle_.move(diff);
+        pointer_nd_.move(diff);
     }
 
     // void restrictToSubarray(shape_type const & start, shape_type const & end)
@@ -337,39 +334,39 @@ class HandleNDChain
 
     reference operator*()
     {
-        return *handle_;
+        return *pointer_nd_;
     }
 
     const_reference operator*() const
     {
-        return *handle_;
+        return *pointer_nd_;
     }
 
     pointer operator->()
     {
-        return handle_.ptr();
+        return pointer_nd_.ptr();
     }
 
     const_pointer operator->() const
     {
-        return handle_.ptr();
+        return pointer_nd_.ptr();
     }
 
     value_type operator[](shape_type const & diff) const
     {
-        return handle_[diff];
+        return pointer_nd_[diff];
     }
 
     const_pointer ptr() const
     {
-        return handle_.ptr();
+        return pointer_nd_.ptr();
     }
 
-    handle_type handle_;
+    pointer_nd_type pointer_nd_;
 };
 
 template <int N>
-class HandleNDChain<Shape<N>, void>
+class PointerNDCoupled<Shape<N>, void>
 {
 public:
     static const unsigned int index      = 0; // index of this member of the chain
@@ -382,12 +379,12 @@ public:
     typedef value_type const &             const_reference;
     typedef value_type                     shape_type;
     typedef value_type                     difference_type;
-    typedef HandleNDChain                  self_type;
+    typedef PointerNDCoupled               self_type;
     typedef const_reference                result_type;
 
-    HandleNDChain() = default;
+    PointerNDCoupled() = default;
 
-    explicit HandleNDChain(shape_type const & shape)
+    explicit PointerNDCoupled(shape_type const & shape)
     : point_(tags::size = shape.size())
     , shape_(shape)
     {}
@@ -398,33 +395,22 @@ public:
         return 0;
     }
 
-    constexpr bool noMemoryOverlap(char *, char *) const
-    {
-        return true;
-    }
-
-    template <class SHAPE>
-    constexpr bool compatibleMemoryLayout(char *, SHAPE const &) const
-    {
-        return true;
-    }
-
     inline void inc()
     {
         vigra_invariant(false,
-            "ShapeHandle::inc(): not allowed because handle has no consecutive memory.");
+            "PointerNDShape::inc(): not allowed because PointerNDCoupled has no consecutive memory.");
     }
 
     inline void dec()
     {
         vigra_invariant(false,
-            "ShapeHandle::dec(): not allowed because handle has no consecutive memory.");
+            "PointerNDShape::dec(): not allowed because PointerNDCoupled has no consecutive memory.");
     }
 
     void move(ArrayIndex)
     {
         vigra_invariant(false,
-            "ShapeHandle::move(ArrayIndex): not allowed because handle has no consecutive memory.");
+            "PointerNDShape::move(ArrayIndex): not allowed because PointerNDCoupled has no consecutive memory.");
     }
 
     inline void inc(int dim)
@@ -515,82 +501,82 @@ public:
 };
 
 template <int N>
-using ShapeHandle = HandleNDChain<Shape<N>, void>;
+using PointerNDShape = PointerNDCoupled<Shape<N>, void>;
 
 namespace array_detail {
 
-template <class HANDLE, class ... REST>
-struct HandleTypeImpl;
+template <class COUPLED_POINTERS, class ... REST>
+struct PointerNDTypeImpl;
 
-template <class HANDLE, class T, class ... REST>
-struct HandleTypeImpl<HANDLE, T, REST...>
+template <class COUPLED_POINTERS, class T, class ... REST>
+struct PointerNDTypeImpl<COUPLED_POINTERS, T, REST...>
 {
-    typedef typename HandleTypeImpl<HandleNDChain<T, HANDLE>,
+    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
                                          REST...>::type    type;
 };
 
-template <class HANDLE, int N, class T, class ... REST>
-struct HandleTypeImpl<HANDLE, ArrayViewND<N, T>, REST...>
+template <class COUPLED_POINTERS, int N, class T, class ... REST>
+struct PointerNDTypeImpl<COUPLED_POINTERS, ArrayViewND<N, T>, REST...>
 {
-    static_assert(CompatibleDimensions<N, HANDLE::dimension>::value,
-        "HandleType<...>: dimension mismatch.");
-    typedef typename HandleTypeImpl<HandleNDChain<T, HANDLE>,
+    static_assert(CompatibleDimensions<N, COUPLED_POINTERS::dimension>::value,
+        "PointerNDCoupled<...>: dimension mismatch.");
+    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
                                          REST...>::type    type;
 };
 
-template <class HANDLE, int N, class T, class A, class ... REST>
-struct HandleTypeImpl<HANDLE, ArrayND<N, T, A>, REST...>
+template <class COUPLED_POINTERS, int N, class T, class A, class ... REST>
+struct PointerNDTypeImpl<COUPLED_POINTERS, ArrayND<N, T, A>, REST...>
 {
-    static_assert(CompatibleDimensions<N, HANDLE::dimension>::value,
-        "HandleType<...>: dimension mismatch.");
-    typedef typename HandleTypeImpl<HandleNDChain<T, HANDLE>,
+    static_assert(CompatibleDimensions<N, COUPLED_POINTERS::dimension>::value,
+        "PointerNDCoupled<...>: dimension mismatch.");
+    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
                                          REST...>::type    type;
 };
 
 template <class T, class U>
-struct HandleTypeImpl<HandleNDChain<T, U>>
+struct PointerNDTypeImpl<PointerNDCoupled<T, U>>
 {
-    typedef HandleNDChain<T, U> type;
+    typedef PointerNDCoupled<T, U> type;
 };
 
 } // namespace array_detail
 
 template <int N, class ... REST>
-using HandleType = typename array_detail::HandleTypeImpl<ShapeHandle<N>, REST...>::type;
+using PointerNDCoupledType = typename array_detail::PointerNDTypeImpl<PointerNDShape<N>, REST...>::type;
 
 namespace array_detail {
 
-template <int K, class HANDLE, bool MATCH = (K == HANDLE::index)>
-struct HandleChainCast
+template <int K, class COUPLED_POINTERS, bool MATCH = (K == COUPLED_POINTERS::index)>
+struct PointerNDCoupledCast
 {
-    static_assert( 0 <= K && K < HANDLE::index,
+    static_assert( 0 <= K && K < COUPLED_POINTERS::index,
         "get<INDEX>(): index out of range.");
 
-    typedef HandleChainCast<K, typename HANDLE::base_type> Next;
+    typedef PointerNDCoupledCast<K, typename COUPLED_POINTERS::base_type> Next;
     typedef typename Next::type type;
 
-    static type & cast(HANDLE & h)
+    static type & cast(COUPLED_POINTERS & h)
     {
         return Next::cast(h);
     }
 
-    static type const & cast(HANDLE const & h)
+    static type const & cast(COUPLED_POINTERS const & h)
     {
         return Next::cast(h);
     }
 };
 
-template <int K, class HANDLE>
-struct HandleChainCast<K, HANDLE, true>
+template <int K, class COUPLED_POINTERS>
+struct PointerNDCoupledCast<K, COUPLED_POINTERS, true>
 {
-    typedef HANDLE type;
+    typedef COUPLED_POINTERS type;
 
-    static type & cast(HANDLE & h)
+    static type & cast(COUPLED_POINTERS & h)
     {
         return h;
     }
 
-    static type const & cast(HANDLE const & h)
+    static type const & cast(COUPLED_POINTERS const & h)
     {
         return h;
     }
@@ -622,13 +608,13 @@ permutationToOrder(SHAPE const & shape, SHAPE const & stride,
     return res;
 }
 
-template <class HANDLE, class SHAPE, class FCT,
-          VIGRA_REQUIRE<HandleNDConcept<HANDLE>::value> >
+template <class POINTER_ND, class SHAPE, class FCT,
+          VIGRA_REQUIRE<PointerNDConcept<POINTER_ND>::value> >
 void
-genericArrayFunctionImpl(HANDLE & h, SHAPE const & shape, FCT f, int dim = 0)
+universalPointerNDFunction(POINTER_ND & h, SHAPE const & shape, FCT f, int dim = 0)
 {
     vigra_assert(dim < shape.size(),
-        "genericArrayFunctionImpl(): internal error: dim >= shape.size() should never happen.");
+        "universalPointerNDFunction(): internal error: dim >= shape.size() should never happen.");
 
     auto N = h.isConsecutive(shape, dim);
     if(N)
@@ -637,10 +623,10 @@ genericArrayFunctionImpl(HANDLE & h, SHAPE const & shape, FCT f, int dim = 0)
         // for(ArrayIndex k=0; k<N; ++k, ++p)
             // f(*p);
 
-            // Use h.inc() and *h to make the loop work for scalar handles
+            // Use h.inc() and *h to make the loop work for scalar pointer_nds
             // (who have zero stride) as well. To specialize for
             // low-level optimizations like AVX, we need to distinguish
-            // if handles refer to arrays or scalars.
+            // if pointer_nds refer to arrays or scalars.
         for(ArrayIndex k=0; k<N; ++k, h.inc())
             f(*h);
     }
@@ -655,7 +641,7 @@ genericArrayFunctionImpl(HANDLE & h, SHAPE const & shape, FCT f, int dim = 0)
         else
         {
             for(ArrayIndex k=0; k<N; ++k, h.inc(dim))
-                genericArrayFunctionImpl(h, shape, f, dim+1);
+                universalPointerNDFunction(h, shape, f, dim+1);
         }
         h.move(dim, -N);
     }
@@ -667,19 +653,19 @@ void
 genericArrayFunction(ARRAY & a, FCT f)
 {
     auto p = permutationToOrder(a.shape(), a.strides(), C_ORDER);
-    auto h = a.handle(p);
+    auto h = a.pointer_nd(p);
     auto s = transpose(a.shape(), p);
-    genericArrayFunctionImpl(h, s, f);
+    universalPointerNDFunction(h, s, f);
 }
 
-template <class HANDLE1, class HANDLE2, class SHAPE, class FCT,
-          VIGRA_REQUIRE<HandleNDConcept<HANDLE1>::value && HandleNDConcept<HANDLE2>::value> >
+template <class POINTER_ND1, class POINTER_ND2, class SHAPE, class FCT,
+          VIGRA_REQUIRE<PointerNDConcept<POINTER_ND1>::value && PointerNDConcept<POINTER_ND2>::value> >
 void
-genericArrayFunctionImpl(HANDLE1 & h1, HANDLE2 & h2, SHAPE const & shape,
+universalPointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & shape,
                          FCT f, int dim = 0)
 {
     vigra_assert(dim < shape.size(),
-        "genericArrayFunctionImpl(): internal error: dim >= shape.size() should never happen.");
+        "universalPointerNDFunction(): internal error: dim >= shape.size() should never happen.");
     auto N = h1.isConsecutive(shape, dim);
     if(N && N == h2.isConsecutive(shape, dim))
     {
@@ -688,10 +674,10 @@ genericArrayFunctionImpl(HANDLE1 & h1, HANDLE2 & h2, SHAPE const & shape,
         // for(ArrayIndex k=0; k<N; ++k, ++p1, ++p2)
             // f(*p1, *p2);
 
-            // Use h1.inc() and *h1 to make the loop work for scalar handles
+            // Use h1.inc() and *h1 to make the loop work for scalar pointer_nds
             // (who have zero stride) as well. To specialize for
             // low-level optimizations like AVX, we need to distinguish
-            // if handles refer to arrays or scalars.
+            // if pointer_nds refer to arrays or scalars.
         for(ArrayIndex k=0; k<N; ++k, h1.inc(), h2.inc())
             f(*h1, *h2);
     }
@@ -706,7 +692,7 @@ genericArrayFunctionImpl(HANDLE1 & h1, HANDLE2 & h2, SHAPE const & shape,
         else
         {
             for(ArrayIndex k=0; k<N; ++k, h1.inc(dim), h2.inc(dim))
-                genericArrayFunctionImpl(h1, h2, shape, f, dim+1);
+                universalPointerNDFunction(h1, h2, shape, f, dim+1);
         }
         h1.move(dim, -N);
         h2.move(dim, -N);
@@ -727,20 +713,20 @@ genericArrayFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f)
     bool compatible_layout = p1 <= p2 && a1.strides() == a2.strides();
 
     auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
-    auto h1 = a1.handle(p);
+    auto h1 = a1.pointer_nd(p);
     auto s  = transpose(a1.shape(), p);
 
     if(no_overlap || compatible_layout)
     {
-        auto h2 = a2.handle(p);
-        genericArrayFunctionImpl(h1, h2, s, f);
+        auto h2 = a2.pointer_nd(p);
+        universalPointerNDFunction(h1, h2, s, f);
     }
     else
     {
         using TmpArray = ArrayND<ARRAY2::dimension, typename ARRAY2::value_type>;
         TmpArray t2(a2);
-        auto h2 = t2.handle(p);
-        genericArrayFunctionImpl(h1, h2, s, f);
+        auto h2 = t2.pointer_nd(p);
+        universalPointerNDFunction(h1, h2, s, f);
     }
 }
 
@@ -750,11 +736,11 @@ enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
 genericArrayFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f)
 {
     auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
-    auto h1 = a1.handle(p);
-    auto h2 = a2.handle(p);
+    auto h1 = a1.pointer_nd(p);
+    auto h2 = a2.pointer_nd(p);
     auto s  = transpose(a1.shape(), p);
 
-    genericArrayFunctionImpl(h1, h2, s, f);
+    universalPointerNDFunction(h1, h2, s, f);
 }
 
 template <class ARRAY1, class ARRAY2, class FCT>
@@ -769,20 +755,20 @@ genericArrayFunction(ARRAY1 & a1, ARRAY2 const & h2, FCT f)
     bool compatible_layout = h2.compatibleMemoryLayout(p1, a1.strides());
 
     auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
-    auto h1 = a1.handle(p);
+    auto h1 = a1.pointer_nd(p);
     auto s  = transpose(a1.shape(), p);
 
     if(no_overlap || compatible_layout)
     {
         h2.transpose(p);
-        genericArrayFunctionImpl(h1, h2, s, f);
+        universalPointerNDFunction(h1, h2, s, f);
     }
     else
     {
         using TmpArray = ArrayND<ARRAY1::dimension, typename ARRAY2::value_type>;
         TmpArray t2(h2);
-        auto ht = t2.handle(p);
-        genericArrayFunctionImpl(h1, ht, s, f);
+        auto ht = t2.pointer_nd(p);
+        universalPointerNDFunction(h1, ht, s, f);
     }
 }
 
@@ -791,21 +777,21 @@ genericArrayFunction(ARRAY1 & a1, ARRAY2 const & h2, FCT f)
 
 template <int INDEX, class T, class NEXT>
 auto
-get(HandleNDChain<T, NEXT> const & h)
--> decltype(*array_detail::HandleChainCast<INDEX, HandleNDChain<T, NEXT>>::cast(h))
+get(PointerNDCoupled<T, NEXT> const & h)
+-> decltype(*array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h))
 {
-    return *array_detail::HandleChainCast<INDEX, HandleNDChain<T, NEXT>>::cast(h);
+    return *array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h);
 }
 
 template <int INDEX, class T, class NEXT>
 auto
-get(HandleNDChain<T, NEXT> & h)
--> decltype(*array_detail::HandleChainCast<INDEX, HandleNDChain<T, NEXT>>::cast(h))
+get(PointerNDCoupled<T, NEXT> & h)
+-> decltype(*array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h))
 {
-    return *array_detail::HandleChainCast<INDEX, HandleNDChain<T, NEXT>>::cast(h);
+    return *array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h);
 }
 
 
 } // namespace vigra
 
-#endif // VIGRA2_HANDLE_ND_HXX
+#endif // VIGRA2_POINTER_ND_HXX

@@ -83,7 +83,7 @@ struct TinyArrayTag {};
     // By default, 'ARRAY' fulfills the TinyArrayConcept if it is derived
     // from TinyArrayTag.
     //
-    // Alternatively, one can partially specialize HandleNDConcept.
+    // Alternatively, one can partially specialize TinyArrayConcept.
 template <class ARRAY>
 struct TinyArrayConcept
 {
@@ -96,17 +96,17 @@ struct TinyArrayConcept
 /*                                                        */
 /**********************************************************/
 
-struct HandleNDTag {};
+struct PointerNDTag {};
 
-    // HandleNDConcept refers to the low-level multi-dimensional array API.
-    // By default, 'ARRAY' fulfills the HandleNDConcept if it is derived
-    // from HandleNDTag.
+    // PointerNDConcept refers to the low-level multi-dimensional array API.
+    // By default, 'ARRAY' fulfills the PointerNDConcept if it is derived
+    // from PointerNDTag.
     //
-    // Alternatively, one can partially specialize HandleNDConcept.
+    // Alternatively, one can partially specialize PointerNDConcept.
 template <class ARRAY>
-struct HandleNDConcept
+struct PointerNDConcept
 {
-    static const bool value = std::is_base_of<HandleNDTag, ARRAY>::value;
+    static const bool value = std::is_base_of<PointerNDTag, ARRAY>::value;
 };
 
 struct ArrayNDTag {};
@@ -123,7 +123,7 @@ struct ArrayNDConcept
 };
 
 struct ArrayMathTag
-: public HandleNDTag
+: public PointerNDTag
 {};
 
 template <class ARRAY>
