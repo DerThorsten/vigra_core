@@ -163,7 +163,7 @@ template <class ARRAY, class FCT,
 void
 universalArrayNDFunction(ARRAY & a, FCT f)
 {
-    auto p = permutationToOrder(a.shape(), a.strides(), C_ORDER);
+    auto p = permutationToOrder(a.shape(), a.byte_strides(), C_ORDER);
     auto h = a.pointer_nd(p);
     auto s = transpose(a.shape(), p);
     universalPointerNDFunction(h, s, f);
@@ -180,9 +180,9 @@ universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f)
     char * q2 = (char *)(&a2[last]+1);
 
     bool no_overlap        = q1 <= p2 || q2 <= p1;
-    bool compatible_layout = p1 <= p2 && a1.strides() == a2.strides();
+    bool compatible_layout = p1 <= p2 && a1.byte_strides() == a2.byte_strides();
 
-    auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
+    auto p  = permutationToOrder(a1.shape(), a1.byte_strides(), C_ORDER);
     auto h1 = a1.pointer_nd(p);
     auto s  = transpose(a1.shape(), p);
 
@@ -205,7 +205,7 @@ template <class ARRAY1, class ARRAY2, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
 universalArrayNDFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f)
 {
-    auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
+    auto p  = permutationToOrder(a1.shape(), a1.byte_strides(), C_ORDER);
     auto h1 = a1.pointer_nd(p);
     auto h2 = a2.pointer_nd(p);
     auto s  = transpose(a1.shape(), p);
@@ -1822,7 +1822,7 @@ class ArrayND
             The number of parameters must match <tt>ndim()</tt>.
          */
     template <class ... V>
-    ArrayND(difference_type_1 l0, V ... l)
+    ArrayND(ArrayIndex l0, V ... l)
     : ArrayND(Shape<sizeof...(V)+1>{l0, l...})
     {
         static_assert(N == runtime_size || N == sizeof...(V)+1,
@@ -1939,7 +1939,7 @@ class ArrayND
         allocated_data_.reserve(this->size());
 
         auto p = array_detail::permutationToOrder(this->shape(),
-                                                  this->strides(), C_ORDER);
+                                                  this->byte_strides(), C_ORDER);
         auto rhs_t = rhs.transpose(p);
         array_detail::universalArrayNDFunction(rhs_t,
             [&data=allocated_data_](U const & u)
@@ -1965,7 +1965,7 @@ class ArrayND
 
         if(order != C_ORDER)
         {
-            auto p = array_detail::permutationToOrder(this->shape(), this->strides(), C_ORDER);
+            auto p = array_detail::permutationToOrder(this->shape(), this->byte_strides(), C_ORDER);
             rhs.transpose_inplace(p);
         }
 

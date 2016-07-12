@@ -59,9 +59,9 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f)
     char * q1 = (char *)(&a1[last]+1);
 
     bool no_overlap        = h2.noMemoryOverlap(p1, q1);
-    bool compatible_layout = h2.compatibleMemoryLayout(p1, a1.strides());
+    bool compatible_layout = h2.compatibleMemoryLayout(p1, a1.byte_strides());
 
-    auto p  = permutationToOrder(a1.shape(), a1.strides(), C_ORDER);
+    auto p  = permutationToOrder(a1.shape(), a1.byte_strides(), C_ORDER);
     auto h1 = a1.pointer_nd(p);
     auto s  = transpose(a1.shape(), p);
 
@@ -291,7 +291,7 @@ struct ArrayMathArrayOperator
     ArrayMathArrayOperator(ARG const & a)
     : base_type(a.pointer_nd())
     , shape_(a.shape())
-    , permutation_(array_detail::permutationToOrder(a.shape(), a.strides(), C_ORDER))
+    , permutation_(array_detail::permutationToOrder(a.shape(), a.byte_strides(), C_ORDER))
     {
         // set singleton strides to zero
         for(int k=0; k<shape_.size(); ++k)
@@ -526,13 +526,12 @@ struct ArrayMathBinaryOperator
 
     arg1_type arg1_;
     arg2_type arg2_;
-    difference_type shape_, permutation_;
+    difference_type shape_;
 
     ArrayMathBinaryOperator(ARG1 const & a1, ARG2 const & a2)
     : arg1_(a1)
     , arg2_(a2)
     , shape_(ShapeHelper::exec(arg1_.shape(), arg2_.shape()))
-    , permutation_(DontInit)
     {}
 
     bool hasData() const
