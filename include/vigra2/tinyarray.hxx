@@ -59,8 +59,6 @@
     #define VIGRA_ASSERT_INSIDE(array, diff)
 #endif
 
-// FIXME: implement NumericTraits<TinyArray>
-
 namespace vigra {
 
 namespace lemon {
