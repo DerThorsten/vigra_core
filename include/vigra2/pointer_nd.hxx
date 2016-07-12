@@ -61,11 +61,20 @@ class ArrayViewND;
 template <int N, class T, class Alloc = std::allocator<T> >
 class ArrayND;
 
-    // The PointerND class combines a pointer to an array element with a stride
-    // object, so that the appropriate N-D pointer arithmetic can be implemented.
+/********************************************************/
+/*                                                      */
+/*                       PointerND                      */
+/*                                                      */
+/********************************************************/
+
+    // The PointerND class provides a simple low-level API to deal with
+    // multi-dimensional arrays. It combines a pointer to an array element
+    // with a stride object and supports the corresponding N-dimensional
+    // pointer arithmetic.
     //
-    // The specialization PointerND<0, T> further down below is used for constants
-    // and implements all pointer arithmetic as no-ops.
+    // The specialization PointerND<0, T> further down below is used for
+    // 0-dimensional arrays (i.e. constants) and implements all pointer
+    // arithmetic as no-ops.
 template <int N, class T>
 class PointerND
 : public PointerNDTag
@@ -165,6 +174,12 @@ class PointerND
     }
 };
 
+/********************************************************/
+/*                                                      */
+/*                    PointerND<0, T>                   */
+/*                                                      */
+/********************************************************/
+
 template <class T>
 class PointerND<0, T>
 : public PointerNDTag
@@ -225,8 +240,17 @@ class PointerND<0, T>
 };
 
 
-  /**
-     Coupled PointerND objects are used by IteratorND to itearate over multiple arrays simultaneously.
+/********************************************************/
+/*                                                      */
+/*                    PointerNDCoupled                  */
+/*                                                      */
+/********************************************************/
+
+  /*
+     PointerNDCoupled combines several PointerND objects and a shape object into
+     a linked list. The list supports the basic PointerND API and applies pointer arithmetic
+     to all members of the list (i.e. all coupled arrays) synchronously. This functionality
+     is, for example, used by IteratorND to itearate over multiple coupled arrays simultaneously.
   */
 template <class T, class NEXT = void>
 class PointerNDCoupled
@@ -317,8 +341,18 @@ class PointerNDCoupled
     pointer_nd_type pointer_nd_;
 };
 
+/********************************************************/
+/*                                                      */
+/*               PinterNDCoupled<Shape<N>>              */
+/*                                                      */
+/********************************************************/
+
+    // PointerNDCoupled<Shape<N>> is the terminal member in a list of coupled
+    // PointerND objects. It holds the shape object shared by those coupled
+    // arrays along with the current coordinate of an iteration across this shape.
+    // To manipulate this coordinate, is provides the basic PointerND API.
 template <int N>
-class PointerNDCoupled<Shape<N>, void>
+class PointerNDCoupled<Shape<N>>
 {
 public:
     static const unsigned int index      = 0; // index of this member of the chain
@@ -429,10 +463,196 @@ public:
 };
 
 template <int N>
-using PointerNDShape = PointerNDCoupled<Shape<N>, void>;
+using PointerNDShape = PointerNDCoupled<Shape<N>>;
 
 namespace array_detail {
 
+using vigra::detail::permutationToOrder;
+
+/********************************************************/
+/*                                                      */
+/*                    isCConsecutive                    */
+/*                                                      */
+/********************************************************/
+
+   // Check if the given PointerND refers to C-order consecutive memory for the given shape
+   // from 'dim' up to the last dimension (dimensions befor 'dim' don't matter).
+   // Returns the number of consecutive elements if the test is successful, or zero otherwise.
+template <int N, class T, class SHAPE>
+inline ArrayIndex
+isCConsecutive(PointerND<N, T> const & p, SHAPE const & shape, int dim)
+{
+    ArrayIndex size = 1;
+    for(int k=shape.size()-1; k >= dim; --k)
+    {
+        if(size != p.strides()[k])
+            return 0;
+        size *= shape[k];
+    }
+    return size;
+}
+
+/********************************************************/
+/*                                                      */
+/*            consecutivePointerNDFunction()            */
+/*                                                      */
+/********************************************************/
+
+    // consecutivePointerNDFunction() invokes an optimized algorithm for PointerND with
+    // consecutive memory. It returns 'false' if the optimization was impossible (the default),
+    // so that the caller can fall-back to a different implementation.
+    //
+    // This optimization is probably overkill for now, but serves as a proof-of-concept for
+    // future optimizations, e.g. via AVX.
+template <class P, class SHAPE, class FCT>
+constexpr bool consecutivePointerNDFunction(P &, SHAPE const &, FCT, int)
+{
+    return false;
+}
+
+template <class P1, class P2, class SHAPE, class FCT>
+constexpr bool consecutivePointerNDFunction(P1 &, P2 &, SHAPE const &, FCT, int)
+{
+    return false;
+}
+
+template <int N, class T, class SHAPE, class FCT>
+inline bool
+consecutivePointerNDFunction(PointerND<N, T> & pn, SHAPE const & shape, FCT f, int dim)
+{
+    static_assert(N != 0,
+        "consecutivePointerNDFunction(): internal error: N==0 should never happen.");
+
+    auto count = isCConsecutive(pn, shape, dim);
+    if(count == 0)
+        return false;
+
+    auto p = pn.ptr();
+    for(ArrayIndex k=0; k<count; ++k, ++p)
+        f(*p);
+    return true;
+}
+
+template <int M, class T, int N, class U, class SHAPE, class FCT>
+inline bool
+consecutivePointerNDFunction(PointerND<M, T> & pn1, PointerND<N, U> & pn2,
+                             SHAPE const & shape, FCT f, int dim)
+{
+    auto count = isCConsecutive(pn1, shape, dim);
+    if(count == 0 || isCConsecutive(pn2, shape, dim) != count)
+        return false;
+
+    auto p1 = pn1.ptr();
+    auto p2 = pn2.ptr();
+    for(ArrayIndex k=0; k<count; ++k, ++p1, ++p2)
+        f(*p1, *p2);
+    return true;
+}
+
+template <class T, int N, class U, class SHAPE, class FCT>
+inline bool
+consecutivePointerNDFunction(PointerND<0, T> & pn1, PointerND<N, U> & pn2,
+                             SHAPE const & shape, FCT f, int dim)
+{
+    auto count = isCConsecutive(pn2, shape, dim);
+    if(count == 0)
+        return false;
+
+    auto p1 = pn1.ptr();
+    auto p2 = pn2.ptr();
+    for(ArrayIndex k=0; k<count; ++k, ++p2)
+        f(*p1, *p2);
+    return true;
+}
+
+template <int N, class T, class U, class SHAPE, class FCT>
+inline bool
+consecutivePointerNDFunction(PointerND<N, T> & pn1, PointerND<0, U> & pn2,
+                             SHAPE const & shape, FCT f, int dim)
+{
+    auto count = isCConsecutive(pn1, shape, dim);
+    if(count == 0)
+        return false;
+
+    auto p1 = pn1.ptr();
+    auto p2 = pn2.ptr();
+    for(ArrayIndex k=0; k<count; ++k, ++p1)
+        f(*p1, *p2);
+    return true;
+}
+
+/********************************************************/
+/*                                                      */
+/*             universalPointerNDFunction()             */
+/*                                                      */
+/********************************************************/
+
+    // Iterate over a single PointerND in C-order, i.e. with the first dimension
+    // in the outer loop and the last dimension in the inner loop. Execute function
+    // `f` for the current element in every iteration. The `dim` parameter denotes the
+    // dimension of the current loop level, so that the function can be executed
+    // recursively.
+template <class POINTER_ND, class SHAPE, class FCT,
+          VIGRA_REQUIRE<PointerNDConcept<POINTER_ND>::value> >
+void
+universalPointerNDFunction(POINTER_ND & h, SHAPE const & shape, FCT f, int dim = 0)
+{
+    vigra_assert(dim < shape.size(),
+        "universalPointerNDFunction(): internal error: dim >= shape.size() should never happen.");
+
+    if(consecutivePointerNDFunction(h, shape, f, dim))
+        return;
+
+    auto N = shape[dim];
+    if(dim == shape.size() - 1)
+    {
+        for(ArrayIndex k=0; k<N; ++k, h.inc(dim))
+            f(*h);
+    }
+    else
+    {
+        for(ArrayIndex k=0; k<N; ++k, h.inc(dim))
+            universalPointerNDFunction(h, shape, f, dim+1);
+    }
+    h.move(dim, -N);
+}
+
+    // Iterate over two PointerND instances in C-order (first dimension in outer loop,
+    // last dimension in inner loop) and call binary function `f` in every iteration.
+template <class POINTER_ND1, class POINTER_ND2, class SHAPE, class FCT,
+          VIGRA_REQUIRE<PointerNDConcept<POINTER_ND1>::value && PointerNDConcept<POINTER_ND2>::value> >
+void
+universalPointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & shape,
+                         FCT f, int dim = 0)
+{
+    vigra_assert(dim < shape.size(),
+        "universalPointerNDFunction(): internal error: dim >= shape.size() should never happen.");
+
+    if(consecutivePointerNDFunction(h1, h2, shape, f, dim))
+        return;
+
+    auto N = shape[dim];
+    if(dim == shape.size() - 1)
+    {
+        for(ArrayIndex k=0; k<N; ++k, h1.inc(dim), h2.inc(dim))
+            f(*h1, *h2);
+    }
+    else
+    {
+        for(ArrayIndex k=0; k<N; ++k, h1.inc(dim), h2.inc(dim))
+            universalPointerNDFunction(h1, h2, shape, f, dim+1);
+    }
+    h1.move(dim, -N);
+    h2.move(dim, -N);
+}
+
+/********************************************************/
+/*                                                      */
+/*                   PointerNDTypeImpl                  */
+/*                                                      */
+/********************************************************/
+
+    // helper classes to construct PointerNDCoupled lists
 template <class COUPLED_POINTERS, class ... REST>
 struct PointerNDTypeImpl;
 
@@ -467,13 +687,13 @@ struct PointerNDTypeImpl<PointerNDCoupled<T, U>>
     typedef PointerNDCoupled<T, U> type;
 };
 
-} // namespace array_detail
+/********************************************************/
+/*                                                      */
+/*                  PointerNDCoupledCast                */
+/*                                                      */
+/********************************************************/
 
-template <int N, class ... REST>
-using PointerNDCoupledType = typename array_detail::PointerNDTypeImpl<PointerNDShape<N>, REST...>::type;
-
-namespace array_detail {
-
+    // helper classes to extract the elements of a PointerNDCoupled list.
 template <int K, class COUPLED_POINTERS, bool MATCH = (K == COUPLED_POINTERS::index)>
 struct PointerNDCoupledCast
 {
@@ -510,175 +730,18 @@ struct PointerNDCoupledCast<K, COUPLED_POINTERS, true>
     }
 };
 
-template <class SHAPE>
-inline SHAPE
-permutationToOrder(SHAPE const & shape, SHAPE const & stride,
-                   MemoryOrder order)
-{
-    using V = typename SHAPE::value_type;
-    SHAPE res = SHAPE::range(shape.size());
-    if(order == C_ORDER)
-        std::sort(res.begin(), res.end(),
-                 [shape, stride](V l, V r)
-                 {
-                    if(shape[l] == 1 || shape[r] == 1)
-                        return shape[l] < shape[r];
-                    return stride[r] < stride[l];
-                 });
-    else
-        std::sort(res.begin(), res.end(),
-                 [shape, stride](V l, V r)
-                 {
-                    if(shape[l] == 1 || shape[r] == 1)
-                        return shape[r] < shape[l];
-                    return stride[l] < stride[r];
-                 });
-    return res;
-}
-
-   // length of C-order consecutive array starting from 'axis'
-template <int N, class T, class SHAPE>
-inline ArrayIndex
-isCConsecutive(PointerND<N, T> const & p, SHAPE const & shape, int dim)
-{
-    ArrayIndex size = 1;
-    for(int k=shape.size()-1; k >= dim; --k)
-    {
-        if(size != p.strides()[k])
-            return 0;
-        size *= shape[k];
-    }
-    return size;
-}
-
-template <class P, class SHAPE, class FCT>
-constexpr bool consecutivePointerNDFunction(P &, SHAPE const &, FCT, int)
-{
-    return false;
-}
-
-template <class P1, class P2, class SHAPE, class FCT>
-constexpr bool consecutivePointerNDFunction(P1 &, P2 &, SHAPE const &, FCT, int)
-{
-    return false;
-}
-
-template <int N, class T, class SHAPE, class FCT>
-bool consecutivePointerNDFunction(PointerND<N, T> & pn, SHAPE const & shape, FCT f, int dim)
-{
-    static_assert(N != 0,
-        "consecutivePointerNDFunction(): internal error -- N==0 should never happen.");
-
-    auto count = isCConsecutive(pn, shape, dim);
-    if(count == 0)
-        return false;
-
-    auto p = pn.ptr();
-    for(ArrayIndex k=0; k<count; ++k, ++p)
-        f(*p);
-    return true;
-}
-
-template <int M, class T, int N, class U, class SHAPE, class FCT>
-bool consecutivePointerNDFunction(PointerND<M, T> & pn1, PointerND<N, U> & pn2,
-                                  SHAPE const & shape, FCT f, int dim)
-{
-    auto count = isCConsecutive(pn1, shape, dim);
-    if(count == 0 || isCConsecutive(pn2, shape, dim) != count)
-        return false;
-
-    auto p1 = pn1.ptr();
-    auto p2 = pn2.ptr();
-    for(ArrayIndex k=0; k<count; ++k, ++p1, ++p2)
-        f(*p1, *p2);
-    return true;
-}
-
-template <class T, int N, class U, class SHAPE, class FCT>
-bool consecutivePointerNDFunction(PointerND<0, T> & pn1, PointerND<N, U> & pn2,
-                                  SHAPE const & shape, FCT f, int dim)
-{
-    auto count = isCConsecutive(pn2, shape, dim);
-    if(count == 0)
-        return false;
-
-    auto p1 = pn1.ptr();
-    auto p2 = pn2.ptr();
-    for(ArrayIndex k=0; k<count; ++k, ++p2)
-        f(*p1, *p2);
-    return true;
-}
-
-template <int N, class T, class U, class SHAPE, class FCT>
-bool consecutivePointerNDFunction(PointerND<N, T> & pn1, PointerND<0, U> & pn2,
-                                  SHAPE const & shape, FCT f, int dim)
-{
-    auto count = isCConsecutive(pn1, shape, dim);
-    if(count == 0)
-        return false;
-
-    auto p1 = pn1.ptr();
-    auto p2 = pn2.ptr();
-    for(ArrayIndex k=0; k<count; ++k, ++p1)
-        f(*p1, *p2);
-    return true;
-}
-
-template <class POINTER_ND, class SHAPE, class FCT,
-          VIGRA_REQUIRE<PointerNDConcept<POINTER_ND>::value> >
-void
-universalPointerNDFunction(POINTER_ND & h, SHAPE const & shape, FCT f, int dim = 0)
-{
-    vigra_assert(dim < shape.size(),
-        "universalPointerNDFunction(): internal error: dim >= shape.size() should never happen.");
-
-    if(consecutivePointerNDFunction(h, shape, f, dim))
-        return;
-
-    auto N = shape[dim];
-    if(dim == shape.size() - 1)
-    {
-        for(ArrayIndex k=0; k<N; ++k, h.inc(dim))
-            f(*h);
-    }
-    else
-    {
-        for(ArrayIndex k=0; k<N; ++k, h.inc(dim))
-            universalPointerNDFunction(h, shape, f, dim+1);
-    }
-    h.move(dim, -N);
-}
-
-template <class POINTER_ND1, class POINTER_ND2, class SHAPE, class FCT,
-          VIGRA_REQUIRE<PointerNDConcept<POINTER_ND1>::value && PointerNDConcept<POINTER_ND2>::value> >
-void
-universalPointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & shape,
-                         FCT f, int dim = 0)
-{
-    vigra_assert(dim < shape.size(),
-        "universalPointerNDFunction(): internal error: dim >= shape.size() should never happen.");
-
-    if(consecutivePointerNDFunction(h1, h2, shape, f, dim))
-        return;
-
-    auto N = shape[dim];
-    if(dim == shape.size() - 1)
-    {
-        for(ArrayIndex k=0; k<N; ++k, h1.inc(dim), h2.inc(dim))
-            f(*h1, *h2);
-    }
-    else
-    {
-        for(ArrayIndex k=0; k<N; ++k, h1.inc(dim), h2.inc(dim))
-            universalPointerNDFunction(h1, h2, shape, f, dim+1);
-    }
-    h1.move(dim, -N);
-    h2.move(dim, -N);
-}
-
 } // namespace array_detail
 
+template <int N, class ... REST>
+using PointerNDCoupledType = typename array_detail::PointerNDTypeImpl<PointerNDShape<N>, REST...>::type;
 
+/********************************************************/
+/*                                                      */
+/*            get<INDEX>(PointerNDCoupled)              */
+/*                                                      */
+/********************************************************/
+
+    // extract the current element at `INDEX` during a coupled array iteration
 template <int INDEX, class T, class NEXT>
 auto
 get(PointerNDCoupled<T, NEXT> const & h)
