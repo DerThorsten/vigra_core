@@ -1919,7 +1919,7 @@ class ArrayND
         if(order != C_ORDER)
         {
             auto p = array_detail::permutationToOrder(this->shape(), this->strides(), C_ORDER);
-            rhs.transpose(p);
+            rhs.transpose_inplace(p);
         }
 
         using U = typename Expression::result_type;

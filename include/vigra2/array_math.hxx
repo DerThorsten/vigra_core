@@ -67,7 +67,7 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f)
 
     if(no_overlap || compatible_layout)
     {
-        h2.transpose(p);
+        h2.transpose_inplace(p);
         universalPointerNDFunction(h1, h2, s, f);
     }
     else
@@ -138,34 +138,24 @@ universalArrayMathFunction(ARRAY_MATH const & a, FCT f)
 */
 namespace array_math {
 
-template <int M, int N=M>
-struct ArrayMathUnifyNdim
-{
-    // If both M and N define a static positive ndim, they must
-    // be equal and determine the result of this metafunction.
-    // If only one defines a static positive ndim, it becomes
-    // the result of this metafunction.
-    // If both are '0' or 'runtime_ndim', the result is
-    // the minimum of the two.
+/********************************************************/
+/*                                                      */
+/*                  ArrayMathUnifyShape                 */
+/*                                                      */
+/********************************************************/
 
-    typedef integral_minmax<N, M>  minmax;
-
-    static_assert(minmax::min <= 0 || N == M,
-        "array_math: incompatible array dimensions.");
-
-    static const int value = minmax::max > 0
-                                ? minmax::max
-                                : minmax::min;
-};
-
+    // Compute the common shape for two arrays (taking care of runtime_ndim and
+    // singleton dimensions).
 template <int N, int M>
 struct ArrayMathUnifyShape
 {
-    // typedef integral_minmax<N, M>      minmax;
-    // static const int dimension       = minmax::max > 0
-                                          // ? minmax::max
-                                          // : minmax::min;
-    static const int dimension = ArrayMathUnifyNdim<M, N>::value;
+    typedef integral_minmax<N, M>      minmax;
+    static_assert(minmax::min <= 0 || N == M,
+        "array_math: incompatible array dimensions.");
+
+    static const int dimension       = minmax::max > 0
+                                          ? minmax::max
+                                          : minmax::min;
     static const int shape_dimension = dimension == 0
                                           ? runtime_size
                                           : dimension;
@@ -222,13 +212,21 @@ struct ArrayMathUnifyShape
     }
 };
 
-    // wrap a scalar PointerND<0, T> for use in array expressions
+/********************************************************/
+/*                                                      */
+/*                ArrayMathValueOperator                */
+/*                                                      */
+/********************************************************/
+
+    // Class to wrap constants in array expressions. It inherits
+    // PointerND<0, T> so that we can later call universalPointerNDFunction()
+    // to do the actual computations.
 template <class T>
 struct ArrayMathValueOperator
 : public PointerND<0, T>
 , public ArrayMathTag
 {
-    typedef PointerND<0, T>                       base_type;
+    typedef PointerND<0, T>                      base_type;
     typedef typename base_type::difference_type  difference_type;
 
     difference_type shape_;
@@ -249,10 +247,10 @@ struct ArrayMathValueOperator
     }
 
     template <class SHAPE>
-    void transpose(SHAPE const & permutation) const
+    void transpose_inplace(SHAPE const & permutation) const
     {
         if(this->ndim() > 0)
-            const_cast<difference_type&>(shape_) = shape_.transpose(permutation);
+            const_cast<difference_type&>(shape_) = transpose(shape_, permutation);
     }
 
     void setShape(difference_type shape)
@@ -271,13 +269,21 @@ struct ArrayMathValueOperator
     // }
 };
 
-    // wrap a an array for use in array expressions
+/********************************************************/
+/*                                                      */
+/*                ArrayMathArrayOperator                */
+/*                                                      */
+/********************************************************/
+
+    // Class to wrap arrays in array expressions. It inherits the appropriate
+    // PointerND<N, T> so that we can later call universalPointerNDFunction()
+    // to do the actual computations.
 template <class ARG>
 struct ArrayMathArrayOperator
 : public decltype(((ARG*)0)->pointer_nd())
 , public ArrayMathTag
 {
-    typedef decltype(((ARG*)0)->pointer_nd())        base_type;
+    typedef decltype(((ARG*)0)->pointer_nd())    base_type;
     typedef typename base_type::difference_type  difference_type;
 
     difference_type shape_, permutation_;
@@ -310,11 +316,11 @@ struct ArrayMathArrayOperator
     }
 
     template <class SHAPE>
-    void transpose(SHAPE const & permutation) const
+    void transpose_inplace(SHAPE const & permutation) const
     {
         const_cast<difference_type&>(this->strides_)
-                                             = this->strides_.transpose(permutation);
-        const_cast<difference_type&>(shape_) = shape_.transpose(permutation);
+                                             = transpose(this->strides_, permutation);
+        const_cast<difference_type&>(shape_) = transpose(shape_, permutation);
     }
 
     difference_type const & shape() const
@@ -328,6 +334,15 @@ struct ArrayMathArrayOperator
     // }
 };
 
+/********************************************************/
+/*                                                      */
+/*                ArrayMathUnaryOperator                */
+/*                                                      */
+/********************************************************/
+
+    // Base class for unary operators/functions in array expressions.
+    // It implements the PointerND API so that we can later call
+    // universalPointerNDFunction() to do the actual computations.
 template <class ARG>
 struct ArrayMathUnaryOperator
 : public ArrayMathTag
@@ -361,9 +376,9 @@ struct ArrayMathUnaryOperator
     }
 
     template <class SHAPE>
-    void transpose(SHAPE const & permutation) const
+    void transpose_inplace(SHAPE const & permutation) const
     {
-        arg_.transpose(permutation);
+        arg_.transpose_inplace(permutation);
     }
 
     // increment the pointer of all RHS arrays along the given 'axis'
@@ -390,6 +405,12 @@ struct ArrayMathUnaryOperator
 
     arg_type arg_;
 };
+
+/********************************************************/
+/*                                                      */
+/*           unary array functions/operators            */
+/*                                                      */
+/********************************************************/
 
 #define VIGRA_ARRAY_MATH_UNARY(NAME, CALL, FUNCTION) \
 template <class ARG> \
@@ -467,6 +488,13 @@ VIGRA_ARRAY_MATH_UNARY(Arg, arg, arg)
 
 #undef VIGRA_ARRAY_MATH_UNARY
 
+/********************************************************/
+/*                                                      */
+/*                   ArrayMathArgType                   */
+/*                                                      */
+/********************************************************/
+
+    // Choose the appropriate array math class according to the ARG type.
 template <class ARG>
 using ArrayMathArgType =
     typename std::conditional<ArrayNDConcept<ARG>::value,
@@ -475,6 +503,15 @@ using ArrayMathArgType =
                          ARG,
                          ArrayMathValueOperator<ARG>>::type>::type;
 
+/********************************************************/
+/*                                                      */
+/*                ArrayMathBinaryOperator               */
+/*                                                      */
+/********************************************************/
+
+    // Base class for binary operators/functions in array expressions.
+    // It implements the PointerND API so that we can later call
+    // universalPointerNDFunction() to do the actual computations.
 template <class ARG1, class ARG2>
 struct ArrayMathBinaryOperator
 : public ArrayMathTag
@@ -515,11 +552,11 @@ struct ArrayMathBinaryOperator
     }
 
     template <class SHAPE>
-    void transpose(SHAPE const & permutation) const
+    void transpose_inplace(SHAPE const & permutation) const
     {
-        arg1_.transpose(permutation);
-        arg2_.transpose(permutation);
-        const_cast<difference_type&>(shape_) = vigra::transpose(shape_, permutation);
+        arg1_.transpose_inplace(permutation);
+        arg2_.transpose_inplace(permutation);
+        const_cast<difference_type&>(shape_) = transpose(shape_, permutation);
     }
 
     // increment the pointer of all RHS arrays along the given 'axis'
@@ -547,6 +584,13 @@ struct ArrayMathBinaryOperator
     // }
 };
 
+/********************************************************/
+/*                                                      */
+/*                 ArrayMathBinaryTraits                */
+/*                                                      */
+/********************************************************/
+
+    // determine the result_type of a binary array expression
 template <class ARG1, class ARG2,
           bool IS_ARRAY1 = ArrayNDConcept<ARG1>::value ||
                            ArrayMathConcept<ARG1>::value,
@@ -578,6 +622,12 @@ struct ArrayMathBinaryTraits<ARG1, ARG2, false, false>
 {
     static const bool value = false;
 };
+
+/********************************************************/
+/*                                                      */
+/*           binary array functions/operators           */
+/*                                                      */
+/********************************************************/
 
 #define VIGRA_ARRAYMATH_BINARY_OPERATOR(NAME, CALL, FUNCTION, SEP) \
 \
@@ -700,13 +750,21 @@ VIGRA_ARRAYMATH_MINMAX_FUNCTION(Max, max)
 
 #undef VIGRA_ARRAYMATH_MINMAX_FUNCTION
 
+/********************************************************/
+/*                                                      */
+/*                     ArrayMathMGrid                   */
+/*                                                      */
+/********************************************************/
+
+    // Class to wrap a shape object in an array expression. It serves
+    // the role of a Matlab meshgrid / Python mgrid.
 template <int N>
 class ArrayMathMGrid
 : public ArrayMathTag
 , public PointerNDShape<N>
 {
 public:
-    typedef PointerNDShape<N>                 base_type;
+    typedef PointerNDShape<N>              base_type;
     typedef Shape<N>                       shape_type;
 
     explicit ArrayMathMGrid(shape_type const & shape)
@@ -735,10 +793,10 @@ public:
     }
 
     template <class SHAPE>
-    void transpose(SHAPE const & permutation) const
+    void transpose_inplace(SHAPE const & permutation) const
     {
-        const_cast<ArrayMathMGrid*>(this)->shape_.transpose(permutation);
-        const_cast<ArrayMathMGrid*>(this)->point_.transpose(permutation);
+        const_cast<shape_type&>(this->shape_) = transpose(this->shape_, permutation);
+        const_cast<shape_type&>(this->point_) = transpose(this->point_, permutation);
     }
 };
 
@@ -753,6 +811,15 @@ mgrid(Shape<N> const & shape)
 
 using array_math::min;
 using array_math::max;
+
+/********************************************************/
+/*                                                      */
+/*                 reducing operations                  */
+/*                                                      */
+/********************************************************/
+
+    // Functions to reduce an array or array expression to a single
+    // number: all, any, sum, prod, ==, !=
 
 template <class ARG,
           VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >

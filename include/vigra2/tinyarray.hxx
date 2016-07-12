@@ -2634,24 +2634,6 @@ reversed(TinyArrayBase<V, D, N...> const & t)
 
         Elements are arranged such that <tt>res[k] = t[permutation[k]]</tt>.
     */
-// template <class V1, class D1, class V2, class D2, int N>
-// inline
-// TinyArray<V1, N>
-// transpose(TinyArrayBase<V1, D1, N> const & v,
-          // TinyArrayBase<V2, D2, N> const & permutation)
-// {
-    // VIGRA_ASSERT_RUNTIME_SIZE(N, v.size() == permutation.size(),
-        // "transpose(): size mismatch.");
-    // TinyArray<V1, N> res(v.size(), DontInit);
-    // for(int k=0; k < v.size(); ++k)
-    // {
-        // vigra_assert(permutation[k] >= 0 && permutation[k] < v.size(),
-            // "transpose():  Permutation index out of bounds");
-        // res[k] = v[permutation[k]];
-    // }
-    // return res;
-// }
-
 template <class V1, class D1, class V2, class D2, int N, int M>
 inline
 TinyArray<V1, N>
