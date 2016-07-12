@@ -224,9 +224,9 @@ universalArrayNDFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f)
     // Note: Strides are internally stored in units of bytes, whereas the
     // external API always measures strides in units of `sizeof(T)`, unless
     // byte-strides are explicitly enforced by calling the `byte_strides()`
-    // member function or using the `tags::byte_strides()` factory function.
-    // Byte-strides allow for a more flexible mapping between numpy and vigra
-    // arrays.
+    // member function or by passing strides via the `tags::byte_strides`
+    // keyword argument. Byte-strides allow for a more flexible mapping between
+    // numpy and vigra arrays.
 template <int N, class T>
 class ArrayViewND
 : public ArrayNDTag
@@ -779,7 +779,7 @@ public:
         else
         {
             return Result(shape_.erase(axis),
-                          tags::byte_strides(strides_.erase(axis)),
+                          tags::byte_strides = strides_.erase(axis),
                           axistags_.erase(axis),
                           &operator[](point));
         }
@@ -928,7 +928,7 @@ public:
 
         int s = array_detail::VectorElementSize<T>::size(data());
         return Result(shape_.insert(d, s),
-                      tags::byte_strides(strides_.insert(d, sizeof(Value))),
+                      tags::byte_strides = strides_.insert(d, sizeof(Value)),
                       axistags_.insert(d, tags::axis_c),
                       reinterpret_cast<Value*>(data_));
     }
@@ -1018,7 +1018,7 @@ public:
                              AxisTag tag = tags::axis_unknown) const
     {
         typedef ArrayViewND <(N < 0) ? runtime_size : N+1, T> Result;
-        return Result(shape_.insert(i, 1), tags::byte_strides(strides_.insert(i, sizeof(T))),
+        return Result(shape_.insert(i, 1), tags::byte_strides = strides_.insert(i, sizeof(T)),
                       axistags_.insert(i, tag), data());
     }
         // /** create a multiband view for this array.
@@ -1052,7 +1052,7 @@ public:
     ArrayViewND<1, T> diagonal() const
     {
         return ArrayViewND<1, T>(Shape<1>(vigra::min(shape_)),
-                                 tags::byte_strides(Shape<1>(vigra::sum(strides_))),
+                                 tags::byte_strides = Shape<1>(vigra::sum(strides_)),
                                  data());
     }
 
@@ -1088,7 +1088,7 @@ public:
         vigra_precondition(isInside(p) && allLessEqual(p, q) && allLessEqual(q, shape_),
             "ArrayViewND::subarray(): invalid subarray limits.");
         const ArrayIndex offset = dot(strides_, p);
-        return ArrayViewND(q - p, tags::byte_strides(strides_), axistags_, (const_pointer)(data_ + offset));
+        return ArrayViewND(q - p, tags::byte_strides = strides_, axistags_, (const_pointer)(data_ + offset));
     }
 
         /** Transpose an array. If N==2, this implements the usual matrix transposition.
@@ -1109,14 +1109,14 @@ public:
     ArrayViewND<N, T>
     transpose() const
     {
-        return ArrayViewND<N, T>(vigra::transpose(shape_),
-                                 tags::byte_strides(vigra::transpose(strides_)),
-                                 vigra::transpose(axistags_),
+        return ArrayViewND<N, T>(reversed(shape_),
+                                 tags::byte_strides = reversed(strides_),
+                                 reversed(axistags_),
                                  data());
     }
 
         /** Permute the dimensions of the array.
-            The function exchanges the orer of the array's axes without copying the data.
+            The function exchanges the order of the array's axes without copying the data.
             Argument\a permutation specifies the desired order such that
             <tt>permutation[k] = j</tt> means that axis <tt>j</tt> in the original array
             becomes axis <tt>k</tt> in the transposed array.
@@ -1143,7 +1143,7 @@ public:
             "ArrayViewND::transpose(): permutation.size() doesn't match ndim().");
         difference_type p(permutation);
         ArrayViewND res(shape_.transpose(p),
-                        tags::byte_strides(strides_.transpose(p)),
+                        tags::byte_strides = strides_.transpose(p),
                         axistags_.transpose(p),
                         data());
         return res;
@@ -1526,12 +1526,12 @@ public:
 
     pointer_nd_type pointer_nd() const
     {
-        return pointer_nd_type(tags::byte_strides(strides_), data());
+        return pointer_nd_type(tags::byte_strides = strides_, data());
     }
 
     pointer_nd_type pointer_nd(difference_type const & permutation) const
     {
-        return pointer_nd_type(tags::byte_strides(strides_.transpose(permutation)), data());
+        return pointer_nd_type(tags::byte_strides = strides_.transpose(permutation), data());
     }
 
     pointer_nd_type pointer_nd(MemoryOrder order) const
@@ -1599,7 +1599,7 @@ public:
         vigra_precondition(M == runtime_size || M == ndim(),
             "ArrayViewND::view(): desired dimension is incompatible with ndim().");
         return ArrayViewND<M, T>(Shape<M>(shape_.begin(), shape_.begin()+ndim()),
-                                 tags::byte_strides(Shape<M>(strides_.begin(), strides_.begin()+ndim())),
+                                 tags::byte_strides = Shape<M>(strides_.begin(), strides_.begin()+ndim()),
                                  AxisTags<M>(axistags_.begin(), axistags_.begin()+ndim()),
                                  data());
     }

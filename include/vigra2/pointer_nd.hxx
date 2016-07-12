@@ -69,11 +69,25 @@ struct ByteStridesProxy
     Shape<N> value;
 };
 
-template <int N>
-inline ByteStridesProxy<N>
-byte_strides(Shape<N> const & s)
+struct ByteStridesTag
 {
-    return {s};
+    template <int N>
+    ByteStridesProxy<N> operator=(Shape<N> const & s) const
+    {
+        return {s};
+    }
+
+    template <int N>
+    ByteStridesProxy<N> operator()(Shape<N> const & s) const
+    {
+        return {s};
+    }
+};
+
+namespace {
+
+ByteStridesTag byte_strides;
+
 }
 
 } // namespace tags
@@ -98,7 +112,8 @@ byte_strides(Shape<N> const & s)
     // Note: Strides are internally stored in units of bytes, whereas the
     // external API always measures strides in units of `sizeof(T)`, unless
     // byte-strides are explicitly enforced by calling the `byte_strides()`
-    // member function or using the `tags::byte_strides()` factory function.
+    // member function or passing strides via the `tags::byte_strides` keyword
+    // argument.
 template <int N, class T>
 class PointerND
 : public PointerNDTag
