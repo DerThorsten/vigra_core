@@ -143,20 +143,20 @@ VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(long double)
 
 #undef VIGRA_DEFINE_VECTOR_ELEMENT_SIZE
 
-template <int M>
-inline ArrayIndex
-scanOrderToOffset(ArrayIndex d,
-                  Shape<M> const & shape,
-                  Shape<M> const & strides)
-{
-    ArrayIndex res = 0;
-    for(int k=0; k<shape.size(); ++k)
-    {
-        res += strides[k] * (d % shape[k]);
-        d /= shape[k];
-    }
-    return res;
-}
+// template <int M>
+// inline ArrayIndex
+// scanOrderToOffset(ArrayIndex d,
+                  // Shape<M> const & shape,
+                  // Shape<M> const & strides)
+// {
+    // ArrayIndex res = 0;
+    // for(int k=0; k<shape.size(); ++k)
+    // {
+        // res += strides[k] * (d % shape[k]);
+        // d /= shape[k];
+    // }
+    // return res;
+// }
 
 template <class ARRAY, class FCT,
           VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
@@ -221,6 +221,12 @@ universalArrayNDFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f)
 /*                                                      */
 /********************************************************/
 
+    // Note: Strides are internally stored in units of bytes, whereas the
+    // external API always measures strides in units of `sizeof(T)`, unless
+    // byte-strides are explicitly enforced by calling the `byte_strides()`
+    // member function or using the `tags::byte_strides()` factory function.
+    // Byte-strides allow for a more flexible mapping between numpy and vigra
+    // arrays.
 template <int N, class T>
 class ArrayViewND
 : public ArrayNDTag
@@ -326,7 +332,7 @@ class ArrayViewND
 
         /** pointer to the array.
          */
-    pointer data_;
+    char * data_;
 
         /** keep track of various properties
          */
@@ -337,9 +343,9 @@ class ArrayViewND
         if(data_ == 0)
         {
             shape_     = rhs.shape();
-            strides_   = rhs.strides();
+            strides_   = rhs.byte_strides();
             axistags_  = rhs.axistags();
-            data_      = const_cast<pointer>(rhs.data());
+            data_      = (char*)rhs.data();
             flags_     = rhs.flags() & ~OwnsMemory;
         }
         else
@@ -365,12 +371,12 @@ class ArrayViewND
     {
         for(int k=0; k<ndim(); ++k)
             if(shape_[k] == 1)
-                strides_[k] = 1;
+                strides_[k] = sizeof(T);
     }
 
     unsigned isConsecutiveImpl() const
     {
-        return (&operator[](shape_ - 1) == &data_[size()-1])
+        return ((char*)&operator[](shape_ - 1) == data_ + (size()-1)*sizeof(T))
                      ? ConsecutiveMemory
                      : 0;
     }
@@ -382,8 +388,8 @@ class ArrayViewND
             shape_.swap(rhs.shape_);
             strides_.swap(rhs.strides_);
             axistags_.swap(rhs.axistags_);
-            vigra::swap(data_    , rhs.data_);
-            vigra::swap(flags_   , rhs.flags_);
+            vigra::swap(data_, rhs.data_);
+            vigra::swap(flags_, rhs.flags_);
         }
     }
 
@@ -402,18 +408,18 @@ public:
 
     ArrayViewND(ArrayViewND const & other)
     : shape_(other.shape())
-    , strides_(other.strides())
+    , strides_(other.byte_strides())
     , axistags_(other.axistags())
-    , data_(const_cast<pointer>(other.data()))
+    , data_((char*)other.data())
     , flags_(other.flags() & ~OwnsMemory)
     {}
 
     template <int M>
     ArrayViewND(ArrayViewND<M, T> const & other)
     : shape_(other.shape())
-    , strides_(other.strides())
+    , strides_(other.byte_strides())
     , axistags_(other.axistags())
-    , data_(const_cast<pointer>(other.data()))
+    , data_((char*)other.data())
     , flags_(other.flags() & ~OwnsMemory)
     {
         static_assert(CompatibleDimensions<M, N>::value,
@@ -424,7 +430,7 @@ public:
 
         /** construct from shape and pointer
          */
-    ArrayViewND(const difference_type &shape,
+    ArrayViewND(difference_type const & shape,
                 const_pointer ptr,
                 MemoryOrder order = C_ORDER)
     : ArrayViewND(shape, shapeToStrides(shape, order), ptr)
@@ -432,38 +438,63 @@ public:
 
         /** construct from shape, axistags, and pointer
          */
-    ArrayViewND(const difference_type &shape,
-                const axistags_type   &axistags,
+    ArrayViewND(difference_type const & shape,
+                axistags_type   const & axistags,
                 const_pointer ptr,
                 MemoryOrder order = C_ORDER)
     : ArrayViewND(shape, shapeToStrides(shape, order), axistags, ptr)
     {}
 
         /** Construct from shape, strides (offset of a sample to the
-            next) for every dimension, and pointer.  (Note that
-            strides are not given in bytes, but in offset steps of the
-            respective pointer type.)
+            next, measured in units if `sizeof(T)`) for every dimension,
+            and pointer.
          */
-    ArrayViewND(const difference_type &shape,
-                const difference_type &strides,
+    ArrayViewND(difference_type const & shape,
+                difference_type const & strides,
                 const_pointer ptr)
     : ArrayViewND(shape, strides,
                   axistags_type(tags::size = shape.size(), tags::axis_unknown), ptr)
     {}
 
         /** Construct from shape, strides (offset of a sample to the
-            next), axistags for every dimension, and pointer.  (Note that
-            strides are not given in bytes, but in offset steps of the
-            respective pointer type.)
+            next, measured in units if `sizeof(T)`) for every dimension,
+            and pointer.
          */
-    ArrayViewND(const difference_type &shape,
-                const difference_type &strides,
-                const axistags_type   &axistags,
+    ArrayViewND(difference_type const & shape,
+                tags::ByteStridesProxy<N> const & strides,
+                const_pointer ptr)
+    : ArrayViewND(shape, strides,
+                  axistags_type(tags::size = shape.size(), tags::axis_unknown), ptr)
+    {}
+
+        /** Construct from shape, strides (offset of a sample to the
+            next, measured in units if `sizeof(T)`), axistags for every
+            dimension, and pointer.
+         */
+    ArrayViewND(difference_type const & shape,
+                difference_type const & strides,
+                axistags_type   const & axistags,
                 const_pointer ptr)
     : shape_(shape)
-    , strides_(strides)
+    , strides_(strides*sizeof(T))
     , axistags_(axistags)
-    , data_(const_cast<pointer>(ptr))
+    , data_((char*)ptr)
+    , flags_(isConsecutiveImpl())
+    {
+        fixSingletonStrides();
+    }
+
+        /** Construct from shape, byte strides (offset of a sample to the
+            next, measured in bytes), axistags for every dimension, and pointer.
+         */
+    ArrayViewND(difference_type const & shape,
+                tags::ByteStridesProxy<N> const & strides,
+                axistags_type const & axistags,
+                const_pointer ptr)
+    : shape_(shape)
+    , strides_(strides.value)
+    , axistags_(axistags)
+    , data_((char*)ptr)
     , flags_(isConsecutiveImpl())
     {
         fixSingletonStrides();
@@ -472,18 +503,18 @@ public:
         /* Construct 0-dimensional array from 0-dimensional shape/stride
            (needed in functions recursing on ndim()).
          */
-    ArrayViewND(const Shape<0> &,
-                const Shape<0> &,
-                const TinyArray<AxisTag, 0> &,
+    ArrayViewND(Shape<0> const &,
+                tags::ByteStridesProxy<0> const &,
+                TinyArray<AxisTag, 0> const &,
                 const_pointer ptr)
     : shape_{1}
-    , strides_{1}
+    , strides_{sizeof(T)}
     , axistags_{tags::axis_unknown}
-    , data_(const_cast<pointer>(ptr))
+    , data_((char*)ptr)
     , flags_(ConsecutiveMemory)
     {
         static_assert(N <= 0,
-            "ArrayViewND(): 0-dimensional constructor can only be called when N == 1.");
+            "ArrayViewND(): 0-dimensional constructor can only be called when N == 0 or N == runtime_size.");
     }
 
         /** Assignment. There are 3 cases:
@@ -634,86 +665,86 @@ public:
 
         /** Access element.
          */
-    reference operator[](const difference_type &d)
+    reference operator[](difference_type const & d)
     {
         VIGRA_ASSERT_INSIDE(d);
-        return data_ [dot (d, strides_)];
+        return *(pointer)(data_  + dot(d, strides_));
     }
 
         /** Access element via scalar index. Only allowed if
             <tt>isConsecutive() == true</tt> or <tt>ndim() <= 1</tt>.
          */
-    reference operator[](const difference_type_1 &d)
+    reference operator[](ArrayIndex i)
     {
         if(isConsecutive())
-            return data_[d];
+            return *(pointer)(data_  + i*sizeof(T));
         if(ndim() <= 1)
-            return data_[d*strides_[0]];
+            return *(pointer)(data_  + i*strides_[0]);
         vigra_precondition(false,
             "ArrayViewND::operator[](int) forbidden for strided multi-dimensional arrays.");
     }
 
         /** Get element.
          */
-    const_reference operator[](const difference_type &d) const
+    const_reference operator[](difference_type const & d) const
     {
         VIGRA_ASSERT_INSIDE(d);
-        return data_ [dot (d, strides_)];
+        return *(const_pointer)(data_  + dot(d, strides_));
     }
 
         /** Get element via scalar index. Only allowed if
             <tt>isConsecutive() == true</tt> or <tt>ndim() <= 1</tt>.
          */
-    const_reference operator[](const difference_type_1 &d) const
+    const_reference operator[](ArrayIndex i) const
     {
         if(isConsecutive())
-            return data_[d];
+            return *(const_pointer)(data_  + i*sizeof(T));
         if(ndim() <= 1)
-            return data_[d*strides_[0]];
+            return *(const_pointer)(data_  + i*strides_[0]);
         vigra_precondition(false,
             "ArrayViewND::operator[](int) forbidden for strided multi-dimensional arrays.");
     }
 
         /** 1D array access. Use only if <tt>ndim() <= 1</tt>.
          */
-    reference operator()(difference_type_1 i)
+    reference operator()(ArrayIndex i)
     {
         vigra_assert(ndim() <= 1,
                       "ArrayViewND::operator()(int): only allowed if ndim() <= 1");
-        return data_[i*strides_[0]];
+        return *(pointer)(data_  + i*strides_[0]);
     }
 
         /** N-D array access. Number of indices must match <tt>ndim()</tt>.
          */
     template <class ... INDICES>
-    reference operator()(difference_type_1 i0, difference_type_1 i1,
+    reference operator()(ArrayIndex i0, ArrayIndex i1,
                          INDICES ... i)
     {
         static const int M = 2 + sizeof...(INDICES);
         vigra_assert(ndim() == M,
             "ArrayViewND::operator()(INDICES): number of indices must match ndim().");
-        return data_[dot(Shape<M>(i0, i1, i...), strides_)];
+        return *(pointer)(data_  + dot(Shape<M>(i0, i1, i...), strides_));
     }
 
         /** 1D array access. Use only if <tt>ndim() <= 1</tt>.
          */
-    const_reference operator()(difference_type_1 i) const
+    const_reference operator()(ArrayIndex i) const
     {
         vigra_assert(ndim() <= 1,
                       "ArrayViewND::operator()(int): only allowed if ndim() <= 1");
-        return data_[i*strides_[0]];
+        return *(const_pointer)(data_  + i*strides_[0]);
     }
 
         /** N-D array access. Number of indices must match <tt>ndim()</tt>.
          */
     template <class ... INDICES>
-    const_reference operator()(difference_type_1 i0, difference_type_1 i1,
+    const_reference operator()(ArrayIndex i0, ArrayIndex i1,
                                INDICES ... i) const
     {
         static const int M = 2 + sizeof...(INDICES);
         vigra_assert(ndim() == M,
             "ArrayViewND::operator()(INDICES): number of indices must match ndim().");
-        return data_[dot(Shape<M>(i0, i1, i...), strides_)];
+        return *(const_pointer)(data_  + dot(Shape<M>(i0, i1, i...), strides_));
     }
 
         /** Bind 'axis' to 'index'.
@@ -730,7 +761,7 @@ public:
             \endcode
          */
     ArrayViewND<((N < 0) ? runtime_size : N-1), T>
-    bind(difference_type_1 axis, difference_type_1 index) const
+    bind(int axis, ArrayIndex index) const
     {
         typedef ArrayViewND<((N < 0) ? runtime_size : N-1), T> Result;
 
@@ -741,14 +772,14 @@ public:
         point[axis] = index;
         if (ndim() == 1)
         {
-            Shape<Result::actual_dimension> shape{ 1 }, stride{ 1 };
+            Shape<Result::actual_dimension> shape{ 1 }, strides{ 1 };
             TinyArray<AxisTag, Result::actual_dimension> axistags{ tags::axis_unknown };
-            return Result(shape, stride, axistags, &operator[](point));
+            return Result(shape, strides, axistags, &operator[](point));
         }
         else
         {
             return Result(shape_.erase(axis),
-                          strides_.erase(axis),
+                          tags::byte_strides(strides_.erase(axis)),
                           axistags_.erase(axis),
                           &operator[](point));
         }
@@ -859,10 +890,10 @@ public:
     template <class U=T,
               VIGRA_REQUIRE<!std::is_scalar<U>::value> >
     ArrayViewND<N, typename U::value_type>
-    bindElementChannel(difference_type_1 i) const
+    bindElementChannel(ArrayIndex i) const
     {
         vigra_precondition(0 <= i &&
-                           i < array_detail::VectorElementSize<T>::size(data_),
+                           i < array_detail::VectorElementSize<T>::size(data()),
             "ArrayViewND::bindElementChannel(i): 'i' out of range.");
         return expandElements(0).bind(0, i);
     }
@@ -887,7 +918,7 @@ public:
     template <class U=T,
               VIGRA_REQUIRE<!std::is_scalar<U>::value> >
     ArrayViewND<(N == runtime_size ? runtime_size : N+1), typename U::value_type>
-    expandElements(difference_type_1 d) const
+    expandElements(ArrayIndex d) const
     {
         using Value  = typename T::value_type;
         using Result = ArrayViewND <(N == runtime_size ? runtime_size : N + 1), Value>;
@@ -895,9 +926,9 @@ public:
         vigra_precondition(0 <= d && d <= ndim(),
             "ArrayViewND::expandElements(d): 0 <= 'd' <= ndim() required.");
 
-        int s = array_detail::VectorElementSize<T>::size(data_);
+        int s = array_detail::VectorElementSize<T>::size(data());
         return Result(shape_.insert(d, s),
-                      (strides_ * s).insert(d, 1),
+                      tags::byte_strides(strides_.insert(d, sizeof(Value))),
                       axistags_.insert(d, tags::axis_c),
                       reinterpret_cast<Value*>(data_));
     }
@@ -930,7 +961,7 @@ public:
     template <class U=T,
               VIGRA_REQUIRE<!std::is_scalar<U>::value> >
     ArrayViewND<runtime_size, typename U::value_type>
-    ensureChannelAxis(difference_type_1 d) const
+    ensureChannelAxis(ArrayIndex d) const
     {
         return expandElements(d);
     }
@@ -938,7 +969,7 @@ public:
     template <class U=T,
               VIGRA_REQUIRE<std::is_scalar<U>::value> >
     ArrayViewND<runtime_size, T>
-    ensureChannelAxis(difference_type_1 d) const
+    ensureChannelAxis(ArrayIndex d) const
     {
         vigra_precondition(d >= 0,
             "ArrayViewND::ensureChannelAxis(d): d >= 0 required.");
@@ -987,8 +1018,8 @@ public:
                              AxisTag tag = tags::axis_unknown) const
     {
         typedef ArrayViewND <(N < 0) ? runtime_size : N+1, T> Result;
-        return Result(shape_.insert(i, 1), strides_.insert(i, 1),
-                      axistags_.insert(i, tag), data_);
+        return Result(shape_.insert(i, 1), tags::byte_strides(strides_.insert(i, sizeof(T))),
+                      axistags_.insert(i, tag), data());
     }
         // /** create a multiband view for this array.
 
@@ -1021,7 +1052,8 @@ public:
     ArrayViewND<1, T> diagonal() const
     {
         return ArrayViewND<1, T>(Shape<1>(vigra::min(shape_)),
-                                 Shape<1>(vigra::sum(strides_)), data_);
+                                 tags::byte_strides(Shape<1>(vigra::sum(strides_))),
+                                 data());
     }
 
         /** create a rectangular subarray that spans between the
@@ -1055,8 +1087,8 @@ public:
         }
         vigra_precondition(isInside(p) && allLessEqual(p, q) && allLessEqual(q, shape_),
             "ArrayViewND::subarray(): invalid subarray limits.");
-        const difference_type_1 offset = dot(strides_, p);
-        return ArrayViewND(q - p, strides_, axistags_, data_ + offset);
+        const ArrayIndex offset = dot(strides_, p);
+        return ArrayViewND(q - p, tags::byte_strides(strides_), axistags_, (const_pointer)(data_ + offset));
     }
 
         /** Transpose an array. If N==2, this implements the usual matrix transposition.
@@ -1078,8 +1110,9 @@ public:
     transpose() const
     {
         return ArrayViewND<N, T>(vigra::transpose(shape_),
-                                 vigra::transpose(strides_),
-                                 vigra::transpose(axistags_), data_);
+                                 tags::byte_strides(vigra::transpose(strides_)),
+                                 vigra::transpose(axistags_),
+                                 data());
     }
 
         /** Permute the dimensions of the array.
@@ -1109,10 +1142,10 @@ public:
         vigra_precondition(permutation.size() == ndim(),
             "ArrayViewND::transpose(): permutation.size() doesn't match ndim().");
         difference_type p(permutation);
-        ArrayViewND res(::vigra::transpose(shape_, p),
-                        ::vigra::transpose(strides_, p),
-                        ::vigra::transpose(axistags_, p),
-                        data_);
+        ArrayViewND res(shape_.transpose(p),
+                        tags::byte_strides(strides_.transpose(p)),
+                        axistags_.transpose(p),
+                        data());
         return res;
     }
 
@@ -1309,7 +1342,7 @@ public:
             new_axistags = AxisTags<M>(tags::size = new_shape.size(), tags::axis_unknown);
         vigra_precondition(M != runtime_size || new_axistags.size() == new_shape.size(),
            "ArrayViewND::reshape(): size mismatch between new shape and axistags.");
-        return ArrayViewND<M, T>(new_shape, new_axistags, data_, order);
+        return ArrayViewND<M, T>(new_shape, new_axistags, data(), order);
     }
 
     template <int M>
@@ -1362,21 +1395,35 @@ public:
 
         /** return the array's shape at a certain dimension.
          */
-    difference_type_1 shape(int n) const
+    ArrayIndex shape(int n) const
     {
         return shape_[n];
     }
 
         /** return the array's strides for every dimension.
          */
-    difference_type const & strides() const
+    difference_type strides() const
+    {
+        return strides_ / sizeof(T);
+    }
+
+        /** return the array's stride at a certain dimension.
+         */
+    ArrayIndex strides(int n) const
+    {
+        return strides_[n] / sizeof(T);
+    }
+
+        /** return the array's strides for every dimension.
+         */
+    difference_type const & byte_strides() const
     {
         return strides_;
     }
 
         /** return the array's stride at a certain dimension.
          */
-    difference_type_1 strides(int n) const
+    ArrayIndex byte_strides(int n) const
     {
         return strides_[n];
     }
@@ -1413,14 +1460,14 @@ public:
          */
     pointer data()
     {
-        return data_;
+        return (pointer)data_;
     }
 
         /** return the pointer to the image data
          */
     const_pointer data() const
     {
-        return data_;
+        return (const_pointer)data_;
     }
 
         /**
@@ -1479,12 +1526,12 @@ public:
 
     pointer_nd_type pointer_nd() const
     {
-        return pointer_nd_type(strides_, data_);
+        return pointer_nd_type(tags::byte_strides(strides_), data());
     }
 
     pointer_nd_type pointer_nd(difference_type const & permutation) const
     {
-        return pointer_nd_type(vigra::transpose(strides_, permutation), data_);
+        return pointer_nd_type(tags::byte_strides(strides_.transpose(permutation)), data());
     }
 
     pointer_nd_type pointer_nd(MemoryOrder order) const
@@ -1503,7 +1550,7 @@ public:
     iterator begin()
     {
         return iterator(*this,
-                  array_detail::permutationToOrder(shape(), strides(), F_ORDER));
+                  array_detail::permutationToOrder(shape_, strides_, F_ORDER));
     }
 
         /** returns a const scan-order iterator pointing
@@ -1517,7 +1564,7 @@ public:
     const_iterator begin() const
     {
         return const_iterator(*this,
-                  array_detail::permutationToOrder(shape(), strides(), F_ORDER));
+                  array_detail::permutationToOrder(shape_, strides_, F_ORDER));
     }
 
         /** returns a scan-order iterator pointing
@@ -1552,7 +1599,7 @@ public:
         vigra_precondition(M == runtime_size || M == ndim(),
             "ArrayViewND::view(): desired dimension is incompatible with ndim().");
         return ArrayViewND<M, T>(Shape<M>(shape_.begin(), shape_.begin()+ndim()),
-                                 Shape<M>(strides_.begin(), strides_.begin()+ndim()),
+                                 tags::byte_strides(Shape<M>(strides_.begin(), strides_.begin()+ndim())),
                                  AxisTags<M>(axistags_.begin(), axistags_.begin()+ndim()),
                                  data());
     }
@@ -1809,7 +1856,7 @@ class ArrayND
     : view_type(shape, 0, order)
     , allocated_data_(this->size(), init, alloc)
     {
-        this->data_  = &allocated_data_[0];
+        this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
@@ -1823,7 +1870,7 @@ class ArrayND
     : view_type(shape, axistags, 0, order)
     , allocated_data_(this->size(), init, alloc)
     {
-        this->data_  = &allocated_data_[0];
+        this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
@@ -1842,7 +1889,7 @@ class ArrayND
     : view_type(shape, 0, order)
     , allocated_data_(init, init + this->size(), alloc)
     {
-        this->data_  = &allocated_data_[0];
+        this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
@@ -1856,7 +1903,7 @@ class ArrayND
     : view_type(shape, axistags, 0, order)
     , allocated_data_(init, init + this->size(), alloc)
     {
-        this->data_  = &allocated_data_[0];
+        this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
@@ -1866,7 +1913,7 @@ class ArrayND
     : view_type(rhs)
     , allocated_data_(rhs.allocated_data_)
     {
-        this->data_  = &allocated_data_[0];
+        this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
@@ -1877,7 +1924,7 @@ class ArrayND
     , allocated_data_(std::move(rhs.allocated_data_))
     {
         this->swapImpl(rhs);
-        this->data_  = &allocated_data_[0];
+        this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
@@ -1900,7 +1947,7 @@ class ArrayND
                 data.emplace_back(u);
             });
 
-        this->data_  = &allocated_data_[0];
+        this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
@@ -1929,7 +1976,7 @@ class ArrayND
                 data.emplace_back(u);
             });
 
-        this->data_  = &allocated_data_[0];
+        this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 

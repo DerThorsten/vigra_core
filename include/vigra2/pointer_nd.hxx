@@ -61,6 +61,25 @@ class ArrayViewND;
 template <int N, class T, class Alloc = std::allocator<T> >
 class ArrayND;
 
+namespace tags {
+
+template <int N>
+struct ByteStridesProxy
+{
+    Shape<N> value;
+};
+
+template <int N>
+inline ByteStridesProxy<N>
+byte_strides(Shape<N> const & s)
+{
+    return {s};
+}
+
+} // namespace tags
+
+
+
 /********************************************************/
 /*                                                      */
 /*                       PointerND                      */
@@ -75,6 +94,11 @@ class ArrayND;
     // The specialization PointerND<0, T> further down below is used for
     // 0-dimensional arrays (i.e. constants) and implements all pointer
     // arithmetic as no-ops.
+    //
+    // Note: Strides are internally stored in units of bytes, whereas the
+    // external API always measures strides in units of `sizeof(T)`, unless
+    // byte-strides are explicitly enforced by calling the `byte_strides()`
+    // member function or using the `tags::byte_strides()` factory function.
 template <int N, class T>
 class PointerND
 : public PointerNDTag
@@ -93,11 +117,21 @@ class PointerND
     typedef reference                             result_type;
 
     difference_type strides_;
-    pointer         data_;
+    mutable char *  data_;
+
+    PointerND()
+    : strides_()
+    , data_(0)
+    {}
 
     PointerND(difference_type const & strides, const_pointer data)
-    : strides_(strides)
-    , data_(const_cast<pointer>(data))
+    : strides_(strides*sizeof(T))
+    , data_((char*)data)
+    {}
+
+    PointerND(tags::ByteStridesProxy<N> const & strides, const_pointer data)
+    : strides_(strides.value)
+    , data_((char*)data)
     {}
 
     bool hasData() const
@@ -107,52 +141,52 @@ class PointerND
 
     void inc(int axis) const
     {
-        const_cast<pointer>(data_) += strides_[axis];
+        data_ += strides_[axis];
     }
 
     void dec(int axis) const
     {
-        const_cast<pointer>(data_) -= strides_[axis];
+        data_ -= strides_[axis];
     }
 
     void move(int axis, difference_type_1 diff) const
     {
-        const_cast<pointer>(data_) += strides_[axis]*diff;
+        data_ += strides_[axis]*diff;
     }
 
     void move(difference_type const & diff) const
     {
-        const_cast<pointer>(data_) += dot(strides_, diff);
+        data_ += dot(strides_, diff);
     }
 
     reference operator*()
     {
-        return *data_;
+        return *ptr();
     }
 
     const_reference operator*() const
     {
-        return *data_;
+        return *ptr();
     }
 
     reference operator[](difference_type const & index)
     {
-        return data_[dot(index, strides_)];
+        return *(pointer)(data_ + dot(index, strides_));
     }
 
     const_reference operator[](difference_type const & index) const
     {
-        return data_[dot(index, strides_)];
+        return *(const_pointer)(data_ + dot(index, strides_));
     }
 
     pointer ptr()
     {
-        return data_;
+        return (pointer)data_;
     }
 
     const_pointer ptr() const
     {
-        return data_;
+        return (const_pointer)data_;
     }
 
     template <int M = N>
@@ -168,9 +202,14 @@ class PointerND
         return N;
     }
 
-    difference_type const & strides() const
+    difference_type const & byte_strides() const
     {
         return strides_;
+    }
+
+    ArrayIndex strides(int dim) const
+    {
+        return strides_[dim] / sizeof(T);
     }
 };
 
@@ -194,7 +233,6 @@ class PointerND<0, T>
     typedef value_type                          * pointer;
     typedef const_value_type                    * const_pointer;
     typedef Shape<shape_dimension>                difference_type;
-    typedef ArrayIndex                            difference_type_1;
     typedef const_reference                       result_type;
 
     T data_;
@@ -210,7 +248,7 @@ class PointerND<0, T>
 
     void inc(int) const {}
     void dec(int) const {}
-    void move(int, difference_type_1) const {}
+    void move(int, ArrayIndex) const {}
     void move(difference_type const &) const {}
 
     result_type operator*() const
@@ -482,14 +520,14 @@ template <int N, class T, class SHAPE>
 inline ArrayIndex
 isCConsecutive(PointerND<N, T> const & p, SHAPE const & shape, int dim)
 {
-    ArrayIndex size = 1;
+    ArrayIndex size = sizeof(T);
     for(int k=shape.size()-1; k >= dim; --k)
     {
-        if(size != p.strides()[k])
+        if(size != p.byte_strides()[k])
             return 0;
         size *= shape[k];
     }
-    return size;
+    return size / sizeof(T);
 }
 
 /********************************************************/
