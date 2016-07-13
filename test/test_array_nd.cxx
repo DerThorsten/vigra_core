@@ -152,6 +152,15 @@ struct ArrayNDTest
                     shouldNot(iter3 == end3);
                 }
         should(iter3 == end3);
+
+        Array a1(v3);
+        should(a1 == v3);
+        Array a2(v3, F_ORDER);
+        should(a2 == v3);
+        Array a3(transpose(v3));
+        should(transpose(a3) == v3);
+        Array a4(transpose(v3), F_ORDER);
+        should(transpose(a4) == v3);
     }
 
     void testBind()

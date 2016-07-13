@@ -600,8 +600,8 @@ public:
         return *this; \
     } \
     template <class Expression> \
-        enable_if_t<ArrayMathConcept<Expression>::value,  ArrayViewND &> \
-        operator OP(Expression const & rhs) \
+    enable_if_t<ArrayMathConcept<Expression>::value,  ArrayViewND &> \
+    operator OP(Expression const & rhs) \
     { \
         typedef typename Expression::value_type U; \
         static_assert(std::is_convertible<U, value_type>::value, \
@@ -611,9 +611,9 @@ public:
             "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &): shape mismatch."); \
         array_detail::universalArrayMathFunction(*this, rhs, \
             [](value_type & v, U const & u) \
-    { \
-            v OP detail::RequiresExplicitCast<value_type>::cast(u); \
-    }); \
+            { \
+                v OP detail::RequiresExplicitCast<value_type>::cast(u); \
+            }); \
         return *this; \
     }
 
@@ -1985,19 +1985,19 @@ class ArrayND
          */
     template <int M, class U>
     ArrayND(ArrayViewND<M, U> const & rhs,
+            MemoryOrder order = C_ORDER,
             allocator_type const & alloc = allocator_type())
-    : view_type(rhs)
+    : view_type(rhs.shape(), rhs.axistags(), 0, order)
     , allocated_data_(alloc)
     {
         allocated_data_.reserve(this->size());
 
         auto p = array_detail::permutationToOrder(this->shape(),
                                                   this->byte_strides(), C_ORDER);
-        auto rhs_t = rhs.transpose(p);
-        array_detail::universalArrayNDFunction(rhs_t,
+        array_detail::universalPointerNDFunction(rhs.pointer_nd(p), shape().transpose(p),
             [&data=allocated_data_](U const & u)
             {
-                data.emplace_back(u);
+                data.emplace_back(detail::RequiresExplicitCast<T>::cast(u));
             });
 
         this->data_  = (char*)&allocated_data_[0];
