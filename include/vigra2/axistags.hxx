@@ -105,6 +105,31 @@ AxisType AxisTagTypes[] = { UnknownAxisType,             // unknown
                             AxisType(Time | Frequency),  // ft
                             Edge                         // e
                           };
+
+struct AxisSelectionProxy
+{
+    int value;
+};
+
+struct AxisSelectionTag
+{
+    AxisSelectionProxy operator=(int i) const
+    {
+        return {i};
+    }
+
+    AxisSelectionProxy operator()(int i) const
+    {
+        return {i};
+    }
+};
+
+namespace {
+
+AxisSelectionTag axis;
+
+}
+
 } // namespace tags
 
 using tags::AxisType;
