@@ -41,6 +41,7 @@
 #include <string>
 #include <array>
 #include <numeric>
+#include <type_traits>
 #include <vigra2/unittest.hxx>
 
 #include <vigra2/tinyarray.hxx>
@@ -274,6 +275,10 @@ struct TinyArrayTest
 
     void testArithmetic()
     {
+        should((std::is_same<IV, PromoteType<IV>>::value));
+        should((std::is_same<TinyArray<double, 3>, RealPromoteType<IV>>::value));
+        should((std::is_same<typename IV::AsType<double>, RealPromoteType<IV>>::value));
+
         IV ivm3 = -iv3;
         FV fvm3 = -fv3;
 

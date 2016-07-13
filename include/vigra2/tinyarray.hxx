@@ -2766,32 +2766,28 @@ swap(TinyArrayBase<T1, D1, N...> & l,
 ////////////////////////////////////////////////////////////
 // PromoteTraits specializations
 
-template <class T, class D, int ...N>
-struct PromoteTraits<TinyArrayBase<T, D, N...>, TinyArrayBase<T, D, N...> >
+template <class T1, class D1, class T2, class D2, int ...N>
+struct PromoteTraits<TinyArrayBase<T1, D1, N...>, TinyArrayBase<T2, D2, N...> >
 {
-    typedef TinyArrayBase<PromoteType<T>, D, N...>       Promote;
-    typedef decltype(sqrt(TinyArrayBase<T, D, N...>()))  RealPromote;
+    typedef TinyArray<PromoteType<T1, T2>, N...>     type;
 };
 
-template <class T, int ...N>
-struct PromoteTraits<TinyArray<T, N...>, TinyArray<T, N...> >
+template <class T1, class T2, int ...N>
+struct PromoteTraits<TinyArray<T1, N...>, TinyArray<T2, N...> >
 {
-    typedef TinyArray<PromoteType<T>, N...>       Promote;
-    typedef decltype(sqrt(TinyArray<T, N...>()))  RealPromote;
+    typedef TinyArray<PromoteType<T1, T2>, N...>      type;
 };
 
-template <class T, int ...N>
-struct PromoteTraits<TinyArrayView<T, N...>, TinyArrayView<T, N...> >
+template <class T1, class T2, int ...N>
+struct PromoteTraits<TinyArrayView<T1, N...>, TinyArrayView<T2, N...> >
 {
-    typedef TinyArrayView<PromoteType<T>, N...>       Promote;
-    typedef decltype(sqrt(TinyArrayView<T, N...>()))  RealPromote;
+    typedef TinyArray<PromoteType<T1, T2>, N...>      type;
 };
 
-template <class T, int N>
-struct PromoteTraits<TinySymmetricView<T, N>, TinySymmetricView<T, N> >
+template <class T1, class T2, int N>
+struct PromoteTraits<TinySymmetricView<T1, N>, TinySymmetricView<T2, N> >
 {
-    typedef TinySymmetricView<PromoteType<T>, N>       Promote;
-    typedef decltype(sqrt(TinySymmetricView<T, N>()))  RealPromote;
+    typedef TinyArray<PromoteType<T1, T2>, N*(N+1)/2>  type;
 };
 
 // mask cl.exe shortcomings [end]
