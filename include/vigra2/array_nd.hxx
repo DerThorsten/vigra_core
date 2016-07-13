@@ -1243,38 +1243,91 @@ public:
         return res;
     }
 
-        // /** Compute the sum of the array elements over selected axes.
+        /** Compute the sum of the array elements over selected axes.
 
-            // \arg sums must have the same shape as this array, except for the
-            // axes along which the sum is to be accumulated. These axes must be
-            // singletons. Note that you must include <tt>multi_pointoperators.hxx</tt>
-            // for this function to work.
+            \arg sums must have the same shape as this array, except for the
+            axes along which the sum is to be accumulated. These axes must be
+            singletons. Note that you must include <tt>multi_pointoperators.hxx</tt>
+            for this function to work.
 
-            // <b>Usage:</b>
-            // \code
-            // #include <vigra/multi_array.hxx>
-            // #include <vigra/multi_pointoperators.hxx>
+            <b>Usage:</b>
+            \code
+            #include <vigra/multi_array.hxx>
+            #include <vigra/multi_pointoperators.hxx>
 
-            // ArrayND<2, double> A(Shape2(rows, cols));
-            // ... // fill A
+            ArrayND<2, double> A(Shape2(rows, cols));
+            ... // fill A
 
-            // // make the first axis a singleton to sum over the first index
-            // ArrayND<2, double> rowSums(Shape2(1, cols));
-            // A.sum(rowSums);
+            // make the first axis a singleton to sum over the first index
+            ArrayND<2, double> rowSums(Shape2(1, cols));
+            A.sum(rowSums);
 
-            // // this is equivalent to
-            // transformMultiArray(srcMultiArrayRange(A),
-                                // destMultiArrayRange(rowSums),
-                                // FindSum<double>());
-            // \endcode
-         // */
-    // template <class U, class S>
-    // void sum(ArrayViewND<N, U, S> sums) const
-    // {
-        // transformMultiArray(srcMultiArrayRange(*this),
-                            // destMultiArrayRange(sums),
-                            // FindSum<U>());
-    // }
+            // this is equivalent to
+            transformMultiArray(srcMultiArrayRange(A),
+                                destMultiArrayRange(rowSums),
+                                FindSum<double>());
+            \endcode
+         */
+    template <int M, class U>
+    void sum(ArrayViewND<M, U> sums) const
+    {
+        vigra_precondition(sums.ndim() == ndim(),
+            "ArrayViewND::sum(ArrayViewND): ndim mismatch.");
+
+        typedef array_math::ArrayMathArrayOperator<ArrayViewND<M, U>>  A1;
+        typedef array_math::ArrayMathArrayOperator<ArrayViewND>        A2;
+        typedef array_math::ArrayMathUnifyShape<A1::dimension, A2::dimension> ShapeHelper;
+        typedef typename ShapeHelper::shape_type   shape_type;
+
+        A1 a1(sums);
+        A2 a2(*this);
+
+        shape_type shape = ShapeHelper::exec(a1.shape(), a2.shape(), false);
+        vigra_precondition(shape != lemon::INVALID,
+            "ArrayViewND::sum(ArrayViewND): shape mismatch.");
+
+        // FIXME: check memory overlap
+        // FIXME: optimize memory order
+        // auto p  = permutationToOrder(a1.shape_, a1.strides_, C_ORDER);
+        // pointer_nd.transpose(p);
+        array_detail::universalPointerNDFunction(a1, a2, shape,
+            [](typename A1::value_type & u, typename A2::value_type const & v)
+            {
+                u += detail::RequiresExplicitCast<typename A1::value_type>::cast(v);
+            });
+    }
+
+
+    template <class U=T>
+    ArrayND<N, PromoteType<U>>
+    sum(tags::AxisSelectionProxy axis) const
+    {
+        int d = axis.value;
+        vigra_precondition(0 <= d && d < ndim(),
+            "ArrayViewND::sum(axis): axis out of range.");
+
+        auto s = shape();
+        s[d] = 1;
+        ArrayND<N, PromoteType<U>> res(s);
+        sum(res);
+        return res;
+    }
+
+    template <class U=T>
+    ArrayND<N, RealPromoteType<U>>
+    mean(tags::AxisSelectionProxy axis) const
+    {
+        int d = axis.value;
+        vigra_precondition(0 <= d && d < ndim(),
+            "ArrayViewND::mean(axis): axis out of range.");
+
+        auto s = shape();
+        s[d] = 1;
+        ArrayND<N, PromoteType<U>> res(s);
+        sum(res);
+        res /= shape(d);
+        return res;
+    }
 
         /** Compute the product of the array elements.
 

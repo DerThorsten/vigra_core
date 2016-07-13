@@ -622,6 +622,25 @@ struct ArrayNDTest
         v1[{0, 0, 0}] = 0;
         shouldEqual(norm(v1, 0), 23.0);
 
+
+        double data[] = { 1.0, 5.0,
+                          3.0, 2.0,
+                          4.0, 7.0 };
+        ArrayND<2, double> a({ 3,2 }, data);
+
+        double columnSum[] = { 8.0, 14.0 };
+        double rowSum[] = { 6.0, 5.0, 11.0 };
+        auto as0 = a.sum(tags::axis = 0);
+        auto as1 = a.sum(tags::axis = 1);
+        shouldEqualSequence(columnSum, columnSum + 2, as0.begin());
+        shouldEqualSequence(rowSum, rowSum + 3, as1.begin());
+
+        double columnMean[] = { 8 / 3.0, 14 / 3.0 };
+        double rowMean[] = { 3.0, 2.5, 5.5 };
+        auto am0 = a.mean(tags::axis = 0);
+        auto am1 = a.mean(tags::axis = 1);
+        shouldEqualSequence(columnMean, columnMean + 2, am0.begin());
+        shouldEqualSequence(rowMean, rowMean + 3, am1.begin());
     }
 
     void testVectorValuetype()
