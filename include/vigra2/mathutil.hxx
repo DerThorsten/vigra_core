@@ -124,7 +124,27 @@ namespace vigra {
 */
 //@{
 
+// import abs(float), abs(double), abs(long double) from <cmath>
+//        abs(int), abs(long), abs(long long) from <cstdlib>
+//        abs(std::complex<T>) from <complex>
+using std::abs;
+
+using std::acos;
+using std::asin;
+using std::atan;
+using std::ceil;
+using std::cos;
 using std::exp;
+using std::floor;
+using std::log10;
+using std::log;
+using std::round;
+using std::sin;
+using std::sqrt;
+using std::tan;
+using std::atan2;
+using std::fmod;
+using std::pow;
 
 /**********************************************************/
 /*                                                        */
@@ -219,9 +239,6 @@ max(T const & t1, T const & t2)
 /*                                                        */
 /**********************************************************/
 
-using std::floor;
-using std::ceil;
-
     // add missing floor() and ceil() overloads for integral types
 
 #define VIGRA_DEFINE_INTEGER_FLOOR_CEIL(T) \
@@ -243,11 +260,6 @@ VIGRA_DEFINE_INTEGER_FLOOR_CEIL(long long)
 /*                         abs()                          */
 /*                                                        */
 /**********************************************************/
-
-// import abs(float), abs(double), abs(long double) from <cmath>
-//        abs(int), abs(long), abs(long long) from <cstdlib>
-//        abs(std::complex<T>) from <complex>
-using std::abs;
 
 // define the missing variants of abs() to avoid 'ambiguous overload'
 // errors in template functions
@@ -405,8 +417,6 @@ VIGRA_DEFINE_SCALAR_DOT(long double)
 /*                           pow()                        */
 /*                                                        */
 /**********************************************************/
-
-using std::pow;
 
 // support 'double' exponents for all floating point versions of pow()
 inline float pow(float v, double e)
@@ -733,8 +743,6 @@ uint32_t IntSquareRoot<T>::exec(uint32_t x)
 }
 
 } // namespace detail
-
-using std::sqrt;
 
     /** \brief Signed integer square root.
 

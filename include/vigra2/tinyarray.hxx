@@ -41,8 +41,6 @@
 #include "error.hxx"
 #include "concepts.hxx"
 #include "mathutil.hxx"
-#include <cmath>    // abs(double)
-#include <cstdlib>  // abs(int)
 #include <iosfwd>   // ostream
 #include <algorithm>
 #include <iterator>
@@ -117,7 +115,6 @@ SizeTag size;
 
 } // namespace tags
 
-using std::sqrt;
 using std::swap;
 
 // FIXME: document this
@@ -2235,8 +2232,6 @@ operator-(TinyArrayBase<V, D, N...> const & v)
     return res;
 }
 
-using std::abs;
-
     /// element-wise absolute value
 template <class V, class D, int ... N>
 inline
@@ -2248,8 +2243,6 @@ abs(TinyArrayBase<V, D, N...> const & v)
         res[k] = abs(v[k]);
     return res;
 }
-
-using std::ceil;
 
     /** Apply ceil() function to each vector component.
     */
@@ -2264,8 +2257,6 @@ ceil(TinyArrayBase<V, D, N...> const & v)
     return res;
 }
 
-using std::floor;
-
     /** Apply floor() function to each vector component.
     */
 template <class V, class D, int ... N>
@@ -2278,8 +2269,6 @@ floor(TinyArrayBase<V, D, N...> const & v)
         res[k] = floor(v[k]);
     return res;
 }
-
-using std::round;
 
     /** Apply round() function to each vector component.
     */
@@ -2307,8 +2296,6 @@ roundi(TinyArrayBase<V, D, N...> const & v)
     return res;
 }
 
-using std::sqrt;
-
     /** Apply sqrt() function to each vector component.
     */
 template <class V, class D, int ... N>
@@ -2321,8 +2308,6 @@ sqrt(TinyArrayBase<V, D, N...> const & v)
         res[k] = sqrt(v[k]);
     return res;
 }
-
-using std::pow;
 
     /** Apply pow() function to each vector component.
     */
