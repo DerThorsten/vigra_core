@@ -53,7 +53,7 @@ static const int runtime_order = -1;
 
 enum SkipInitialization { DontInit };
 enum ReverseCopyTag { ReverseCopy };
-enum MemoryOrder { C_ORDER = 1, F_ORDER = 2 };
+enum MemoryOrder { C_ORDER = 1, F_ORDER = 2, RowMajor = C_ORDER, ColumnMajor = F_ORDER };
 
 /**********************************************************/
 /*                                                        */
