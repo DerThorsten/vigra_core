@@ -435,6 +435,10 @@ struct ArrayNDTest
             shouldEqual(v1[k], count);
         }
 
+        v0.init(2);
+        for (int k = 0; k < v0.size(); ++k)
+            shouldEqual(v0[k], 2);
+
         v0 = 1;
         for (int k = 0; k < v0.size(); ++k)
             shouldEqual(v0[k], 1);

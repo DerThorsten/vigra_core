@@ -539,6 +539,13 @@ public:
     ArrayViewND &
     operator=(value_type const & u)
     {
+        return init(u);
+    }
+
+        /** Init with given value.
+         */
+    ArrayViewND & init(value_type const & u)
+    {
         array_detail::universalArrayNDFunction(*this,
                                            [u](value_type & v) { v = u; });
         return *this;
