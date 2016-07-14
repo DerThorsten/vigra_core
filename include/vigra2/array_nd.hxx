@@ -173,30 +173,38 @@ template <class ARRAY1, class ARRAY2, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
 universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f)
 {
-    auto last = a1.shape() - 1;
-    char * p1 = (char *)a1.data();
-    char * q1 = (char *)(&a1[last]+1);
-    char * p2 = (char *)a2.data();
-    char * q2 = (char *)(&a2[last]+1);
+    // FIXME: handle shape broadcasting
 
-    bool no_overlap        = q1 <= p2 || q2 <= p1;
-    bool compatible_layout = p1 <= p2 && a1.byte_strides() == a2.byte_strides();
+    // optimize axis ordering
+    // (the last axis goes into the inner loop and should have smallest stride)
+    auto p      = permutationToOrder(a1.shape(), a1.byte_strides(), C_ORDER);
+    auto h1     = a1.pointer_nd(p);
+    auto h2     = a2.pointer_nd(p);
+    auto shape  = a1.shape().transpose(p);
+    auto last   = shape - 1;
 
-    auto p  = permutationToOrder(a1.shape(), a1.byte_strides(), C_ORDER);
-    auto h1 = a1.pointer_nd(p);
-    auto s  = transpose(a1.shape(), p);
+    // take care of overlapping arrays (source data could be overwritten)
+    char * p1 = (char *)h1.ptr();
+    char * q1 = (char *)(&h1[last]+1);
+    char * p2 = (char *)h2.ptr();
+    char * q2 = (char *)(&h2[last]+1);
 
-    if(no_overlap || compatible_layout)
+    if(q1 <= p2 || q2 <= p1) // no memory overlap
     {
-        auto h2 = a2.pointer_nd(p);
-        universalPointerNDFunction(h1, h2, s, f);
+        universalPointerNDFunction(h1, h2, shape, f);
     }
-    else
+    else if(a1.byte_strides() == a2.byte_strides()) // same memory access pattern
     {
-        using TmpArray = ArrayND<ARRAY2::dimension, typename ARRAY2::value_type>;
-        TmpArray t2(a2);
+        if(p1 <= p2) // target below source => work forward
+            universalPointerNDFunction(h1, h2, shape, f);
+        else         // target above source => work backward
+            reversePointerNDFunction(h1, h2, shape, f);
+    }
+    else // complicated overlapping access => create a temporary copy of the source
+    {
+        ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> t2(a2);
         auto h2 = t2.pointer_nd(p);
-        universalPointerNDFunction(h1, h2, s, f);
+        universalPointerNDFunction(h1, h2, shape, f);
     }
 }
 

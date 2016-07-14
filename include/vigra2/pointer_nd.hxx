@@ -676,7 +676,7 @@ template <class POINTER_ND1, class POINTER_ND2, class SHAPE, class FCT,
           VIGRA_REQUIRE<PointerNDConcept<POINTER_ND1>::value && PointerNDConcept<POINTER_ND2>::value> >
 void
 universalPointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & shape,
-                         FCT f, int dim = 0)
+                           FCT f, int dim = 0)
 {
     vigra_assert(dim < shape.size(),
         "universalPointerNDFunction(): internal error: dim >= shape.size() should never happen.");
@@ -697,6 +697,39 @@ universalPointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & sha
     }
     h1.move(dim, -N);
     h2.move(dim, -N);
+}
+
+
+    // Iterate over two PointerND instances in reverse C-order (first dimension in outer loop,
+    // last dimension in inner loop) and call binary function `f` in every iteration.
+template <class POINTER_ND1, class POINTER_ND2, class SHAPE, class FCT,
+          VIGRA_REQUIRE<PointerNDConcept<POINTER_ND1>::value && PointerNDConcept<POINTER_ND2>::value> >
+void
+reversePointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & shape,
+                         FCT f, int dim = 0)
+{
+    vigra_assert(dim < shape.size(),
+        "reversePointerNDFunction(): internal error: dim >= shape.size() should never happen.");
+
+    // if(consecutivePointerNDFunction(h1, h2, shape, f, dim))
+        // return;
+
+    auto N = shape[dim];
+    h1.move(dim, N-1);
+    h2.move(dim, N-1);
+    if(dim == shape.size() - 1)
+    {
+
+        for(ArrayIndex k=N; k>0; --k, h1.dec(dim), h2.dec(dim))
+            f(*h1, *h2);
+    }
+    else
+    {
+        for(ArrayIndex k=N; k>0; --k, h1.dec(dim), h2.dec(dim))
+            reversePointerNDFunction(h1, h2, shape, f, dim+1);
+    }
+    h1.inc(dim);
+    h2.inc(dim);
 }
 
 /********************************************************/
