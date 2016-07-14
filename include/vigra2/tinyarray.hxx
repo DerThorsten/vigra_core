@@ -2396,6 +2396,8 @@ PromoteType<V>
 prod(TinyArrayBase<V, D, N...> const & l)
 {
     using Promote = PromoteType<V>;
+    if(l.size() == 0)
+        return Promote();
     Promote res = NumericTraits<Promote>::one();
     for(int k=0; k < l.size(); ++k)
         res *= l[k];

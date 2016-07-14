@@ -581,6 +581,9 @@ struct TinyArrayTest
         should(!any(e));
         should(allZero(e));
 
+        shouldEqual(prod(a), 6);
+        shouldEqual(prod(A()), 0);
+
         shouldEqual(cross(a, a), e);
         shouldEqual(dot(a, a), 14);
         shouldEqual(squaredNorm(a), 14);
