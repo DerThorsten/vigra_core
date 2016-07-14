@@ -161,6 +161,14 @@ struct ArrayNDTest
         should(transpose(a3) == v3);
         Array a4(transpose(v3), F_ORDER);
         should(transpose(a4) == v3);
+
+        auto d = a1.data();
+        Array a5(std::move(a1));
+        shouldNot(a1.hasData());
+        shouldEqual(a1.shape(), Shape<N>());
+        shouldEqual(a1.size(), 0);
+        should(a5 == v3);
+        shouldEqual(d, a5.data());
     }
 
     void testBind()
