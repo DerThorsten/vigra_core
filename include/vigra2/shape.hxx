@@ -195,6 +195,28 @@ permutationToOrder(SHAPE const & shape, SHAPE const & stride,
     return res;
 }
 
+template <class SHAPE1, class SHAPE2>
+inline bool
+unifyShape(SHAPE1 & target, SHAPE2 const & src)
+{
+    if (src.size() == 0)
+        return true;
+    if (src.size() != target.size())
+        return false;
+
+    for (int k = 0; k<target.size(); ++k)
+    {
+        if (src[k] == target[k] || src[k] == 1)
+            continue;
+        else if (target[k] == 1)
+            target[k] = src[k];
+        else 
+            return false;
+    }
+    return true;
+}
+    
+
 } // namespace detail
 
 } // namespace vigra

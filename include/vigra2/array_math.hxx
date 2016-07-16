@@ -147,6 +147,22 @@ namespace array_math {
     // Compute the common shape for two arrays (taking care of runtime_ndim and
     // singleton dimensions).
 template <int N, int M>
+struct ArrayMathUnifyDimension
+{
+    typedef integral_minmax<N, M>  minmax;
+
+    static_assert(minmax::min <= 0 || N == M,
+        "array_math: incompatible array dimensions.");
+
+    static const int value       = minmax::max > 0
+                                      ? minmax::max
+                                      : minmax::min;
+};
+
+
+    // Compute the common shape for two arrays (taking care of runtime_ndim and
+    // singleton dimensions).
+template <int N, int M>
 struct ArrayMathUnifyShape
 {
     typedef integral_minmax<N, M>      minmax;
@@ -263,6 +279,12 @@ struct ArrayMathValueOperator
         return shape_;
     }
 
+    template <class SHAPE>
+    bool unifyShape(SHAPE &) const
+    {
+        return true;
+    }
+
     // difference_type const & permutationToCOrder() const
     // {
         // return shape_;
@@ -326,6 +348,12 @@ struct ArrayMathArrayOperator
     difference_type const & shape() const
     {
         return shape_;
+    }
+
+    template <class SHAPE>
+    bool unifyShape(SHAPE & target) const
+    {
+        return vigra::detail::unifyShape(target, shape_);
     }
 
     // difference_type const & permutationToCOrder() const
@@ -401,6 +429,18 @@ struct ArrayMathUnaryOperator
     difference_type const & permutationToCOrder() const
     {
         return arg_.permutationToCOrder();
+    }
+
+    int ndim() const
+    {
+        // FIXME: use constexpr
+        return arg_.ndim();
+    }
+
+    template <class SHAPE>
+    bool unifyShape(SHAPE & target) const
+    {
+        return arg_.unifyShape(target);
     }
 
     arg_type arg_;
@@ -518,10 +558,11 @@ struct ArrayMathBinaryOperator
 {
     typedef ArrayMathArgType<ARG1> arg1_type;
     typedef ArrayMathArgType<ARG2> arg2_type;
+    static const int dimension = ArrayMathUnifyDimension<arg1_type::dimension, arg2_type::dimension>::value;
 
     typedef ArrayMathUnifyShape<arg1_type::dimension, arg2_type::dimension> ShapeHelper;
 
-    static const int dimension = ShapeHelper::dimension;
+    //static const int dimension = ShapeHelper::dimension;
     typedef typename ShapeHelper::shape_type difference_type;
 
     arg1_type arg1_;
@@ -575,6 +616,18 @@ struct ArrayMathBinaryOperator
     difference_type const & shape() const
     {
         return shape_;
+    }
+
+    int ndim() const
+    {
+        // FIXME: use constexpr
+        return shape_.size();
+    }
+
+    template <class SHAPE>
+    bool unifyShape(SHAPE & target) const
+    {
+        return arg1_.unifyShape(target) && arg2_.unifyShape(target);
     }
 
     // difference_type const & permutationToCOrder() const
@@ -797,6 +850,12 @@ public:
         const_cast<shape_type&>(this->shape_) = transpose(this->shape_, permutation);
         const_cast<shape_type&>(this->point_) = transpose(this->point_, permutation);
     }
+
+    template <class SHAPE>
+    bool unifyShape(SHAPE & target) const
+    {
+        return vigra::detail::unifyShape(target, shape());
+    }
 };
 
 template <int N>
@@ -827,10 +886,19 @@ all(ARG const & a)
 {
     typedef typename ARG::value_type value_type;
 
+    Shape<ARG::dimension> shape(tags::size = a.ndim(), 1);
+
+    vigra_precondition(a.unifyShape(shape),
+        "all(ARRAY_EXPRESSION): shape mismatch.");
+
+    if (shape.size() > 1)
+    {
+        // FIXME: optimize memory order
+    }
+
     bool res = true;
     value_type zero = value_type();
-    // FIXME: optimize memory order
-    array_detail::universalPointerNDFunction(a, a.shape(),
+    array_detail::universalPointerNDFunction(a, shape,
         [zero, &res](value_type const & v)
         {
             if(v == zero)
@@ -846,10 +914,19 @@ any(ARG const & a)
 {
     typedef typename ARG::value_type value_type;
 
+    Shape<ARG::dimension> shape(tags::size = a.ndim(), 1);
+
+    vigra_precondition(a.unifyShape(shape),
+        "any(ARRAY_EXPRESSION): shape mismatch.");
+
+    if (shape.size() > 1)
+    {
+        // FIXME: optimize memory order
+    }
+
     bool res = false;
     value_type zero = value_type();
-    // FIXME: optimize memory order
-    array_detail::universalPointerNDFunction(a, a.shape(),
+    array_detail::universalPointerNDFunction(a, shape,
         [zero, &res](value_type const & v)
         {
             if(v != zero)
@@ -865,8 +942,17 @@ inline U
 sum(ARG const & a, U res = {})
 {
     typedef typename ARG::value_type value_type;
-    // FIXME: optimize memory order
-    array_detail::universalPointerNDFunction(a, a.shape(),
+    Shape<ARG::dimension> shape(tags::size = a.ndim(), 1);
+
+    vigra_precondition(a.unifyShape(shape),
+        "sum(ARRAY_EXPRESSION): shape mismatch.");
+
+    if (shape.size() > 1)
+    {
+        // FIXME: optimize memory order
+    }
+
+    array_detail::universalPointerNDFunction(a, shape,
         [&res](value_type const & v)
         {
             res += v;
@@ -881,8 +967,17 @@ inline U
 prod(ARG const & a, U res = U{1})
 {
     typedef typename ARG::value_type value_type;
-    // FIXME: optimize memory order
-    array_detail::universalPointerNDFunction(a, a.shape(),
+    Shape<ARG::dimension> shape(tags::size = a.ndim(), 1);
+
+    vigra_precondition(a.unifyShape(shape),
+        "prod(ARRAY_EXPRESSION): shape mismatch.");
+
+    if (shape.size() > 1)
+    {
+        // FIXME: optimize memory order
+    }
+
+    array_detail::universalPointerNDFunction(a, shape,
         [&res](value_type const & v)
         {
             res *= v;
@@ -890,22 +985,55 @@ prod(ARG const & a, U res = U{1})
     return res;
 }
 
+//template <class ARG1, class ARG2>
+//enable_if_t<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
+//            bool>
+//operator==(ARG1 const & arg1, ARG2 const & arg2)
+//{
+//    typedef array_math::ArrayMathArgType<ARG1> A1;
+//    typedef array_math::ArrayMathArgType<ARG2> A2;
+//    typedef array_math::ArrayMathUnifyShape<A1::dimension, A2::dimension> ShapeHelper;
+//    typedef typename ShapeHelper::shape_type   shape_type;
+//
+//    A1 a1(arg1);
+//    A2 a2(arg2);
+//
+//    shape_type shape = ShapeHelper::exec(a1.shape(), a2.shape(), false);
+//
+//    if(!a1.hasData() || !a2.hasData() || shape == lemon::INVALID)
+//        return false;
+//
+//    // FIXME: optimize memory order
+//    // auto p  = permutationToOrder(a1.shape_, a1.strides_, C_ORDER);
+//    // pointer_nd.transpose(p);
+//    bool res = true;
+//    array_detail::universalPointerNDFunction(a1, a2, shape,
+//        [&res](typename A1::value_type const & u, typename A2::value_type const & v)
+//        {
+//            if(u != v)
+//                res = false;
+//        });
+//    return res;
+//}
+
 template <class ARG1, class ARG2>
 enable_if_t<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
-            bool>
+    bool>
 operator==(ARG1 const & arg1, ARG2 const & arg2)
 {
     typedef array_math::ArrayMathArgType<ARG1> A1;
     typedef array_math::ArrayMathArgType<ARG2> A2;
-    typedef array_math::ArrayMathUnifyShape<A1::dimension, A2::dimension> ShapeHelper;
-    typedef typename ShapeHelper::shape_type   shape_type;
+    static const int dimension = array_math::ArrayMathUnifyDimension<A1::dimension, A2::dimension>::value;
 
     A1 a1(arg1);
     A2 a2(arg2);
 
-    shape_type shape = ShapeHelper::exec(a1.shape(), a2.shape(), false);
+    if (!a1.hasData() || !a2.hasData())
+        return false;
 
-    if(!a1.hasData() || !a2.hasData() || shape == lemon::INVALID)
+    Shape<dimension> shape(tags::size = max(a1.ndim(), a2.ndim()), 1);
+
+    if (!detail::unifyShape(shape, a1.shape()) || !detail::unifyShape(shape, a2.shape()))
         return false;
 
     // FIXME: optimize memory order
@@ -914,10 +1042,10 @@ operator==(ARG1 const & arg1, ARG2 const & arg2)
     bool res = true;
     array_detail::universalPointerNDFunction(a1, a2, shape,
         [&res](typename A1::value_type const & u, typename A2::value_type const & v)
-        {
-            if(u != v)
-                res = false;
-        });
+    {
+        if (u != v)
+            res = false;
+    });
     return res;
 }
 

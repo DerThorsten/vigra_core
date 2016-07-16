@@ -2038,8 +2038,8 @@ class ArrayND
         }
 
         using U = typename Expression::result_type;
-        array_detail::universalArrayMathFunction(rhs,
-            [&data=allocated_data_](U const & u)
+        array_detail::universalPointerNDFunction(rhs, rhs.shape(),
+                [&data=allocated_data_](U const & u)
             {
                 data.emplace_back(u);
             });
@@ -2139,6 +2139,7 @@ class ArrayND
 
 #else
 
+#if 0
     template<class ARG>
     enable_if_t<ArrayNDConcept<ARG>::value || ArrayMathConcept<ARG>::value,
                 ArrayND &>
@@ -2150,10 +2151,11 @@ class ArrayND
             ArrayND(rhs).swap(*this);
         return *this;
     }
+#endif
 
 #define VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(OP) \
     template <class ARG> \
-    enable_if_t<ArrayNDConcept<ARG>::value || ArrayMathConcept<ARG>::value, \
+    enable_if_t<ArrayNDConcept<ARG>::value, \
                 ArrayND &> \
     operator OP(ARG const & rhs) \
     { \
@@ -2162,8 +2164,20 @@ class ArrayND
         else \
             ArrayND(rhs).swap(*this); \
         return *this; \
+    } \
+    template <class Expression> \
+    enable_if_t<ArrayMathConcept<Expression>::value, \
+                ArrayND &> \
+    operator OP(Expression const & rhs) \
+    { \
+        if(this->hasData()) \
+            view_type::operator OP(rhs); \
+        else \
+            ArrayND(rhs).swap(*this); \
+        return *this; \
     }
 
+    VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(=)
     VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(+=)
     VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(-=)
     VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(*=)
