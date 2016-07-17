@@ -158,6 +158,15 @@ VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(long double)
     // return res;
 // }
 
+/********************************************************/
+/*                                                      */
+/*              universalArrayNDFunction()              */
+/*                                                      */
+/********************************************************/
+
+    // Execute a functor for every array element.
+    // The function takes care of singleton axes and
+    // optimizes loop order to maximize cache locality.
 template <class ARRAY, class FCT,
           VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
 void
@@ -169,6 +178,9 @@ universalArrayNDFunction(ARRAY & a, FCT f)
     universalPointerNDFunction(h, s, f);
 }
 
+    // Execute a functor for every pair of array element.
+    // The function takes care of overlapping memory, singleton axes, and
+    // optimizes loop order to maximize cache locality.
 template <class ARRAY1, class ARRAY2, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
 universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f,
@@ -215,12 +227,33 @@ universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f,
     }
 }
 
-    // if both arrays are read-only, we need not worry about overlapping memory
+    // Execute a functor for every pair of array element.
+    // The function takes care of singleton axes and
+    // optimizes loop order to maximize cache locality.
+    // Since both arrays are read-only, we need not worry about
+    // overlapping memory.
 template <class ARRAY1, class ARRAY2, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
-universalArrayNDFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f)
+universalArrayNDFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f,
+    std::string func_name = "universalArrayNDFunction(): internal error")
 {
-    auto p  = permutationToOrder(a1.shape(), a1.byte_strides(), C_ORDER);
+    // unify shape (takes care of singleton axes)
+    auto shape = a1.shape();
+    vigra_assert(detail::unifyShape(shape, a2.shape()),
+        func_name + ": shape mismatch.");
+
+    // optimize axis ordering
+    // (the last axis goes into the inner loop and should have smallest stride)
+    decltype(shape) p(tags::size = shape.size());
+    if (shape.size() > 1)
+    {
+        decltype(shape) strides(tags::size = shape.size());
+        // determine principal strides so that the optmization also works when 
+        // the arrays have singleton axes
+        principalStrides(strides, a1, a2);
+        p = permutationToOrder(shape, strides, C_ORDER);
+    }
+
     auto h1 = a1.pointer_nd(p);
     auto h2 = a2.pointer_nd(p);
     auto s  = transpose(a1.shape(), p);

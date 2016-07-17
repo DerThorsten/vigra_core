@@ -50,6 +50,15 @@ namespace vigra {
 
 namespace array_detail {
 
+/********************************************************/
+/*                                                      */
+/*             universalArrayMathFunction()             */
+/*                                                      */
+/********************************************************/
+
+    // Execute an expression template and assign the results to an array.
+    // The function takes care of overlapping memory, singleton axes, and
+    // optimizes loop order to maximize cache locality.
 template <class ARRAY, class ARRAY_MATH, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY>::value && ArrayMathConcept<ARRAY_MATH>::value>
 universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f, std::string func_name)
@@ -66,12 +75,9 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f, std::string
     if (shape.size() > 1)
     {
         Shape<dimension> strides(tags::size = shape.size());
-        ArrayIndex minimalStride = NumericTraits<ArrayIndex>::max();
-        int singletonCount = shape.size();
-
-        h1.principalStrides(strides, minimalStride, singletonCount);
-        h2.principalStrides(strides, minimalStride, singletonCount);
-
+        // determine principal strides so that the optmization also works when 
+        // the arrays have singleton axes
+        principalStrides(strides, a1, h2);
         p = permutationToOrder(shape, strides, C_ORDER);
     }
 
@@ -99,7 +105,9 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f, std::string
     }
 }
 
-
+    // Execute an expression template.
+    // The function takes care of singleton axes and
+    // optimizes loop order to maximize cache locality.
 template <class ARRAY_MATH, class FCT>
 enable_if_t<ArrayMathConcept<ARRAY_MATH>::value>
 universalArrayMathFunction(ARRAY_MATH && a, FCT f, std::string func_name)
@@ -322,7 +330,7 @@ struct ArrayMathExpression<PointerND<N, T>>
     template <class SHAPE>
     void principalStrides(SHAPE & strides, ArrayIndex & minimalStride, int & singletonCount) const
     {
-        array_detail::principalStrides(strides, this->strides_, shape_, minimalStride, singletonCount);
+        array_detail::principalStrides(strides, this->strides_, minimalStride, singletonCount);
     }
 
     template <class SHAPE>

@@ -520,15 +520,24 @@ using PointerNDShape = PointerNDCoupled<Shape<N>>;
 
 namespace array_detail {
 
-enum MemoryOverlap { NoMemoryOverlap = 0, 
-                     TargetOverlapsLeft = 1, 
-                     TargetOverlapsRight = 2,
-                     TargetOverlaps = 3
-};
-
 using vigra::detail::permutationToOrder;
 
-inline MemoryOverlap 
+/********************************************************/
+/*                                                      */
+/*                  checkMemoryOverlap                  */
+/*                                                      */
+/********************************************************/
+
+    // check if and how the memory of two arrays overlaps
+
+enum MemoryOverlap {
+    NoMemoryOverlap = 0,
+    TargetOverlapsLeft = 1,
+    TargetOverlapsRight = 2,
+    TargetOverlaps = 3
+};
+
+inline MemoryOverlap
 checkMemoryOverlap(TinyArray<char*, 2> const & target, TinyArray<char*, 2> const & src)
 {
     MemoryOverlap res = NoMemoryOverlap;
@@ -541,6 +550,14 @@ checkMemoryOverlap(TinyArray<char*, 2> const & target, TinyArray<char*, 2> const
     return res;
 }
 
+/********************************************************/
+/*                                                      */
+/*                   compatibleStrides                  */
+/*                                                      */
+/********************************************************/
+
+    // check if two arrays have the same strides, ignoring 
+    // singleton dimensions and wrapped scalars
 template <class SHAPE1, class SHAPE2>
 inline bool 
 compatibleStrides(SHAPE1 const & target, SHAPE2 const & src)
@@ -555,17 +572,25 @@ compatibleStrides(SHAPE1 const & target, SHAPE2 const & src)
     return true;
 }
 
+/********************************************************/
+/*                                                      */
+/*                  principalStrides                    */
+/*                                                      */
+/********************************************************/
+
+    // Figure out the strides of the most important (biggest) array in a set of arrays
 template <class SHAPE1, class SHAPE2>
 inline void
-principalStrides(SHAPE1 & target, 
-                 SHAPE2 const & src, SHAPE2 const & shape,
+principalStrides(SHAPE1 & target, SHAPE2 const & src,
                  ArrayIndex & minimalStride, int & singletonCount)
 {
+    if (src.size() != target.size())
+        return;
     ArrayIndex m = NumericTraits<ArrayIndex>::max();
     int        s = 0;
-    for (int k = 0; k < shape.size(); ++k)
+    for (int k = 0; k < src.size(); ++k)
     {
-        if (shape[k] == 1)
+        if (src[k] == 0)
             ++s;
         else if (src[k] < m)
             m = src[k];
@@ -579,14 +604,25 @@ principalStrides(SHAPE1 & target,
 }
 
 template <class SHAPE, class ARRAY1, class ARRAY2>
-inline 
+inline
 enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
 principalStrides(SHAPE & strides, ARRAY1 const & a1, ARRAY2 const & a2)
 {
     ArrayIndex minimalStride = NumericTraits<ArrayIndex>::max();
     int singletonCount = strides.size();
-    principalStrides(strides, a1.byte_strides(), a1.shape(), minimalStride, singletonCount);
-    principalStrides(strides, a2.byte_strides(), a2.shape(), minimalStride, singletonCount);
+    principalStrides(strides, a1.byte_strides(), minimalStride, singletonCount);
+    principalStrides(strides, a2.byte_strides(), minimalStride, singletonCount);
+}
+
+template <class SHAPE, class ARRAY1, class ARRAY2>
+inline
+enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayMathConcept<ARRAY2>::value>
+principalStrides(SHAPE & strides, ARRAY1 const & a1, ARRAY2 const & a2)
+{
+    ArrayIndex minimalStride = NumericTraits<ArrayIndex>::max();
+    int singletonCount = strides.size();
+    principalStrides(strides, a1.byte_strides(), minimalStride, singletonCount);
+    a2.principalStrides(strides, minimalStride, singletonCount);
 }
 
 /********************************************************/
