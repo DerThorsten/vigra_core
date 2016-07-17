@@ -264,10 +264,10 @@ struct ArrayMathExpression<PointerND<0, T>>
     {}
 
     template <class SHAPE>
-    void transpose_inplace(SHAPE const & permutation) const
+    void transpose_inplace(SHAPE const & permutation)
     {
         if (this->ndim() > 0)
-            const_cast<difference_type&>(shape_) = transpose(shape_, permutation);
+            shape_ = shape_.transpose(permutation);
     }
 
     void setShape(difference_type shape)
@@ -347,11 +347,10 @@ struct ArrayMathExpression<PointerND<N, T>>
     }
 
     template <class SHAPE>
-    void transpose_inplace(SHAPE const & permutation) const
+    void transpose_inplace(SHAPE const & permutation)
     {
-        const_cast<difference_type&>(this->strides_)
-                                             = transpose(this->strides_, permutation);
-        const_cast<difference_type&>(shape_) = transpose(shape_, permutation);
+        this->strides_ = this->strides_.transpose(permutation);
+        shape_ = shape_.transpose(permutation);
     }
 
     difference_type const & shape() const
@@ -451,7 +450,7 @@ struct ArrayMathUnaryOperator
     }
 
     template <class SHAPE>
-    void transpose_inplace(SHAPE const & permutation) const
+    void transpose_inplace(SHAPE const & permutation)
     {
         arg_.transpose_inplace(permutation);
     }
@@ -666,7 +665,7 @@ struct ArrayMathBinaryOperator
     }
 
     template <class SHAPE>
-    void transpose_inplace(SHAPE const & permutation) const
+    void transpose_inplace(SHAPE const & permutation)
     {
         arg1_.transpose_inplace(permutation);
         arg2_.transpose_inplace(permutation);
@@ -945,10 +944,10 @@ public:
     }
 
     template <class SHAPE>
-    void transpose_inplace(SHAPE const & permutation) const
+    void transpose_inplace(SHAPE const & permutation)
     {
-        const_cast<shape_type&>(this->shape_) = transpose(this->shape_, permutation);
-        const_cast<shape_type&>(this->point_) = transpose(this->point_, permutation);
+        this->shape_ = this->shape_.transpose(permutation);
+        this->point_ = this->point_.transpose(permutation);
     }
 
     template <class SHAPE>
