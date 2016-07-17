@@ -71,6 +71,9 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH && h2, FCT f, std::string func
     Shape<dimension> shape = h2.shape();
     vigra_precondition(h1.unifyShape(shape), func_name + ": shape mismatch.");
 
+    MemoryOverlap overlap = h2.checkMemoryOverlap(a1.memoryRange());
+    bool compatibleStrides = h2.compatibleStrides(a1.byte_strides());
+
     Shape<dimension> p(tags::size = shape.size());
     if (shape.size() > 1)
     {
@@ -79,14 +82,10 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH && h2, FCT f, std::string func
         // the arrays have singleton axes
         principalStrides(strides, a1, h2);
         p = permutationToOrder(shape, strides, C_ORDER);
+        h1.transpose_inplace(p);
+        h2.transpose_inplace(p);
+        shape = transpose(shape, p);
     }
-
-    MemoryOverlap overlap = h2.checkMemoryOverlap(a1.memoryRange());
-    bool compatibleStrides = h2.compatibleStrides(a1.byte_strides());
-
-    h1.transpose_inplace(p);
-    h2.transpose_inplace(p);
-    shape = transpose(shape, p);
 
     if (overlap = NoMemoryOverlap)
     {
