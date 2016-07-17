@@ -1018,30 +1018,17 @@ enable_if_t<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
     bool>
 operator==(ARG1 const & arg1, ARG2 const & arg2)
 {
-    typedef array_math::ArrayMathBinaryOperator<ARG1, ARG2> Op;
-    typedef typename Op::arg1_type::value_type value1_type;
-    typedef typename Op::arg2_type::value_type value2_type;
+    typedef array_math::ArrayMathElementwiseEqual<ARG1, ARG2> Op;
 
     Op op(arg1, arg2);
     if (!op.hasData())
         return false;
 
     Shape<Op::dimension> shape(tags::size = op.ndim(), 1);
-
     if (!op.unifyShape(shape))
         return false;
 
-    // FIXME: optimize memory order
-    // auto p  = permutationToOrder(a1.shape_, a1.strides_, C_ORDER);
-    // pointer_nd.transpose(p);
-    bool res = true;
-    array_detail::universalPointerNDFunction(op.arg1_, op.arg2_, shape,
-        [&res](value1_type const & u, value2_type const & v)
-        {
-            if (u != v)
-                res = false;
-        });
-    return res;
+    return all(std::move(op));
 }
 
 template <class ARG1, class ARG2>
