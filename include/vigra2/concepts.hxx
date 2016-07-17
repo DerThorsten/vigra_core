@@ -106,7 +106,8 @@ struct PointerNDTag {};
 template <class ARRAY>
 struct PointerNDConcept
 {
-    static const bool value = std::is_base_of<PointerNDTag, ARRAY>::value;
+    typedef typename std::remove_reference<ARRAY>::type PLAIN_ARRAY;
+    static const bool value = std::is_base_of<PointerNDTag, PLAIN_ARRAY>::value;
 };
 
 struct ArrayNDTag {};
@@ -119,7 +120,8 @@ struct ArrayNDTag {};
 template <class ARRAY>
 struct ArrayNDConcept
 {
-    static const bool value = std::is_base_of<ArrayNDTag, ARRAY>::value;
+    typedef typename std::remove_reference<ARRAY>::type PLAIN_ARRAY;
+    static const bool value = std::is_base_of<ArrayNDTag, PLAIN_ARRAY>::value;
 };
 
 struct ArrayMathTag
@@ -129,7 +131,8 @@ struct ArrayMathTag
 template <class ARRAY>
 struct ArrayMathConcept
 {
-    static const bool value = std::is_base_of<ArrayMathTag, ARRAY>::value;
+    typedef typename std::remove_reference<ARRAY>::type PLAIN_ARRAY;
+    static const bool value = std::is_base_of<ArrayMathTag, PLAIN_ARRAY>::value;
 };
 
 template <int N, int M>
