@@ -456,19 +456,19 @@ struct ArrayMathUnaryOperator
     }
 
     // increment the pointer of all RHS arrays along the given 'axis'
-    void inc(int axis) const
+    void inc(int axis)
     {
         arg_.inc(axis);
     }
 
     // decrement the pointer of all RHS arrays along the given 'axis'
-    void dec(int axis) const
+    void dec(int axis)
     {
         arg_.dec(axis);
     }
 
     // reset the pointer of all RHS arrays along the given 'axis'
-    void move(int axis, ArrayIndex diff) const
+    void move(int axis, ArrayIndex diff)
     {
         arg_.move(axis, diff);
     }
@@ -672,21 +672,21 @@ struct ArrayMathBinaryOperator
     }
 
     // increment the pointer of all RHS arrays along the given 'axis'
-    void inc(int axis) const
+    void inc(int axis)
     {
         arg1_.inc(axis);
         arg2_.inc(axis);
     }
 
     // decrement the pointer of all RHS arrays along the given 'axis'
-    void dec(int axis) const
+    void dec(int axis)
     {
         arg1_.dec(axis);
         arg2_.dec(axis);
     }
 
     // reset the pointer of all RHS arrays along the given 'axis'
-    void move(int axis, ArrayIndex diff) const
+    void move(int axis, ArrayIndex diff)
     {
         arg1_.move(axis, diff);
         arg2_.move(axis, diff);
@@ -928,19 +928,19 @@ public:
         return true;
     }
 
-    inline void inc(int dim) const
+    inline void inc(int dim)
     {
-        const_cast<ArrayMathExpression*>(this)->base_type::inc(dim);
+        base_type::inc(dim);
     }
 
-    inline void dec(int dim) const
+    inline void dec(int dim)
     {
-        const_cast<ArrayMathExpression*>(this)->base_type::dec(dim);
+        base_type::dec(dim);
     }
 
-    void move(int dim, ArrayIndex diff) const
+    void move(int dim, ArrayIndex diff)
     {
-        const_cast<ArrayMathExpression*>(this)->base_type::move(dim, diff);
+        base_type::move(dim, diff);
     }
 
     template <class SHAPE>

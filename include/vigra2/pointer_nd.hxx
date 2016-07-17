@@ -132,7 +132,7 @@ class PointerND
     typedef reference                             result_type;
 
     difference_type strides_;
-    mutable char *  data_;
+    char * data_;
 
     PointerND()
     : strides_()
@@ -154,22 +154,22 @@ class PointerND
         return data_ != 0;
     }
 
-    void inc(int axis) const
+    void inc(int axis)
     {
         data_ += strides_[axis];
     }
 
-    void dec(int axis) const
+    void dec(int axis)
     {
         data_ -= strides_[axis];
     }
 
-    void move(int axis, difference_type_1 diff) const
+    void move(int axis, difference_type_1 diff)
     {
         data_ += strides_[axis]*diff;
     }
 
-    void move(difference_type const & diff) const
+    void move(difference_type const & diff)
     {
         data_ += dot(strides_, diff);
     }
@@ -287,6 +287,11 @@ class PointerND<0, T>
     }
 
     constexpr int ndim() const
+    {
+        return 0;
+    }
+
+    constexpr ArrayIndex strides(int) const
     {
         return 0;
     }
