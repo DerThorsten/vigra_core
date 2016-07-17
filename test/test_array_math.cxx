@@ -352,6 +352,106 @@ struct ArrayMathTest
         should(!any(2 * t));
     }
 
+    void testOverlappingMemory()
+    {
+        using namespace array_math;
+
+        const int M = (N == runtime_size)
+            ? N
+            : 2;
+        ArrayViewND<M, int> vs(Shape<M>{4, 4}, i.data());
+        ArrayND<M, int> v1 = vs;
+        v1 = -v1;
+
+        int count = 0;
+        for (int i = 0; i < 4; ++i)
+            for (int j = 0; j < 4; ++j, ++count)
+                shouldEqual((v1[{i, j}]), -count);
+
+        v1 = -v1.transpose();
+
+        count = 0;
+        for (int i = 0; i < 4; ++i)
+            for (int j = 0; j < 4; ++j, ++count)
+                shouldEqual((v1[{j, i}]), count);
+
+        ArrayND<M, int> v2(vs, F_ORDER);
+        v2 = -v2;
+
+        count = 0;
+        for (int i = 0; i < 4; ++i)
+            for (int j = 0; j < 4; ++j, ++count)
+                shouldEqual((v2[{i, j}]), -count);
+
+        v2 = -v2.transpose();
+
+        count = 0;
+        for (int i = 0; i < 4; ++i)
+            for (int j = 0; j < 4; ++j, ++count)
+                shouldEqual((v2[{j, i}]), count);
+
+        {
+            v1 = vs;
+            auto b1 = v1.bind(0, 1),
+                 b2 = v1.bind(0, 2);
+            b1 = -b2;
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    if (i == 1)
+                        shouldEqual((-vs[{2, j}]), (v1[{i, j}]));
+                    else
+                        shouldEqual((vs[{i, j}]), (v1[{i, j}]));
+        }
+        {
+            v1 = vs;
+            auto b1 = v1.bind(1, 1),
+                 b2 = v1.bind(1, 2);
+            b1 = -b2;
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    if (j == 1)
+                        shouldEqual((-vs[{i, 2}]), (v1[{i, j}]));
+                    else
+                        shouldEqual((vs[{i, j}]), (v1[{i, j}]));
+        }
+        {
+            v1 = vs;
+            auto b1 = v1.bind(1, 1),
+                 b2 = v1.bind(1, 2);
+            b2 = -b1;
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    if (j == 2)
+                        shouldEqual((-vs[{i, 1}]), (v1[{i, j}]));
+                    else
+                        shouldEqual((vs[{i, j}]), (v1[{i, j}]));
+        }
+        {
+            v1 = vs;
+            auto b1 = v1.bind(0, 2),
+                 b2 = v1.bind(1, 1);
+            b1 = -b2;
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    if (i == 2)
+                        shouldEqual((-vs[{j, 1}]), (v1[{i, j}]));
+                    else
+                        shouldEqual((vs[{i, j}]), (v1[{i, j}]));
+        }
+        {
+            v1 = vs;
+            auto b1 = v1.bind(0, 1),
+                 b2 = v1.bind(1, 2);
+            b2 = -b1;
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    if (j == 2)
+                        shouldEqual((-vs[{1, i}]), (v1[{i, j}]));
+                    else
+                        shouldEqual((vs[{i, j}]), (v1[{i, j}]));
+        }
+    }
+
     void testVectorTypes()
     {
         using namespace array_math;
@@ -366,6 +466,8 @@ struct ArrayMathTest
                 {
                     shouldEqual((va[{i, j, k}]), (S{ i,j,k }));
                 }
+
+        // FIXME: add tests for arrays with complex numbers
     }
 };
 
@@ -386,7 +488,8 @@ struct ArrayMathTestSuite
         add(testCase(&ArrayMathTest<N>::testUnary));
         add(testCase(&ArrayMathTest<N>::testBinary));
         add(testCase(&ArrayMathTest<N>::testArithmeticAssignment));
-        add(testCase(&ArrayMathTest<N>::testVectorTypes));
+        add(testCase(&ArrayMathTest<N>::testOverlappingMemory));
+        add(testCase(&ArrayMathTest<N>::testVectorTypes)); 
     }
 };
 

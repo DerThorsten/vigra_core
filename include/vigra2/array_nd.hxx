@@ -171,16 +171,26 @@ universalArrayNDFunction(ARRAY & a, FCT f)
 
 template <class ARRAY1, class ARRAY2, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
-universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f)
+universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f,
+                         std::string func_name = "universalArrayNDFunction(): internal error")
 {
-    // unify shape to take care of singleton axes
+    // unify shape (takes care of singleton axes)
     auto shape = a1.shape();
     vigra_assert(detail::unifyShape(shape, a2.shape()),
-        "universalArrayNDFunction(): internal error: shape mismatch.");
+        func_name + ": shape mismatch.");
 
     // optimize axis ordering
     // (the last axis goes into the inner loop and should have smallest stride)
-    auto p  = permutationToOrder(a1.shape(), a1.byte_strides(), C_ORDER);
+    decltype(shape) p(tags::size = shape.size());
+    if (shape.size() > 1)
+    {
+        decltype(shape) strides(tags::size = shape.size());
+        // determine principal strides so that the optmization also works when 
+        // the arrays have singleton axes
+        principalStrides(strides, a1, a2);
+        p = permutationToOrder(shape, strides, C_ORDER);
+    }
+
     auto h1 = a1.pointer_nd(p);
     auto h2 = a2.pointer_nd(p);
     shape   = shape.transpose(p);
@@ -200,8 +210,8 @@ universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f)
     }
     else // complicated overlapping access => create a temporary copy of the source
     {
-        ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> t2(a2);
-        universalPointerNDFunction(h1, t2.pointer_nd(p), shape, f);
+        ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> tmp(a2);
+        universalPointerNDFunction(h1, tmp.pointer_nd(p), shape, f);
     }
 }
 
@@ -371,12 +381,12 @@ class ArrayViewND
             });
     }
 
-        // ensure that singleton axes have unit stride
-    void fixSingletonStrides()
+        // ensure that singleton axes have zero stride
+    void zeroSingletonStrides()
     {
-        for(int k=0; k<ndim(); ++k)
-            if(shape_[k] == 1)
-                strides_[k] = sizeof(T);
+        for (int k = 0; k < ndim(); ++k)
+            if (shape_[k] == 1)
+                strides_[k] = 0; // sizeof(T);
     }
 
     unsigned isConsecutiveImpl() const
@@ -486,7 +496,7 @@ public:
     , data_((char*)ptr)
     , flags_(isConsecutiveImpl())
     {
-        fixSingletonStrides();
+        zeroSingletonStrides();
     }
 
         /** Construct from shape, byte strides (offset of a sample to the
@@ -502,7 +512,7 @@ public:
     , data_((char*)ptr)
     , flags_(isConsecutiveImpl())
     {
-        fixSingletonStrides();
+        zeroSingletonStrides();
     }
 
         /* Construct 0-dimensional array from 0-dimensional shape/stride
@@ -1300,25 +1310,14 @@ public:
         vigra_precondition(sums.ndim() == ndim(),
             "ArrayViewND::sum(ArrayViewND): ndim mismatch.");
 
-        typedef array_math::ArrayMathBinaryOperator<ArrayViewND<M, U>, ArrayViewND> Op;
-
-        Op op(sums, *this);
-
-        Shape<Op::dimension> shape(tags::size = ndim(), 1);
-        vigra_precondition(op.unifyShape(shape),
-            "ArrayViewND::sum(ArrayViewND): shape mismatch.");
-
-        // FIXME: check memory overlap
-        // FIXME: optimize memory order
-        // auto p  = permutationToOrder(a1.shape_, a1.strides_, C_ORDER);
-        // pointer_nd.transpose(p);
-        array_detail::universalPointerNDFunction(op.arg1_, op.arg2_, shape,
+        array_detail::universalArrayNDFunction(sums, *this,
             [](U & u, T const & v)
             {
                 u += detail::RequiresExplicitCast<U>::cast(v);
-            });
+            },
+            "ArrayViewND::sum(ArrayViewND)"
+        );
     }
-
 
     template <class U=T>
     ArrayND<N, PromoteType<U>>

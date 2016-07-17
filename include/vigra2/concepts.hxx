@@ -135,6 +135,12 @@ struct ArrayMathConcept
     static const bool value = std::is_base_of<ArrayMathTag, PLAIN_ARRAY>::value;
 };
 
+template <class ARRAY>
+struct ArrayLikeConcept
+{
+    static const bool value = ArrayNDConcept<ARRAY>::value | ArrayMathConcept<ARRAY>::value;
+};
+
 template <int N, int M>
 struct CompatibleDimensions
 {

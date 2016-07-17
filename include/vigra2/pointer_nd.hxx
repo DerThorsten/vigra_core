@@ -555,7 +555,39 @@ compatibleStrides(SHAPE1 const & target, SHAPE2 const & src)
     return true;
 }
 
+template <class SHAPE1, class SHAPE2>
+inline void
+principalStrides(SHAPE1 & target, 
+                 SHAPE2 const & src, SHAPE2 const & shape,
+                 ArrayIndex & minimalStride, int & singletonCount)
+{
+    ArrayIndex m = NumericTraits<ArrayIndex>::max();
+    int        s = 0;
+    for (int k = 0; k < shape.size(); ++k)
+    {
+        if (shape[k] == 1)
+            ++s;
+        else if (src[k] < m)
+            m = src[k];
+    }
+    if (s <= singletonCount && m <= minimalStride)
+    {
+        singletonCount = s;
+        minimalStride = m;
+        target = src;
+    }
+}
 
+template <class SHAPE, class ARRAY1, class ARRAY2>
+inline 
+enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
+principalStrides(SHAPE & strides, ARRAY1 const & a1, ARRAY2 const & a2)
+{
+    ArrayIndex minimalStride = NumericTraits<ArrayIndex>::max();
+    int singletonCount = strides.size();
+    principalStrides(strides, a1.byte_strides(), a1.shape(), minimalStride, singletonCount);
+    principalStrides(strides, a2.byte_strides(), a2.shape(), minimalStride, singletonCount);
+}
 
 /********************************************************/
 /*                                                      */

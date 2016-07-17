@@ -397,7 +397,7 @@ struct ArrayNDTest
             View t = v.transpose(C_ORDER);
 
             shouldEqual(t.shape(), (S{ 1,4,6 }));
-            shouldEqual(t.strides(), (S{ 1,6,1 }));
+            shouldEqual(t.strides(), (S{ 0,6,1 }));
             shouldEqual(t.axistags(), (AxisTags<N>{tags::axis_x, tags::axis_z, tags::axis_y}));
         }
         {
@@ -406,7 +406,7 @@ struct ArrayNDTest
             View t = v.transpose(C_ORDER);
 
             shouldEqual(t.shape(), (S{ 1,6,4 }));
-            shouldEqual(t.strides(), (S{ 1,6,1 }));
+            shouldEqual(t.strides(), (S{ 0,6,1 }));
             shouldEqual(t.channelAxis(), 1);
         }
         {
@@ -415,7 +415,7 @@ struct ArrayNDTest
             View t = v.transpose(C_ORDER);
 
             shouldEqual(t.shape(), (S{ 1,1,24 }));
-            shouldEqual(t.strides(), (S{ 1,1,1 }));
+            shouldEqual(t.strides(), (S{ 0,0,1 }));
             shouldEqual(t.channelAxis(), 2);
         }
     }

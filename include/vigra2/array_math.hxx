@@ -56,18 +56,29 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f, std::string
 {
     typedef typename std::remove_reference<ARRAY_MATH>::type ARRAY2;
 
-    static const int dimension =
-        array_math::ArrayMathUnifyDimension<ARRAY::dimension, ARRAY2::dimension>::value;
-    Shape<dimension> shape(tags::size = max(a1.ndim(), h2.ndim()), 1);
-    vigra_precondition(detail::unifyShape(shape, a1.shape()) && h2.unifyShape(shape),
-        func_name + ": shape mismatch.");
+    static const int dimension = array_math::ArrayMathUnifyDimension<ARRAY, ARRAY2>::value;
 
-    auto p  = permutationToOrder(shape, a1.byte_strides(), C_ORDER);
-    auto h1 = a1.pointer_nd(p);
+    array_math::ArrayMathArgType<ARRAY> h1(a1);
+    Shape<dimension> shape = h2.shape();
+    vigra_precondition(h1.unifyShape(shape), func_name + ": shape mismatch.");
+
+    Shape<dimension> p(tags::size = shape.size());
+    if (shape.size() > 1)
+    {
+        Shape<dimension> strides(tags::size = shape.size());
+        ArrayIndex minimalStride = NumericTraits<ArrayIndex>::max();
+        int singletonCount = shape.size();
+
+        h1.principalStrides(strides, minimalStride, singletonCount);
+        h2.principalStrides(strides, minimalStride, singletonCount);
+
+        p = permutationToOrder(shape, strides, C_ORDER);
+    }
+
+    h1.transpose_inplace(p);
     shape  = transpose(shape, p);
 
     MemoryOverlap overlap = h2.checkMemoryOverlap(a1.memoryRange());
-
     if (overlap = NoMemoryOverlap)
     {
         h2.transpose_inplace(p);
@@ -83,10 +94,8 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f, std::string
     }
     else
     {
-        using TmpArray = ArrayND<ARRAY::dimension, typename ARRAY2::value_type>;
-        TmpArray t2(h2);
-        auto ht = t2.pointer_nd(p);
-        universalPointerNDFunction(h1, ht, shape, f);
+        ArrayND<ARRAY::dimension, typename ARRAY2::value_type> tmp(h2);
+        universalPointerNDFunction(h1, tmp.pointer_nd(p), shape, f);
     }
 }
 
@@ -104,7 +113,11 @@ universalArrayMathFunction(ARRAY_MATH && a, FCT f, std::string func_name)
 
     if (shape.size() > 1)
     {
-        // FIXME: optimize memory order
+        Shape<ARRAY::dimension> strides(tags::size = a.ndim());
+        a.principalStrides(strides);
+        auto p = permutationToOrder(shape, strides, C_ORDER);
+        a.transpose_inplace(p);
+        shape = transpose(shape, p);
     }
 
     array_detail::universalPointerNDFunction(a, shape, f);
@@ -171,17 +184,20 @@ using vigra::array_detail::MemoryOverlap;
 /********************************************************/
 
     // Compute the common ndim for two arrays.
-template <int N, int M>
+template <class A1, class A2>
 struct ArrayMathUnifyDimension
 {
+    static const int M = A1::dimension;
+    static const int N = A2::dimension;
+
     typedef integral_minmax<N, M>  minmax;
 
     static_assert(minmax::min <= 0 || N == M,
         "array_math: incompatible array dimensions.");
 
-    static const int value       = minmax::max > 0
-                                      ? minmax::max
-                                      : minmax::min;
+    static const int value = minmax::max > 0
+                                ? minmax::max
+                                : minmax::min;
 };
 
 /********************************************************/
@@ -236,9 +252,13 @@ struct ArrayMathExpression<PointerND<0, T>>
     }
 
     template <class SHAPE>
+    void principalStrides(SHAPE const &, ArrayIndex, int) const
+    {}
+
+    template <class SHAPE>
     void transpose_inplace(SHAPE const & permutation) const
     {
-        if(this->ndim() > 0)
+        if (this->ndim() > 0)
             const_cast<difference_type&>(shape_) = transpose(shape_, permutation);
     }
 
@@ -257,11 +277,6 @@ struct ArrayMathExpression<PointerND<0, T>>
     {
         return true;
     }
-
-    // difference_type const & permutationToCOrder() const
-    // {
-        // return shape_;
-    // }
 };
 
 /********************************************************/
@@ -281,18 +296,12 @@ struct ArrayMathExpression<PointerND<N, T>>
     typedef PointerND<N, T>                      base_type;
     typedef typename base_type::difference_type  difference_type;
 
-    difference_type shape_, permutation_;
+    difference_type shape_;
 
     ArrayMathExpression(ArrayViewND<N, T> const & a)
     : base_type(a.pointer_nd())
     , shape_(a.shape())
-    , permutation_(array_detail::permutationToOrder(a.shape(), a.byte_strides(), C_ORDER))
-    {
-        // set singleton strides to zero
-        for(int k=0; k<shape_.size(); ++k)
-            if(shape_[k] == 1)
-                this->strides_[k] = 0;
-    }
+    {}
 
     TinyArray<char *, 2> memoryRange() const
     {
@@ -308,6 +317,20 @@ struct ArrayMathExpression<PointerND<N, T>>
     bool compatibleStrides(SHAPE const & target) const
     {
         return vigra::array_detail::compatibleStrides(target, this->strides_);
+    }
+
+    template <class SHAPE>
+    void principalStrides(SHAPE & strides, ArrayIndex & minimalStride, int & singletonCount) const
+    {
+        array_detail::principalStrides(strides, this->strides_, shape_, minimalStride, singletonCount);
+    }
+
+    template <class SHAPE>
+    void principalStrides(SHAPE & strides) const
+    {
+        ArrayIndex minimalStride = NumericTraits<ArrayIndex>::max();
+        int singletonCount       = ndim();
+        principalStrides(strides, minimalStride, singletonCount);
     }
 
     template <class SHAPE>
@@ -328,11 +351,6 @@ struct ArrayMathExpression<PointerND<N, T>>
     {
         return vigra::detail::unifyShape(target, shape_);
     }
-
-    // difference_type const & permutationToCOrder() const
-    // {
-        // return permutation_;
-    // }
 };
 
 /********************************************************/
@@ -406,6 +424,20 @@ struct ArrayMathUnaryOperator
     }
 
     template <class SHAPE>
+    void principalStrides(SHAPE & strides, ArrayIndex & minimalStride, int & singletonCount) const
+    {
+        arg_.principalStrides(strides, minimalStride, singletonCount);
+    }
+
+    template <class SHAPE>
+    void principalStrides(SHAPE & strides) const
+    {
+        ArrayIndex minimalStride = NumericTraits<ArrayIndex>::max();
+        int singletonCount = ndim();
+        principalStrides(strides, minimalStride, singletonCount);
+    }
+
+    template <class SHAPE>
     void transpose_inplace(SHAPE const & permutation) const
     {
         arg_.transpose_inplace(permutation);
@@ -434,15 +466,17 @@ struct ArrayMathUnaryOperator
         return arg_.shape();
     }
 
-    difference_type const & permutationToCOrder() const
+    template <int M = dimension>
+    int ndim(enable_if_t<M == runtime_size, bool> = true) const
     {
-        return arg_.permutationToCOrder();
+        return arg_.ndim();
     }
 
-    int ndim() const
+    template <int M = dimension>
+    constexpr
+        int ndim(enable_if_t<M != runtime_size, bool> = true) const
     {
-        // FIXME: use constexpr
-        return arg_.ndim();
+        return dimension;
     }
 
     template <class SHAPE>
@@ -576,15 +610,15 @@ struct ArrayMathBinaryOperator
 {
     typedef ArrayMathArgType<ARG1> arg1_type;
     typedef ArrayMathArgType<ARG2> arg2_type;
-    static const int dimension = ArrayMathUnifyDimension<arg1_type::dimension, arg2_type::dimension>::value;
+    static const int dimension = ArrayMathUnifyDimension<arg1_type, arg2_type>::value;
     typedef Shape<dimension> difference_type;
 
     arg1_type arg1_;
     arg2_type arg2_;
 
     ArrayMathBinaryOperator(ARG1 const & a1, ARG2 const & a2)
-        : arg1_(a1)
-        , arg2_(a2)
+    : arg1_(a1)
+    , arg2_(a2)
     {}
 
     bool hasData() const
@@ -601,6 +635,21 @@ struct ArrayMathBinaryOperator
     bool compatibleStrides(SHAPE const & target) const
     {
         return arg1_.compatibleStrides(target) && arg2_.compatibleStrides(target);
+    }
+
+    template <class SHAPE>
+    void principalStrides(SHAPE & strides, ArrayIndex & minimalStride, int & singletonCount) const
+    {
+        arg1_.principalStrides(strides, minimalStride, singletonCount);
+        arg2_.principalStrides(strides, minimalStride, singletonCount);
+    }
+
+    template <class SHAPE>
+    void principalStrides(SHAPE & strides) const
+    {
+        ArrayIndex minimalStride = NumericTraits<ArrayIndex>::max();
+        int singletonCount = ndim();
+        principalStrides(strides, minimalStride, singletonCount);
     }
 
     template <class SHAPE>
@@ -657,11 +706,6 @@ struct ArrayMathBinaryOperator
     {
         return arg1_.unifyShape(target) && arg2_.unifyShape(target);
     }
-
-    // difference_type const & permutationToCOrder() const
-    // {
-        // return permutation_;
-    // }
 };
 
 /********************************************************/
@@ -1015,14 +1059,14 @@ prod(ARG && a, U res = U{1})
 
 template <class ARG1, class ARG2>
 enable_if_t<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
-    bool>
+            bool>
 operator==(ARG1 const & arg1, ARG2 const & arg2)
 {
     typedef array_math::ArrayMathElementwiseEqual<ARG1, ARG2> Op;
 
     Op op(arg1, arg2);
     if (!op.hasData())
-        return false;
+        return op.arg1_.hasData() == op.arg2_.hasData(); // empty arrays are equal
 
     Shape<Op::dimension> shape(tags::size = op.ndim(), 1);
     if (!op.unifyShape(shape))
