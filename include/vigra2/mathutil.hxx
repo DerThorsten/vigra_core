@@ -128,22 +128,61 @@ namespace vigra {
 //        abs(int), abs(long), abs(long long) from <cstdlib>
 //        abs(std::complex<T>) from <complex>
 using std::abs;
+using std::fabs;
 
+// import <cmath>
+using std::cos;
+using std::sin;
+using std::tan;
 using std::acos;
 using std::asin;
 using std::atan;
-using std::ceil;
-using std::cos;
-using std::exp;
-using std::floor;
-using std::log10;
-using std::log;
-using std::round;
-using std::sin;
+
+using std::cosh;
+using std::sinh;
+using std::tanh;
+using std::acosh;
+using std::asinh;
+using std::atanh;
+
 using std::sqrt;
-using std::tan;
+using std::cbrt;
+
+using std::exp;
+using std::exp2;
+using std::expm1;
+using std::log;
+using std::log2;
+using std::log10;
+using std::log1p;
+using std::logb;
+using std::ilogb;
+
+using std::ceil;
+using std::floor;
+using std::trunc;
+using std::round;
+using std::lround;
+using std::llround;
+
+using std::erf;
+using std::erfc;
+using std::tgamma;
+using std::lgamma;
+
+using std::isfinite;
+using std::isinf;
+using std::isnan;
+using std::isnormal;
+using std::signbit;
+
 using std::atan2;
+using std::copysign;
+using std::fdim;
+using std::fmax;
+using std::fmin;
 using std::fmod;
+using std::hypot;
 using std::pow;
 
 /**********************************************************/
@@ -257,6 +296,26 @@ VIGRA_DEFINE_INTEGER_FLOOR_CEIL(long long)
 
 /**********************************************************/
 /*                                                        */
+/*                       isfinite()                       */
+/*                                                        */
+/**********************************************************/
+
+    // add missing isfinite() overloads for integral types
+
+#define VIGRA_DEFINE_INTEGER_ISFINITE(T) \
+    inline bool isfinite(signed T t) { return true; } \
+    inline bool isfinite(unsigned T t) { return true; }
+
+VIGRA_DEFINE_INTEGER_ISFINITE(char)
+VIGRA_DEFINE_INTEGER_ISFINITE(short)
+VIGRA_DEFINE_INTEGER_ISFINITE(int)
+VIGRA_DEFINE_INTEGER_ISFINITE(long)
+VIGRA_DEFINE_INTEGER_ISFINITE(long long)
+
+#undef VIGRA_DEFINE_INTEGER_ISFINITE
+
+/**********************************************************/
+/*                                                        */
 /*                         abs()                          */
 /*                                                        */
 /**********************************************************/
@@ -359,33 +418,6 @@ VIGRA_DEFINE_NORM(long double)
 
 /**********************************************************/
 /*                                                        */
-/*                     isinf(), isnan()                   */
-/*                                                        */
-/**********************************************************/
-
-#ifndef _MSC_VER
-
-using std::isinf;
-using std::isnan;
-
-#else
-
-template <class REAL>
-inline bool isinf(REAL v)
-{
-    return _finite(v) == 0;
-}
-
-template <class REAL>
-inline bool isnan(REAL v)
-{
-    return _isnan(v) != 0;
-}
-
-#endif
-
-/**********************************************************/
-/*                                                        */
 /*                           dot()                        */
 /*                                                        */
 /**********************************************************/
@@ -431,57 +463,14 @@ inline long double pow(long double v, double e)
 
 /**********************************************************/
 /*                                                        */
-/*                         round()                        */
+/*                         roundi()                       */
 /*                                                        */
 /**********************************************************/
 
-    // /** \brief The rounding function.
-
-        // Defined for all floating point types. Rounds towards the nearest integer
-        // such that <tt>abs(round(t)) == round(abs(t))</tt> for all <tt>t</tt>.
-
-        // <b>\#include</b> \<vigra2/mathutil.hxx\><br>
-        // Namespace: vigra
-    // */
-// #ifdef DOXYGEN // only for documentation
-// REAL round(REAL v);
-// #endif
-
-// inline float round(float t)
-// {
-     // return t >= 0.0
-                // ? floor(t + 0.5f)
-                // : ceil(t - 0.5f);
-// }
-
-// inline double round(double t)
-// {
-     // return t >= 0.0
-                // ? floor(t + 0.5)
-                // : ceil(t - 0.5);
-// }
-
-// inline long double round(long double t)
-// {
-     // return t >= 0.0
-                // ? floor(t + 0.5)
-                // : ceil(t - 0.5);
-// }
-
-
-    /** \brief Round and cast to integer.
-
-        Rounds to the nearest integer like round(), but casts the result to
-        <tt>int</tt> (this will be faster and is usually needed anyway).
-
-        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
-        Namespace: vigra
-    */
-inline int roundi(double t)
+    // round and cast to nearest long int
+inline long int roundi(double t)
 {
-     return t >= 0.0
-                ? int(t + 0.5)
-                : int(t - 0.5);
+     return lround(t);
 }
 
 /**********************************************************/
@@ -772,38 +761,6 @@ inline uint32_t sqrti(uint32_t v)
 
 /**********************************************************/
 /*                                                        */
-/*                          hypot()                       */
-/*                                                        */
-/**********************************************************/
-
-#ifdef VIGRA_NO_HYPOT
-    /** \brief Compute the Euclidean distance (length of the hypotenuse of a right-angled triangle).
-
-        The  hypot()  function  returns  the  sqrt(a*a  +  b*b).
-        It is implemented in a way that minimizes round-off error.
-
-        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
-        Namespace: vigra
-    */
-inline double hypot(double a, double b)
-{
-    double absa = std::fabs(a), absb = std::fabs(b);
-    if (absa > absb)
-        return absa * std::sqrt(1.0 + sq(absb/absa));
-    else
-        return absb == 0.0
-                   ? 0.0
-                   : absb * std::sqrt(1.0 + sq(absa/absb));
-}
-
-#else
-
-using std::hypot;
-
-#endif
-
-/**********************************************************/
-/*                                                        */
 /*                    sign(), signi()                     */
 /*                                                        */
 /**********************************************************/
@@ -846,19 +803,11 @@ signi(T t)
                     : 0;
 }
 
-    /** \brief The binary sign function.
-
-        Transfers the sign of \a t2 to \a t1.
-
-        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
-        Namespace: vigra
-    */
+    // transfer sign of t2 to t1
 template <class T1, class T2>
 inline T1 sign(T1 t1, T2 t2)
 {
-    return t2 >= NumericTraits<T2>::zero()
-               ? abs(t1)
-               : -abs(t1);
+    return copysign(t1, t2);
 }
 
 
@@ -883,58 +832,6 @@ odd(T const t)
 {
     return (t&1) != 0;
 }
-
-/**********************************************************/
-/*                                                        */
-/*                           erf()                        */
-/*                                                        */
-/**********************************************************/
-
-#if defined(_MSC_VER) && _MSC_VER < 1800
-
-namespace detail {
-
-template <class T>
-double erfImpl(T x)
-{
-    double t = 1.0/(1.0+0.5*std::fabs(x));
-    double ans = t*std::exp(-x*x-1.26551223+t*(1.00002368+t*(0.37409196+
-                                    t*(0.09678418+t*(-0.18628806+t*(0.27886807+
-                                    t*(-1.13520398+t*(1.48851587+t*(-0.82215223+
-                                    t*0.17087277)))))))));
-    if (x >= 0.0)
-        return 1.0 - ans;
-    else
-        return ans - 1.0;
-}
-
-} // namespace detail
-
-    /** \brief The error function.
-
-        If <tt>erf()</tt> is not provided in the C standard math library (as it should according to the
-        new C99 standard ?), VIGRA implements <tt>erf()</tt> as an approximation of the error
-        function
-
-        \f[
-            \mbox{erf}(x) = \int_0^x e^{-t^2} dt
-        \f]
-
-        according to the formula given in Press et al. "Numerical Recipes".
-
-        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
-        Namespace: vigra
-    */
-inline double erf(double x)
-{
-    return detail::erfImpl(x);
-}
-
-#else
-
-using std::erf;
-
-#endif
 
 /**********************************************************/
 /*                                                        */
@@ -1003,216 +900,18 @@ REAL cos_pi(REAL x)
 /*                                                        */
 /**********************************************************/
 
-namespace detail {
-
-template <class REAL>
-struct GammaImpl
+inline double gamma(double x)
 {
-    static REAL gamma(REAL x);
-    static REAL loggamma(REAL x);
-
-    static double g[];
-    static double a[];
-    static double t[];
-    static double u[];
-    static double v[];
-    static double s[];
-    static double r[];
-    static double w[];
-};
-
-template <class REAL>
-double GammaImpl<REAL>::g[] = {
-    1.0,
-    0.5772156649015329,
-   -0.6558780715202538,
-   -0.420026350340952e-1,
-    0.1665386113822915,
-   -0.421977345555443e-1,
-   -0.9621971527877e-2,
-    0.7218943246663e-2,
-   -0.11651675918591e-2,
-   -0.2152416741149e-3,
-    0.1280502823882e-3,
-   -0.201348547807e-4,
-   -0.12504934821e-5,
-    0.1133027232e-5,
-   -0.2056338417e-6,
-    0.6116095e-8,
-    0.50020075e-8,
-   -0.11812746e-8,
-    0.1043427e-9,
-    0.77823e-11,
-   -0.36968e-11,
-    0.51e-12,
-   -0.206e-13,
-   -0.54e-14,
-    0.14e-14
-};
-
-template <class REAL>
-double GammaImpl<REAL>::a[] = {
-    7.72156649015328655494e-02,
-    3.22467033424113591611e-01,
-    6.73523010531292681824e-02,
-    2.05808084325167332806e-02,
-    7.38555086081402883957e-03,
-    2.89051383673415629091e-03,
-    1.19270763183362067845e-03,
-    5.10069792153511336608e-04,
-    2.20862790713908385557e-04,
-    1.08011567247583939954e-04,
-    2.52144565451257326939e-05,
-    4.48640949618915160150e-05
-};
-
-template <class REAL>
-double GammaImpl<REAL>::t[] = {
-    4.83836122723810047042e-01,
-    -1.47587722994593911752e-01,
-    6.46249402391333854778e-02,
-    -3.27885410759859649565e-02,
-    1.79706750811820387126e-02,
-    -1.03142241298341437450e-02,
-    6.10053870246291332635e-03,
-    -3.68452016781138256760e-03,
-    2.25964780900612472250e-03,
-    -1.40346469989232843813e-03,
-    8.81081882437654011382e-04,
-    -5.38595305356740546715e-04,
-    3.15632070903625950361e-04,
-    -3.12754168375120860518e-04,
-    3.35529192635519073543e-04
-};
-
-template <class REAL>
-double GammaImpl<REAL>::u[] = {
-    -7.72156649015328655494e-02,
-    6.32827064025093366517e-01,
-    1.45492250137234768737e+00,
-    9.77717527963372745603e-01,
-    2.28963728064692451092e-01,
-    1.33810918536787660377e-02
-};
-
-template <class REAL>
-double GammaImpl<REAL>::v[] = {
-    0.0,
-    2.45597793713041134822e+00,
-    2.12848976379893395361e+00,
-    7.69285150456672783825e-01,
-    1.04222645593369134254e-01,
-    3.21709242282423911810e-03
-};
-
-template <class REAL>
-double GammaImpl<REAL>::s[] = {
-    -7.72156649015328655494e-02,
-    2.14982415960608852501e-01,
-    3.25778796408930981787e-01,
-    1.46350472652464452805e-01,
-    2.66422703033638609560e-02,
-    1.84028451407337715652e-03,
-    3.19475326584100867617e-05
-};
-
-template <class REAL>
-double GammaImpl<REAL>::r[] = {
-    0.0,
-    1.39200533467621045958e+00,
-    7.21935547567138069525e-01,
-    1.71933865632803078993e-01,
-    1.86459191715652901344e-02,
-    7.77942496381893596434e-04,
-    7.32668430744625636189e-06
-};
-
-template <class REAL>
-double GammaImpl<REAL>::w[] = {
-    4.18938533204672725052e-01,
-    8.33333333333329678849e-02,
-    -2.77777777728775536470e-03,
-    7.93650558643019558500e-04,
-    -5.95187557450339963135e-04,
-    8.36339918996282139126e-04,
-    -1.63092934096575273989e-03
-};
-
-template <class REAL>
-REAL GammaImpl<REAL>::gamma(REAL x)
-{
-    int i, k, m, ix = (int)x;
-    double ga = 0.0, gr = 0.0, r = 0.0, z = 0.0;
-
     vigra_precondition(x <= 171.0,
         "gamma(): argument cannot exceed 171.0.");
 
-    if (x == ix)
-    {
-        if (ix > 0)
-        {
-            ga = 1.0;               // use factorial
-            for (i=2; i<ix; ++i)
-            {
-               ga *= i;
-            }
-        }
-        else
-        {
-            vigra_precondition(false,
-                 "gamma(): gamma function is undefined for 0 and negative integers.");
-        }
-     }
-     else
-     {
-        if (abs(x) > 1.0)
-        {
-            z = abs(x);
-            m = (int)z;
-            r = 1.0;
-            for (k=1; k<=m; ++k)
-            {
-                r *= (z-k);
-            }
-            z -= m;
-        }
-        else
-        {
-            z = x;
-        }
-        gr = g[24];
-        for (k=23; k>=0; --k)
-        {
-            gr = gr*z+g[k];
-        }
-        ga = 1.0/(gr*z);
-        if (abs(x) > 1.0)
-        {
-            ga *= r;
-            if (x < 0.0)
-            {
-                ga = -M_PI/(x*ga*sin_pi(x));
-            }
-        }
-    }
-    return ga;
+    vigra_precondition(x > 0.0 || fmod(x, 1.0) != 0,
+         "gamma(): gamma function is undefined for 0 and negative integers.");
+
+    return tgamma(x);
 }
 
-/*
- * the following code is derived from lgamma_r() by Sun
- *
- * ====================================================
- * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
- *
- * Developed at SunPro, a Sun Microsystems, Inc. business.
- * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice
- * is preserved.
- * ====================================================
- *
- */
-template <class REAL>
-REAL GammaImpl<REAL>::loggamma(REAL x)
+inline double loggamma(double x)
 {
     vigra_precondition(x > 0.0,
         "loggamma(): argument must be positive.");
@@ -1220,148 +919,7 @@ REAL GammaImpl<REAL>::loggamma(REAL x)
     vigra_precondition(x <= 1.0e307,
         "loggamma(): argument must not exceed 1e307.");
 
-    double res;
-
-    if (x < 4.2351647362715017e-22)
-    {
-        res = -std::log(x);
-    }
-    else if ((x == 2.0) || (x == 1.0))
-    {
-        res = 0.0;
-    }
-    else if (x < 2.0)
-    {
-        const double tc  =  1.46163214496836224576e+00;
-        const double tf  = -1.21486290535849611461e-01;
-        const double tt  = -3.63867699703950536541e-18;
-        if (x <= 0.9)
-        {
-            res = -std::log(x);
-            if (x >= 0.7316)
-            {
-                double y = 1.0-x;
-                double z = y*y;
-                double p1 = a[0]+z*(a[2]+z*(a[4]+z*(a[6]+z*(a[8]+z*a[10]))));
-                double p2 = z*(a[1]+z*(a[3]+z*(a[5]+z*(a[7]+z*(a[9]+z*a[11])))));
-                double p  = y*p1+p2;
-                res  += (p-0.5*y);
-            }
-            else if (x >= 0.23164)
-            {
-                double y = x-(tc-1.0);
-                double z = y*y;
-                double w = z*y;
-                double p1 = t[0]+w*(t[3]+w*(t[6]+w*(t[9] +w*t[12])));
-                double p2 = t[1]+w*(t[4]+w*(t[7]+w*(t[10]+w*t[13])));
-                double p3 = t[2]+w*(t[5]+w*(t[8]+w*(t[11]+w*t[14])));
-                double p  = z*p1-(tt-w*(p2+y*p3));
-                res += (tf + p);
-            }
-            else
-            {
-                double y = x;
-                double p1 = y*(u[0]+y*(u[1]+y*(u[2]+y*(u[3]+y*(u[4]+y*u[5])))));
-                double p2 = 1.0+y*(v[1]+y*(v[2]+y*(v[3]+y*(v[4]+y*v[5]))));
-                res += (-0.5*y + p1/p2);
-            }
-        }
-        else
-        {
-            res = 0.0;
-            if (x >= 1.7316)
-            {
-                double y = 2.0-x;
-                double z = y*y;
-                double p1 = a[0]+z*(a[2]+z*(a[4]+z*(a[6]+z*(a[8]+z*a[10]))));
-                double p2 = z*(a[1]+z*(a[3]+z*(a[5]+z*(a[7]+z*(a[9]+z*a[11])))));
-                double p  = y*p1+p2;
-                res  += (p-0.5*y);
-            }
-            else if(x >= 1.23164)
-            {
-                double y = x-tc;
-                double z = y*y;
-                double w = z*y;
-                double p1 = t[0]+w*(t[3]+w*(t[6]+w*(t[9] +w*t[12])));
-                double p2 = t[1]+w*(t[4]+w*(t[7]+w*(t[10]+w*t[13])));
-                double p3 = t[2]+w*(t[5]+w*(t[8]+w*(t[11]+w*t[14])));
-                double p  = z*p1-(tt-w*(p2+y*p3));
-                res += (tf + p);
-            }
-            else
-            {
-                double y = x-1.0;
-                double p1 = y*(u[0]+y*(u[1]+y*(u[2]+y*(u[3]+y*(u[4]+y*u[5])))));
-                double p2 = 1.0+y*(v[1]+y*(v[2]+y*(v[3]+y*(v[4]+y*v[5]))));
-                res += (-0.5*y + p1/p2);
-            }
-        }
-    }
-    else if(x < 8.0)
-    {
-        double i = std::floor(x);
-        double y = x-i;
-        double p = y*(s[0]+y*(s[1]+y*(s[2]+y*(s[3]+y*(s[4]+y*(s[5]+y*s[6]))))));
-        double q = 1.0+y*(r[1]+y*(r[2]+y*(r[3]+y*(r[4]+y*(r[5]+y*r[6])))));
-        res = 0.5*y+p/q;
-        double z = 1.0;
-        while (i > 2.0)
-        {
-            --i;
-            z *= (y+i);
-        }
-        res += std::log(z);
-    }
-    else if (x < 2.8823037615171174e+17)
-    {
-        double t = std::log(x);
-        double z = 1.0/x;
-        double y = z*z;
-        double yy = w[0]+z*(w[1]+y*(w[2]+y*(w[3]+y*(w[4]+y*(w[5]+y*w[6])))));
-        res = (x-0.5)*(t-1.0)+yy;
-    }
-    else
-    {
-        res =  x*(std::log(x) - 1.0);
-    }
-
-    return res;
-}
-
-
-} // namespace detail
-
-    /** \brief The gamma function.
-
-        This function implements the algorithm from<br>
-        Zhang and Jin: "Computation of Special Functions", John Wiley and Sons, 1996.
-
-        The argument must be <= 171.0 and cannot be zero or a negative integer. An
-        exception is thrown when these conditions are violated.
-
-        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
-        Namespace: vigra
-    */
-inline double gamma(double x)
-{
-    return detail::GammaImpl<double>::gamma(x);
-}
-
-    /** \brief The natural logarithm of the gamma function.
-
-        This function is based on a free implementation by Sun Microsystems, Inc., see
-        <a href="http://www.sourceware.org/cgi-bin/cvsweb.cgi/~checkout~/src/newlib/libm/mathfp/er_lgamma.c?rev=1.6&content-type=text/plain&cvsroot=src">sourceware.org</a> archive. It can be removed once all compilers support the new C99
-        math functions.
-
-        The argument must be positive and < 1e30. An exception is thrown when these conditions are violated.
-
-        <b>\#include</b> \<vigra2/mathutil.hxx\><br>
-        Namespace: vigra
-    */
-inline double loggamma(double x)
-{
-    return detail::GammaImpl<double>::loggamma(x);
+    return lgamma(x);
 }
 
 /**********************************************************/
@@ -1370,31 +928,34 @@ inline double loggamma(double x)
 /*                                                        */
 /**********************************************************/
 
-template <class T,
-          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
-inline T
-clipLower(T const t, T const lowerBound = T())
+template <class T, class U=T>
+inline
+enable_if_t<std::is_arithmetic<T>::value && std::is_convertible<U, T>::value,
+            T>
+clipLower(T t, U lowerBound = U())
 {
-    return t < lowerBound ? lowerBound : t;
+    return t < (T)lowerBound ? (T)lowerBound : t;
 }
 
-template <class T,
-          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
-inline T
-clipUpper(T const t, T const upperBound)
+template <class T, class U=T>
+inline
+enable_if_t<std::is_arithmetic<T>::value && std::is_convertible<U, T>::value,
+            T>
+clipUpper(T t, U upperBound)
 {
-    return t > upperBound ? upperBound : t;
+    return t > (T)upperBound ? (T)upperBound : t;
 }
 
-template <class T,
-          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
-inline T
-clip(T const t, T const lowerBound, T const upperBound)
+template <class T, class U=T>
+inline
+enable_if_t<std::is_arithmetic<T>::value && std::is_convertible<U, T>::value,
+            T>
+clip(T t, U lowerBound, U upperBound)
 {
-    return t < lowerBound
-              ?lowerBound
-              : t > upperBound
-                  ? upperBound
+    return t < (T)lowerBound
+              ? (T)lowerBound
+              : t > (T)upperBound
+                  ? (T)upperBound
                   : t;
 }
 

@@ -45,6 +45,13 @@
 
 namespace vigra {
 
+template <class Ex>
+enable_if_t<ArrayMathConcept<Ex>::value> 
+testEx(Ex && ex)
+{
+    std::cerr << typeid(ex).name() << "\n";
+}
+
 template <int N>
 struct ArrayMathTest
 {
@@ -150,41 +157,65 @@ struct ArrayMathTest
 
         // check all unary functions
 
-#define VIGRA_TEST_UNARY_FUNCTION(FCT, ARRAY_FCT, RHS) \
-        r1 = ARRAY_FCT(RHS); \
+#define VIGRA_TEST_UNARY_FUNCTION(FCT, RHS) \
+        r1 = FCT(RHS); \
         for(int k=0; k<r2.size(); ++k) \
             r2[k] = FCT(RHS[k]); \
         should(r2 == r1)
 
-        VIGRA_TEST_UNARY_FUNCTION(-, -, b);
-        VIGRA_TEST_UNARY_FUNCTION(!, !, i);
-        VIGRA_TEST_UNARY_FUNCTION(~, ~, i);
-        VIGRA_TEST_UNARY_FUNCTION(abs, abs, d);
-        VIGRA_TEST_UNARY_FUNCTION(erf, erf, b);
-        VIGRA_TEST_UNARY_FUNCTION(even, even, i);
-        VIGRA_TEST_UNARY_FUNCTION(odd, odd, i);
-        VIGRA_TEST_UNARY_FUNCTION(sign, sign, d);
-        VIGRA_TEST_UNARY_FUNCTION(signi, signi, b);
-        VIGRA_TEST_UNARY_FUNCTION(sq, sq, b);
-        VIGRA_TEST_UNARY_FUNCTION(round, round, b);
-        VIGRA_TEST_UNARY_FUNCTION(roundi, roundi, b);
-        VIGRA_TEST_UNARY_FUNCTION(sqrti, sqrti, i);
-        VIGRA_TEST_UNARY_FUNCTION(sin_pi, sin_pi, b);
-        VIGRA_TEST_UNARY_FUNCTION(cos_pi, cos_pi, b);
-        VIGRA_TEST_UNARY_FUNCTION(gamma, gamma, b);
-        VIGRA_TEST_UNARY_FUNCTION(loggamma, loggamma, b);
-        VIGRA_TEST_UNARY_FUNCTION(sqrt, sqrt, b);
-        VIGRA_TEST_UNARY_FUNCTION(exp, exp, b);
-        VIGRA_TEST_UNARY_FUNCTION(std::log, log, b);
-        VIGRA_TEST_UNARY_FUNCTION(std::log10, log10, b);
-        VIGRA_TEST_UNARY_FUNCTION(std::sin, sin, b);
-        VIGRA_TEST_UNARY_FUNCTION(std::asin, asin, a);
-        VIGRA_TEST_UNARY_FUNCTION(std::cos, cos, b);
-        VIGRA_TEST_UNARY_FUNCTION(std::acos, acos, a);
-        VIGRA_TEST_UNARY_FUNCTION(std::tan, tan, b);
-        VIGRA_TEST_UNARY_FUNCTION(std::atan, atan, b);
-        VIGRA_TEST_UNARY_FUNCTION(floor, floor, b);
-        VIGRA_TEST_UNARY_FUNCTION(ceil, ceil, b);
+        VIGRA_TEST_UNARY_FUNCTION(-, b);
+        VIGRA_TEST_UNARY_FUNCTION(!, i);
+        VIGRA_TEST_UNARY_FUNCTION(~, i);
+
+        VIGRA_TEST_UNARY_FUNCTION(abs, d);
+        VIGRA_TEST_UNARY_FUNCTION(abs, d);
+
+        VIGRA_TEST_UNARY_FUNCTION(cos, b);
+        VIGRA_TEST_UNARY_FUNCTION(sin, b);
+        VIGRA_TEST_UNARY_FUNCTION(tan, b);
+        VIGRA_TEST_UNARY_FUNCTION(sin_pi, b);
+        VIGRA_TEST_UNARY_FUNCTION(cos_pi, b);
+        VIGRA_TEST_UNARY_FUNCTION(acos, a);
+        VIGRA_TEST_UNARY_FUNCTION(asin, a);
+        VIGRA_TEST_UNARY_FUNCTION(atan, b);
+
+        VIGRA_TEST_UNARY_FUNCTION(cosh, b);
+        VIGRA_TEST_UNARY_FUNCTION(sinh, b);
+        VIGRA_TEST_UNARY_FUNCTION(tanh, b);
+        VIGRA_TEST_UNARY_FUNCTION(acosh, c);
+        VIGRA_TEST_UNARY_FUNCTION(asinh, a);
+        VIGRA_TEST_UNARY_FUNCTION(atanh, a);
+
+        VIGRA_TEST_UNARY_FUNCTION(sqrt, b);
+        VIGRA_TEST_UNARY_FUNCTION(cbrt, b);
+        VIGRA_TEST_UNARY_FUNCTION(sqrti, i);
+        VIGRA_TEST_UNARY_FUNCTION(sq, b);
+
+        VIGRA_TEST_UNARY_FUNCTION(exp, b);
+        VIGRA_TEST_UNARY_FUNCTION(exp2, b);
+        VIGRA_TEST_UNARY_FUNCTION(expm1, b);
+        VIGRA_TEST_UNARY_FUNCTION(log, b);
+        VIGRA_TEST_UNARY_FUNCTION(log2, b);
+        VIGRA_TEST_UNARY_FUNCTION(log10, b);
+        VIGRA_TEST_UNARY_FUNCTION(log1p, b);
+        VIGRA_TEST_UNARY_FUNCTION(logb, b);
+        VIGRA_TEST_UNARY_FUNCTION(ilogb, b);
+
+        VIGRA_TEST_UNARY_FUNCTION(ceil, b);
+        VIGRA_TEST_UNARY_FUNCTION(floor, b);
+        VIGRA_TEST_UNARY_FUNCTION(round, b);
+        VIGRA_TEST_UNARY_FUNCTION(lround, b);
+        VIGRA_TEST_UNARY_FUNCTION(llround, b);
+        VIGRA_TEST_UNARY_FUNCTION(roundi, b);
+        VIGRA_TEST_UNARY_FUNCTION(even, i);
+        VIGRA_TEST_UNARY_FUNCTION(odd, i);
+        VIGRA_TEST_UNARY_FUNCTION(sign, d);
+        VIGRA_TEST_UNARY_FUNCTION(signi, b);
+
+        VIGRA_TEST_UNARY_FUNCTION(erf, b);
+        VIGRA_TEST_UNARY_FUNCTION(erfc, b);
+        VIGRA_TEST_UNARY_FUNCTION(tgamma, b);
+        VIGRA_TEST_UNARY_FUNCTION(lgamma, b);
 
         r1 = elementwiseNorm(d);
         r2 = elementwiseSquaredNorm(d);
@@ -200,6 +231,9 @@ struct ArrayMathTest
         z + 1;
         any(z + 1);
         should(any(z+1));
+
+        should(all_finite(z));
+        shouldNot(all_finite(1.0 / z));
 
         i += 1;
         should(all(i));
@@ -238,10 +272,17 @@ struct ArrayMathTest
         //         without explicit qualification std::)
         VIGRA_TEST_BINARY_FUNCTION(min, vigra::min, b, c);
         VIGRA_TEST_BINARY_FUNCTION(max, vigra::max, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(fmin, fmin, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(fmax, fmax, b, c);
 
-        VIGRA_TEST_BINARY_FUNCTION(std::atan2, atan2, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(atan2, atan2, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(clipLower, clipLower, b, z);
+        VIGRA_TEST_BINARY_FUNCTION(clipUpper, clipUpper, b, z);
+        VIGRA_TEST_BINARY_FUNCTION(copysign, copysign, b, d);
+        VIGRA_TEST_BINARY_FUNCTION(fdim, fdim, b, d);
+        VIGRA_TEST_BINARY_FUNCTION(fmod, fmod, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(hypot, hypot, b, c);
         VIGRA_TEST_BINARY_FUNCTION(pow, pow, b, c);
-        VIGRA_TEST_BINARY_FUNCTION(std::fmod, fmod, b, c);
 
         VIGRA_TEST_BINARY_OPERATOR(+, b, c);
         VIGRA_TEST_BINARY_OPERATOR(-, b, c);
@@ -286,6 +327,8 @@ struct ArrayMathTest
     void testArithmeticAssignment()
     {
         using namespace array_math;
+
+        testEx(2 * i);
 
         i += 1;
         Array t(i);

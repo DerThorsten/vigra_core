@@ -467,34 +467,61 @@ FUNCTION(ARG const & arg) \
 VIGRA_ARRAY_MATH_UNARY(Negate, -, operator-)
 VIGRA_ARRAY_MATH_UNARY(Not, !, operator!)
 VIGRA_ARRAY_MATH_UNARY(BitwiseNot, ~, operator~)
+
 VIGRA_ARRAY_MATH_UNARY(Abs, vigra::abs, abs)
-VIGRA_ARRAY_MATH_UNARY(Erf, vigra::erf, erf)
-VIGRA_ARRAY_MATH_UNARY(Even, vigra::even, even)
-VIGRA_ARRAY_MATH_UNARY(Odd, vigra::odd, odd)
-VIGRA_ARRAY_MATH_UNARY(Sign, vigra::sign, sign)
-VIGRA_ARRAY_MATH_UNARY(Signi, vigra::signi, signi)
-VIGRA_ARRAY_MATH_UNARY(Round, vigra::round, round)
-VIGRA_ARRAY_MATH_UNARY(Roundi, vigra::roundi, roundi)
+VIGRA_ARRAY_MATH_UNARY(Fabs, std::fabs, fabs)
+
+VIGRA_ARRAY_MATH_UNARY(Cos, std::cos, cos)
+VIGRA_ARRAY_MATH_UNARY(Sin, std::sin, sin)
+VIGRA_ARRAY_MATH_UNARY(Tan, std::tan, tan)
+VIGRA_ARRAY_MATH_UNARY(Sin_pi, vigra::sin_pi, sin_pi)
+VIGRA_ARRAY_MATH_UNARY(Cos_pi, vigra::cos_pi, cos_pi)
+VIGRA_ARRAY_MATH_UNARY(Acos, std::acos, acos)
+VIGRA_ARRAY_MATH_UNARY(Asin, std::asin, asin)
+VIGRA_ARRAY_MATH_UNARY(Atan, std::atan, atan)
+
+VIGRA_ARRAY_MATH_UNARY(Cosh, std::cosh, cosh)
+VIGRA_ARRAY_MATH_UNARY(Sinh, std::sinh, sinh)
+VIGRA_ARRAY_MATH_UNARY(Tanh, std::tanh, tanh)
+VIGRA_ARRAY_MATH_UNARY(Acosh, std::acosh, acosh)
+VIGRA_ARRAY_MATH_UNARY(Asinh, std::asinh, asinh)
+VIGRA_ARRAY_MATH_UNARY(Atanh, std::atanh, atanh)
+
+VIGRA_ARRAY_MATH_UNARY(Sqrt, std::sqrt, sqrt)
+VIGRA_ARRAY_MATH_UNARY(Cbrt, std::cbrt, cbrt)
 VIGRA_ARRAY_MATH_UNARY(Sqrti, vigra::sqrti, sqrti)
 VIGRA_ARRAY_MATH_UNARY(Sq, vigra::sq, sq)
 VIGRA_ARRAY_MATH_UNARY(Norm, norm, elementwiseNorm)
 VIGRA_ARRAY_MATH_UNARY(SquaredNorm, squaredNorm, elementwiseSquaredNorm)
-VIGRA_ARRAY_MATH_UNARY(Sin_pi, vigra::sin_pi, sin_pi)
-VIGRA_ARRAY_MATH_UNARY(Cos_pi, vigra::cos_pi, cos_pi)
-VIGRA_ARRAY_MATH_UNARY(Gamma, vigra::gamma, gamma)
-VIGRA_ARRAY_MATH_UNARY(Loggamma, vigra::loggamma, loggamma)
-VIGRA_ARRAY_MATH_UNARY(Sqrt, std::sqrt, sqrt)
+
 VIGRA_ARRAY_MATH_UNARY(Exp, vigra::exp, exp)
+VIGRA_ARRAY_MATH_UNARY(Exp2, std::exp2, exp2)
+VIGRA_ARRAY_MATH_UNARY(Expm1, std::expm1, expm1)
 VIGRA_ARRAY_MATH_UNARY(Log, std::log, log)
+VIGRA_ARRAY_MATH_UNARY(Log2, std::log2, log2)
 VIGRA_ARRAY_MATH_UNARY(Log10, std::log10, log10)
-VIGRA_ARRAY_MATH_UNARY(Sin, std::sin, sin)
-VIGRA_ARRAY_MATH_UNARY(Asin, std::asin, asin)
-VIGRA_ARRAY_MATH_UNARY(Cos, std::cos, cos)
-VIGRA_ARRAY_MATH_UNARY(Acos, std::acos, acos)
-VIGRA_ARRAY_MATH_UNARY(Tan, std::tan, tan)
-VIGRA_ARRAY_MATH_UNARY(Atan, std::atan, atan)
-VIGRA_ARRAY_MATH_UNARY(Floor, std::floor, floor)
+VIGRA_ARRAY_MATH_UNARY(Log1p, std::log1p, log1p)
+VIGRA_ARRAY_MATH_UNARY(Logb, std::logb, logb)
+VIGRA_ARRAY_MATH_UNARY(Ilogb, std::ilogb, ilogb)
+
 VIGRA_ARRAY_MATH_UNARY(Ceil, std::ceil, ceil)
+VIGRA_ARRAY_MATH_UNARY(Floor, std::floor, floor)
+VIGRA_ARRAY_MATH_UNARY(Trunc, std::trunc, trunc)
+VIGRA_ARRAY_MATH_UNARY(Round, std::round, round)
+VIGRA_ARRAY_MATH_UNARY(Lround, std::lround, lround)
+VIGRA_ARRAY_MATH_UNARY(Llround, std::llround, llround)
+VIGRA_ARRAY_MATH_UNARY(Roundi, vigra::roundi, roundi)
+VIGRA_ARRAY_MATH_UNARY(Even, vigra::even, even)
+VIGRA_ARRAY_MATH_UNARY(Odd, vigra::odd, odd)
+VIGRA_ARRAY_MATH_UNARY(Sign, vigra::sign, sign)
+VIGRA_ARRAY_MATH_UNARY(Signi, vigra::signi, signi)
+
+VIGRA_ARRAY_MATH_UNARY(Erf, std::erf, erf)
+VIGRA_ARRAY_MATH_UNARY(Erfc, std::erfc, erfc)
+VIGRA_ARRAY_MATH_UNARY(Tgamma, std::tgamma, tgamma)
+VIGRA_ARRAY_MATH_UNARY(Lgamma, std::lgamma, lgamma)
+VIGRA_ARRAY_MATH_UNARY(Loggamma, std::lgamma, loggamma)
+
 VIGRA_ARRAY_MATH_UNARY(Conj, conj, conj)
 VIGRA_ARRAY_MATH_UNARY(Real, real, real)
 VIGRA_ARRAY_MATH_UNARY(Imag, imag, imag)
@@ -604,7 +631,9 @@ struct ArrayMathBinaryOperator
 /*                                                      */
 /********************************************************/
 
-    // determine the result_type of a binary array expression
+    // Determine if an array expression should be created for the given args.
+    // If neither arg is an array or array expression, the answer is always "no".
+    // Otherwise, the answer is "yes" if the respective value types are compatible.
 template <class ARG1, class ARG2,
           bool IS_ARRAY1 = ArrayNDConcept<ARG1>::value ||
                            ArrayMathConcept<ARG1>::value,
@@ -613,9 +642,8 @@ template <class ARG1, class ARG2,
 struct ArrayMathBinaryTraits
 {
     typedef PromoteTraits<typename ARG1::value_type,
-                          typename ARG2::value_type> Traits;
-    static const bool value = Traits::value;
-    typedef typename Traits::type type;
+                          typename ARG2::value_type> Compatible;
+    static const bool value = Compatible::value;
 };
 
 
@@ -623,18 +651,16 @@ template <class ARG1, class ARG2>
 struct ArrayMathBinaryTraits<ARG1, ARG2, true, false>
 {
     typedef PromoteTraits<typename ARG1::value_type,
-                          ARG2> Traits;
-    static const bool value = Traits::value;
-    typedef typename Traits::type type;
+                          ARG2> Compatible;
+    static const bool value = Compatible::value;
 };
 
 template <class ARG1, class ARG2>
 struct ArrayMathBinaryTraits<ARG1, ARG2, false, true>
 {
     typedef PromoteTraits<ARG1,
-                          typename ARG2::value_type> Traits;
-    static const bool value = Traits::value;
-    typedef typename Traits::type type;
+                          typename ARG2::value_type> Compatible;
+    static const bool value = Compatible::value;
 };
 
 template <class ARG1, class ARG2>
@@ -714,8 +740,16 @@ VIGRA_ARRAYMATH_BINARY_OPERATOR(BitwiseOr, VIGRA_NOTHING, operator|, |)
 VIGRA_ARRAYMATH_BINARY_OPERATOR(BitwiseXor, VIGRA_NOTHING, operator^, ^)
 
 VIGRA_ARRAYMATH_BINARY_OPERATOR(Atan2, std::atan2, atan2, VIGRA_COMMA)
-VIGRA_ARRAYMATH_BINARY_OPERATOR(Pow, vigra::pow, pow, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Copysign, std::copysign, copysign, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Fdim, std::fdim, fdim, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Fmax, std::fmax, fmax, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Fmin, std::fmin, fmin, VIGRA_COMMA)
 VIGRA_ARRAYMATH_BINARY_OPERATOR(Fmod, std::fmod, fmod, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Hypot, std::hypot, hypot, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Pow, std::pow, pow, VIGRA_COMMA)
+
+VIGRA_ARRAYMATH_BINARY_OPERATOR(ClipUpper, vigra::clipUpper, clipUpper, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(ClipLower, vigra::clipLower, clipLower, VIGRA_COMMA)
 
 #undef VIGRA_NOTHING
 #undef VIGRA_COMMA
@@ -851,9 +885,9 @@ using array_math::max;
     // number: all, any, sum, prod, ==, !=
 
 template <class ARG,
-          VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
-inline bool
-all(ARG const & a)
+    VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
+    inline bool
+    all(ARG const & a)
 {
     typedef typename ARG::value_type value_type;
 
@@ -872,7 +906,35 @@ all(ARG const & a)
     array_detail::universalPointerNDFunction(a, shape,
         [zero, &res](value_type const & v)
         {
-            if(v == zero)
+            if (v == zero)
+                res = false;
+        });
+    return res;
+}
+
+template <class ARG,
+         VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
+inline bool
+all_finite(ARG const & a)
+{
+    typedef typename ARG::value_type value_type;
+
+    Shape<ARG::dimension> shape(tags::size = a.ndim(), 1);
+
+    vigra_precondition(a.unifyShape(shape),
+        "all(ARRAY_EXPRESSION): shape mismatch.");
+
+    if (shape.size() > 1)
+    {
+        // FIXME: optimize memory order
+    }
+
+    bool res = true;
+    value_type zero = value_type();
+    array_detail::universalPointerNDFunction(a, shape,
+        [zero, &res](value_type const & v)
+        {
+            if (!isfinite(v))
                 res = false;
         });
     return res;
