@@ -254,8 +254,8 @@ struct ArrayMathTest
         Array pma = -1 + z + 1;
         should(z == pma);
 
-#define VIGRA_TEST_BINARY_FUNCTION(FCT, ARRAY_FCT, V1, V2) \
-        r1 = ARRAY_FCT(V1, V2); \
+#define VIGRA_TEST_BINARY_FUNCTION(FCT, V1, V2) \
+        r1 = FCT(V1, V2); \
         for(int k=0; k<r2.size(); ++k) \
             r2[k] = FCT(V1[k], V2[k]); \
         should(r2 == r1)
@@ -270,19 +270,19 @@ struct ArrayMathTest
         //        (somehow, MSVC otherwise calls std::min and std::max, although these
         //         templates are not supposed to be visible in the present namespace
         //         without explicit qualification std::)
-        VIGRA_TEST_BINARY_FUNCTION(min, vigra::min, b, c);
-        VIGRA_TEST_BINARY_FUNCTION(max, vigra::max, b, c);
-        VIGRA_TEST_BINARY_FUNCTION(fmin, fmin, b, c);
-        VIGRA_TEST_BINARY_FUNCTION(fmax, fmax, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(vigra::min, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(vigra::max, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(fmin, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(fmax, b, c);
 
-        VIGRA_TEST_BINARY_FUNCTION(atan2, atan2, b, c);
-        VIGRA_TEST_BINARY_FUNCTION(clipLower, clipLower, b, z);
-        VIGRA_TEST_BINARY_FUNCTION(clipUpper, clipUpper, b, z);
-        VIGRA_TEST_BINARY_FUNCTION(copysign, copysign, b, d);
-        VIGRA_TEST_BINARY_FUNCTION(fdim, fdim, b, d);
-        VIGRA_TEST_BINARY_FUNCTION(fmod, fmod, b, c);
-        VIGRA_TEST_BINARY_FUNCTION(hypot, hypot, b, c);
-        VIGRA_TEST_BINARY_FUNCTION(pow, pow, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(atan2, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(clipLower, b, z);
+        VIGRA_TEST_BINARY_FUNCTION(clipUpper, b, z);
+        VIGRA_TEST_BINARY_FUNCTION(copysign, b, d);
+        VIGRA_TEST_BINARY_FUNCTION(fdim, b, d);
+        VIGRA_TEST_BINARY_FUNCTION(fmod, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(hypot, b, c);
+        VIGRA_TEST_BINARY_FUNCTION(pow, b, c);
 
         VIGRA_TEST_BINARY_OPERATOR(+, b, c);
         VIGRA_TEST_BINARY_OPERATOR(-, b, c);
