@@ -1170,9 +1170,9 @@ public:
         return transpose(array_detail::permutationToOrder(shape_, strides_, order));
     }
 
-        /** Check if the array contains only non-zero elements (or if all elements
-            are 'true' if the value type is 'bool').
-         */
+    /** Check if the array contains only non-zero elements (or if all elements
+    are 'true' if the value type is 'bool').
+    */
     bool all() const
     {
         bool res = true;
@@ -1180,10 +1180,24 @@ public:
         array_detail::universalArrayNDFunction(*this,
             [zero, &res](value_type const & v)
             {
-                if(v == zero)
+                if (v == zero)
                     res = false;
             });
         return res;
+    }
+
+    /** Check if the array contains only finite values (no Inf or NaN).
+    */
+    bool all_finite() const
+    {
+        bool res = true;
+        array_detail::universalArrayNDFunction(*this,
+            [&res](value_type const & v)
+            {
+                if (!isfinite(v))
+                    res = false;
+            });
+            return res;
     }
 
         /** Check if the array contains a non-zero element (or an element
@@ -1781,6 +1795,13 @@ all(ArrayViewND<N, T> const & array)
 
 template <int N, class T>
 inline bool
+all_finite(ArrayViewND<N, T> const & array)
+{
+    return array.all_finite();
+}
+
+template <int N, class T>
+inline bool
 any(ArrayViewND<N, T> const & array)
 {
     return array.any();
@@ -2036,7 +2057,7 @@ class ArrayND
         array_detail::universalPointerNDFunction(rhs, rhs.shape(),
             [&data = allocated_data_](U const & u)
             {
-                data.emplace_back(u);
+                data.emplace_back(detail::RequiresExplicitCast<T>::cast(u));
             });
 
         this->data_ = (char*)&allocated_data_[0];
