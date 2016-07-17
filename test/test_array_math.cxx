@@ -45,13 +45,6 @@
 
 namespace vigra {
 
-template <class Ex>
-enable_if_t<ArrayMathConcept<Ex>::value> 
-testEx(Ex && ex)
-{
-    std::cerr << typeid(ex).name() << "\n";
-}
-
 template <int N>
 struct ArrayMathTest
 {
@@ -328,8 +321,6 @@ struct ArrayMathTest
     {
         using namespace array_math;
 
-        testEx(2 * i);
-
         i += 1;
         Array t(i);
 
@@ -360,7 +351,7 @@ struct ArrayMathTest
             ? N
             : 2;
         ArrayViewND<M, int> vs(Shape<M>{4, 4}, i.data());
-        ArrayND<M, int> v1 = vs;
+        ArrayND<M, int> v1(vs);
         v1 = -v1;
 
         int count = 0;

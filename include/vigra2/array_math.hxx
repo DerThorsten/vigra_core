@@ -61,7 +61,7 @@ namespace array_detail {
     // optimizes loop order to maximize cache locality.
 template <class ARRAY, class ARRAY_MATH, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY>::value && ArrayMathConcept<ARRAY_MATH>::value>
-universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f, std::string func_name)
+universalArrayMathFunction(ARRAY & a1, ARRAY_MATH && h2, FCT f, std::string func_name)
 {
     typedef typename std::remove_reference<ARRAY_MATH>::type ARRAY2;
 
@@ -81,18 +81,19 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f, std::string
         p = permutationToOrder(shape, strides, C_ORDER);
     }
 
-    h1.transpose_inplace(p);
-    shape  = transpose(shape, p);
-
     MemoryOverlap overlap = h2.checkMemoryOverlap(a1.memoryRange());
+    bool compatibleStrides = h2.compatibleStrides(a1.byte_strides());
+
+    h1.transpose_inplace(p);
+    h2.transpose_inplace(p);
+    shape = transpose(shape, p);
+
     if (overlap = NoMemoryOverlap)
     {
-        h2.transpose_inplace(p);
         universalPointerNDFunction(h1, h2, shape, f);
     }
-    else if (h2.compatibleStrides(a1.byte_strides()))
+    else if (compatibleStrides)
     {
-        h2.transpose_inplace(p);
         if (overlap & TargetOverlapsLeft) // target below source => work forward
             universalPointerNDFunction(h1, h2, shape, f);
         else                              // target above source => work backward
@@ -100,8 +101,8 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f, std::string
     }
     else
     {
-        ArrayND<ARRAY::dimension, typename ARRAY2::value_type> tmp(h2);
-        universalPointerNDFunction(h1, tmp.pointer_nd(p), shape, f);
+        ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> tmp(std::move(h2));
+        universalPointerNDFunction(h1, tmp.pointer_nd(), shape, f);
     }
 }
 
@@ -309,6 +310,11 @@ struct ArrayMathExpression<PointerND<N, T>>
     ArrayMathExpression(ArrayViewND<N, T> const & a)
     : base_type(a.pointer_nd())
     , shape_(a.shape())
+    {}
+
+    ArrayMathExpression(base_type const & p, difference_type const & shape)
+    : base_type(p)
+    , shape_(shape)
     {}
 
     TinyArray<char *, 2> memoryRange() const
@@ -983,7 +989,7 @@ all(ARG && a)
     typedef typename ARG::value_type value_type;
     bool res = true;
     value_type zero = value_type();
-    array_detail::universalArrayMathFunction(a,
+    array_detail::universalArrayMathFunction(std::move(a),
         [zero, &res](value_type const & v)
         {
             if (v == zero)
@@ -1001,7 +1007,7 @@ all_finite(ARG && a)
 {
     typedef typename ARG::value_type value_type;
     bool res = true;
-    array_detail::universalArrayMathFunction(a,
+    array_detail::universalArrayMathFunction(std::move(a),
         [&res](value_type const & v)
         {
             if (!isfinite(v))
@@ -1020,7 +1026,7 @@ any(ARG && a)
     typedef typename ARG::value_type value_type;
     bool res = false;
     value_type zero = value_type();
-    array_detail::universalArrayMathFunction(a,
+    array_detail::universalArrayMathFunction(std::move(a),
         [zero, &res](value_type const & v)
         {
             if (v != zero)
@@ -1038,7 +1044,7 @@ inline U
 sum(ARG && a, U res = {})
 {
     typedef typename ARG::value_type value_type;
-    array_detail::universalArrayMathFunction(a,
+    array_detail::universalArrayMathFunction(std::move(a),
         [&res](value_type const & v)
         {
             res += v;
@@ -1055,7 +1061,7 @@ inline U
 prod(ARG && a, U res = U{1})
 {
     typedef typename ARG::value_type value_type;
-    array_detail::universalArrayMathFunction(a,
+    array_detail::universalArrayMathFunction(std::move(a),
         [&res](value_type const & v)
         {
             res *= v;

@@ -802,6 +802,11 @@ universalPointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & sha
     h2.move(dim, -N);
 }
 
+/********************************************************/
+/*                                                      */
+/*              reversePointerNDFunction()              */
+/*                                                      */
+/********************************************************/
 
     // Iterate over two PointerND instances in reverse C-order (first dimension in outer loop,
     // last dimension in inner loop) and call binary function `f` in every iteration.
@@ -813,9 +818,6 @@ reversePointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & shape
 {
     vigra_assert(dim < shape.size(),
         "reversePointerNDFunction(): internal error: dim >= shape.size() should never happen.");
-
-    // if(consecutivePointerNDFunction(h1, h2, shape, f, dim))
-        // return;
 
     auto N = shape[dim];
     h1.move(dim, N-1);

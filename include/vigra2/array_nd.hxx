@@ -178,7 +178,7 @@ universalArrayNDFunction(ARRAY & a, FCT f)
     universalPointerNDFunction(h, s, f);
 }
 
-    // Execute a functor for every pair of array element.
+    // Execute a functor for every pair of array elements.
     // The function takes care of overlapping memory, singleton axes, and
     // optimizes loop order to maximize cache locality.
 template <class ARRAY1, class ARRAY2, class FCT>
@@ -188,7 +188,7 @@ universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f,
 {
     // unify shape (takes care of singleton axes)
     auto shape = a1.shape();
-    vigra_assert(detail::unifyShape(shape, a2.shape()),
+    vigra_precondition(detail::unifyShape(shape, a2.shape()),
         func_name + ": shape mismatch.");
 
     // optimize axis ordering
@@ -222,12 +222,13 @@ universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f,
     }
     else // complicated overlapping access => create a temporary copy of the source
     {
-        ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> tmp(a2);
-        universalPointerNDFunction(h1, tmp.pointer_nd(p), shape, f);
+        typedef array_math::ArrayMathArgType<ARRAY2> EXPR;
+        ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> tmp(EXPR(h2, shape));
+        universalPointerNDFunction(h1, tmp.pointer_nd(), shape, f);
     }
 }
 
-    // Execute a functor for every pair of array element.
+    // Execute a functor for every pair of array elements.
     // The function takes care of singleton axes and
     // optimizes loop order to maximize cache locality.
     // Since both arrays are read-only, we need not worry about
@@ -654,15 +655,16 @@ public:
             }); \
         return *this; \
     } \
+    \
     template <class ARG> \
     ArrayViewND & \
-    operator OP(ArrayMathExpression<ARG> const & rhs) \
+    operator OP(ArrayMathExpression<ARG> && rhs) \
     { \
         typedef typename ArrayMathExpression<ARG>::value_type U; \
         static_assert(std::is_convertible<U, value_type>::value, \
             "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &): value types of lhs and rhs are incompatible."); \
         \
-        array_detail::universalArrayMathFunction(*this, rhs, \
+        array_detail::universalArrayMathFunction(*this, std::move(rhs), \
             [](value_type & v, U const & u) \
             { \
                 v OP detail::RequiresExplicitCast<value_type>::cast(u); \
@@ -670,6 +672,13 @@ public:
             "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &)" \
         ); \
         return *this; \
+    } \
+    \
+    template <class ARG> \
+    ArrayViewND & \
+    operator OP(ArrayMathExpression<ARG> const & rhs) \
+    { \
+        return operator OP(ArrayMathExpression<ARG>(rhs)); \
     }
 
     VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(=)
@@ -2081,10 +2090,10 @@ class ArrayND
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
-        /** constructor from an array expression
+        /** Constructor from a temporary array expression.
         */
     template<class ARG>
-    ArrayND(ArrayMathExpression<ARG> const & rhs,
+    ArrayND(ArrayMathExpression<ARG> && rhs,
             MemoryOrder order = C_ORDER,
             allocator_type const & alloc = allocator_type())
     : view_type(rhs.shape(), 0, order)
@@ -2098,7 +2107,8 @@ class ArrayND
             rhs.transpose_inplace(p);
         }
 
-        using U = typename ArrayMathExpression<ARG>::value_type;
+        typedef typename std::remove_reference<ArrayMathExpression<ARG>>::type RHS;
+        using U = typename RHS::value_type;
         array_detail::universalPointerNDFunction(rhs, rhs.shape(),
             [&data = allocated_data_](U const & u)
             {
@@ -2108,6 +2118,15 @@ class ArrayND
         this->data_ = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
+
+        /** Constructor from a array expression const reference.
+        */
+    template<class ARG>
+    ArrayND(ArrayMathExpression<ARG> const & rhs,
+            MemoryOrder order = C_ORDER,
+            allocator_type const & alloc = allocator_type())
+    : ArrayND(ArrayMathExpression<ARG>(rhs), order, alloc)
+    {}
 
         /** Assignment.<br>
             If the size of \a rhs is the same as the left-hand side arrays's
@@ -2200,20 +2219,6 @@ class ArrayND
 
 #else
 
-#if 0
-    template<class ARG>
-    enable_if_t<ArrayNDConcept<ARG>::value || ArrayMathConcept<ARG>::value,
-                ArrayND &>
-    operator=(ARG const & rhs)
-    {
-        if(this->shape() == rhs.shape())
-            view_type::operator=(rhs);
-        else
-            ArrayND(rhs).swap(*this);
-        return *this;
-    }
-#endif
-
 #define VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(OP) \
     template <class ARG> \
     enable_if_t<ArrayNDConcept<ARG>::value, \
@@ -2223,18 +2228,26 @@ class ArrayND
         if(this->hasData()) \
             view_type::operator OP(rhs); \
         else \
-            ArrayND(rhs).swap(*this); \
+            ArrayND(rhs, C_ORDER, get_allocator()).swap(*this); \
         return *this; \
     } \
+    \
+    template <class ARG> \
+    ArrayND & \
+    operator OP(ArrayMathExpression<ARG> && rhs) \
+    { \
+        if(this->hasData()) \
+            view_type::operator OP(std::move(rhs)); \
+        else \
+            ArrayND(std::move(rhs), C_ORDER, get_allocator()).swap(*this); \
+        return *this; \
+    } \
+    \
     template <class ARG> \
     ArrayND & \
     operator OP(ArrayMathExpression<ARG> const & rhs) \
     { \
-        if(this->hasData()) \
-            view_type::operator OP(rhs); \
-        else \
-            ArrayND(rhs).swap(*this); \
-        return *this; \
+        return operator OP(ArrayMathExpression<ARG>(rhs)); \
     }
 
     VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(=)
@@ -2312,9 +2325,9 @@ class ArrayND
 
         /** get the allocator.
          */
-    allocator_type const & allocator() const
+    allocator_type get_allocator() const
     {
-        return allocated_data_.allocator();
+        return allocated_data_.get_allocator();
     }
 };
 
