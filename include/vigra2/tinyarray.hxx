@@ -312,7 +312,7 @@ class TinyArrayBase
     : data_{v0, v1, v...}
     {
         static_assert(sizeof...(V)+2 == static_size,
-                      "TinyArrayBase(): wrong number of arguments.");
+                      "TinyArrayBase(): number of constructor arguments contradicts size().");
     }
 
     // // constructor for two or more arguments
