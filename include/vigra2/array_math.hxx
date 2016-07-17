@@ -140,12 +140,11 @@ namespace array_math {
 
 /********************************************************/
 /*                                                      */
-/*                  ArrayMathUnifyShape                 */
+/*               ArrayMathUnifyDimension                */
 /*                                                      */
 /********************************************************/
 
-    // Compute the common shape for two arrays (taking care of runtime_ndim and
-    // singleton dimensions).
+    // Compute the common ndim for two arrays.
 template <int N, int M>
 struct ArrayMathUnifyDimension
 {
@@ -157,75 +156,6 @@ struct ArrayMathUnifyDimension
     static const int value       = minmax::max > 0
                                       ? minmax::max
                                       : minmax::min;
-};
-
-
-    // Compute the common shape for two arrays (taking care of runtime_ndim and
-    // singleton dimensions).
-template <int N, int M>
-struct ArrayMathUnifyShape
-{
-    typedef integral_minmax<N, M>      minmax;
-    static_assert(minmax::min <= 0 || N == M,
-        "array_math: incompatible array dimensions.");
-
-    static const int dimension       = minmax::max > 0
-                                          ? minmax::max
-                                          : minmax::min;
-    static const int shape_dimension = dimension == 0
-                                          ? runtime_size
-                                          : dimension;
-    typedef Shape<shape_dimension>     shape_type;
-
-    template <class SHAPE1, class SHAPE2>
-    static shape_type exec(SHAPE1 const & s1, SHAPE2 const & s2,
-                           bool throw_on_error = true)
-    {
-        if(s1.size() == 0)
-        {
-            return s2;
-        }
-        else if(s2.size() == 0)
-        {
-            return s1;
-        }
-        else if(s1.size() == s2.size())
-        {
-            shape_type res(s1.size(), DontInit);
-            for(int k=0; k<s1.size(); ++k)
-            {
-                if(s1[k] == 1 || s1[k] == s2[k])
-                {
-                    res[k] = s2[k];
-                }
-                else if(s2[k] == 1)
-                {
-                    res[k] = s1[k];
-                }
-                else if(throw_on_error)
-                {
-                    std::stringstream message;
-                    message << "arrayMathUnifyShape(): shape mismatch: " <<
-                               s1 << " vs. " << s2 << ".";
-                    vigra_precondition(false, message.str());
-                }
-                else
-                {
-                    return lemon::INVALID;
-                }
-            }
-            return res;
-        }
-        else if(throw_on_error)
-        {
-            vigra_precondition(false,
-                "arrayMathUnifyShape(): ndim mismatch.");
-        }
-        else
-        {
-            return lemon::INVALID;
-        }
-    }
 };
 
 /********************************************************/
@@ -427,6 +357,8 @@ struct ArrayMathUnaryOperator
     typedef typename arg_type::difference_type  difference_type;
     static const int dimension                = arg_type::dimension;
 
+    arg_type arg_;
+
     ArrayMathUnaryOperator(ARG const & a)
     : arg_(a)
     {}
@@ -465,7 +397,7 @@ struct ArrayMathUnaryOperator
         arg_.move(axis, diff);
     }
 
-    difference_type const & shape() const
+    difference_type shape() const
     {
         return arg_.shape();
     }
@@ -486,8 +418,6 @@ struct ArrayMathUnaryOperator
     {
         return arg_.unifyShape(target);
     }
-
-    arg_type arg_;
 };
 
 /********************************************************/
@@ -588,20 +518,14 @@ struct ArrayMathBinaryOperator
     typedef ArrayMathArgType<ARG1> arg1_type;
     typedef ArrayMathArgType<ARG2> arg2_type;
     static const int dimension = ArrayMathUnifyDimension<arg1_type::dimension, arg2_type::dimension>::value;
-
-    typedef ArrayMathUnifyShape<arg1_type::dimension, arg2_type::dimension> ShapeHelper;
-
-    //static const int dimension = ShapeHelper::dimension;
-    typedef typename ShapeHelper::shape_type difference_type;
+    typedef Shape<dimension> difference_type;
 
     arg1_type arg1_;
     arg2_type arg2_;
-    difference_type shape_;
 
     ArrayMathBinaryOperator(ARG1 const & a1, ARG2 const & a2)
-    : arg1_(a1)
-    , arg2_(a2)
-    , shape_(ShapeHelper::exec(arg1_.shape(), arg2_.shape()))
+        : arg1_(a1)
+        , arg2_(a2)
     {}
 
     bool hasData() const
@@ -625,7 +549,6 @@ struct ArrayMathBinaryOperator
     {
         arg1_.transpose_inplace(permutation);
         arg2_.transpose_inplace(permutation);
-        const_cast<difference_type&>(shape_) = transpose(shape_, permutation);
     }
 
     // increment the pointer of all RHS arrays along the given 'axis'
@@ -642,15 +565,25 @@ struct ArrayMathBinaryOperator
         arg2_.move(axis, diff);
     }
 
-    difference_type const & shape() const
+    difference_type shape() const
     {
-        return shape_;
+        Shape<dimension> res(tags::size = ndim(), 1);
+        vigra_precondition(unifyShape(res),
+            "ArrayMathBinaryOperator(): shape mismatch.");
+        return res;
     }
 
-    int ndim() const
+    template <int M = dimension>
+    int ndim(enable_if_t<M == runtime_size, bool> = true) const
     {
-        // FIXME: use constexpr
-        return shape_.size();
+        return max(arg1_.ndim(), arg2_.ndim());
+    }
+
+    template <int M = dimension>
+    constexpr
+    int ndim(enable_if_t<M != runtime_size, bool> = true) const
+    {
+        return dimension;
     }
 
     template <class SHAPE>
@@ -1028,27 +961,25 @@ enable_if_t<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
     bool>
 operator==(ARG1 const & arg1, ARG2 const & arg2)
 {
-    typedef array_math::ArrayMathArgType<ARG1> A1;
-    typedef array_math::ArrayMathArgType<ARG2> A2;
-    static const int dimension = array_math::ArrayMathUnifyDimension<A1::dimension, A2::dimension>::value;
+    typedef array_math::ArrayMathBinaryOperator<ARG1, ARG2> Op;
+    typedef typename Op::arg1_type::value_type value1_type;
+    typedef typename Op::arg2_type::value_type value2_type;
 
-    A1 a1(arg1);
-    A2 a2(arg2);
-
-    if (!a1.hasData() || !a2.hasData())
+    Op op(arg1, arg2);
+    if (!op.hasData())
         return false;
 
-    Shape<dimension> shape(tags::size = max(a1.ndim(), a2.ndim()), 1);
+    Shape<Op::dimension> shape(tags::size = op.ndim(), 1);
 
-    if (!detail::unifyShape(shape, a1.shape()) || !detail::unifyShape(shape, a2.shape()))
+    if (!op.unifyShape(shape))
         return false;
 
     // FIXME: optimize memory order
     // auto p  = permutationToOrder(a1.shape_, a1.strides_, C_ORDER);
     // pointer_nd.transpose(p);
     bool res = true;
-    array_detail::universalPointerNDFunction(a1, a2, shape,
-        [&res](typename A1::value_type const & u, typename A2::value_type const & v)
+    array_detail::universalPointerNDFunction(op.arg1_, op.arg2_, shape,
+        [&res](value1_type const & u, value2_type const & v)
         {
             if (u != v)
                 res = false;
