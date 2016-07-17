@@ -614,11 +614,11 @@ public:
             }); \
         return *this; \
     } \
-    template <class Expression> \
-    enable_if_t<ArrayMathConcept<Expression>::value,  ArrayViewND &> \
-    operator OP(Expression const & rhs) \
+    template <class ARG> \
+    ArrayViewND & \
+    operator OP(array_math::ArrayMathExpression<ARG> const & rhs) \
     { \
-        typedef typename Expression::value_type U; \
+        typedef typename array_math::ArrayMathExpression<ARG>::value_type U; \
         static_assert(std::is_convertible<U, value_type>::value, \
             "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &): value_types of lhs and rhs are incompatible."); \
         \
@@ -1289,8 +1289,8 @@ public:
         vigra_precondition(sums.ndim() == ndim(),
             "ArrayViewND::sum(ArrayViewND): ndim mismatch.");
 
-        typedef array_math::ArrayMathArrayOperator<ArrayViewND<M, U>>  A1;
-        typedef array_math::ArrayMathArrayOperator<ArrayViewND>        A2;
+        typedef array_math::ArrayMathArgType<ArrayViewND<M, U>>  A1;
+        typedef array_math::ArrayMathArgType<ArrayViewND>        A2;
         typedef array_math::ArrayMathUnifyShape<A1::dimension, A2::dimension> ShapeHelper;
         typedef typename ShapeHelper::shape_type   shape_type;
 
@@ -2020,31 +2020,30 @@ class ArrayND
     }
 
         /** constructor from an array expression
-         */
-    template<class Expression>
-    ArrayND(Expression const & rhs,
+        */
+    template<class ARG>
+    ArrayND(array_math::ArrayMathExpression<ARG> const & rhs,
             MemoryOrder order = C_ORDER,
-            allocator_type const & alloc = allocator_type(),
-            enable_if_t<ArrayMathConcept<Expression>::value, bool> = true)
+            allocator_type const & alloc = allocator_type())
     : view_type(rhs.shape(), 0, order)
     , allocated_data_(alloc)
     {
         allocated_data_.reserve(this->size());
 
-        if(order != C_ORDER)
+        if (order != C_ORDER)
         {
             auto p = array_detail::permutationToOrder(this->shape(), this->byte_strides(), C_ORDER);
             rhs.transpose_inplace(p);
         }
 
-        using U = typename Expression::result_type;
+        using U = typename array_math::ArrayMathExpression<ARG>::value_type;
         array_detail::universalPointerNDFunction(rhs, rhs.shape(),
-                [&data=allocated_data_](U const & u)
+            [&data = allocated_data_](U const & u)
             {
                 data.emplace_back(u);
             });
 
-        this->data_  = (char*)&allocated_data_[0];
+        this->data_ = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
@@ -2165,10 +2164,9 @@ class ArrayND
             ArrayND(rhs).swap(*this); \
         return *this; \
     } \
-    template <class Expression> \
-    enable_if_t<ArrayMathConcept<Expression>::value, \
-                ArrayND &> \
-    operator OP(Expression const & rhs) \
+    template <class ARG> \
+    ArrayND & \
+    operator OP(array_math::ArrayMathExpression<ARG> const & rhs) \
     { \
         if(this->hasData()) \
             view_type::operator OP(rhs); \

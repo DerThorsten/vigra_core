@@ -230,15 +230,32 @@ struct ArrayMathUnifyShape
 
 /********************************************************/
 /*                                                      */
-/*                ArrayMathValueOperator                */
+/*                 ArrayMathExpression                  */
 /*                                                      */
 /********************************************************/
 
-    // Class to wrap constants in array expressions. It inherits
+    // Basic template for array expression templates
+template <class ARG>
+struct ArrayMathExpression
+: public ARG
+{
+    static_assert(ArrayMathConcept<ARG>::value,
+        "ArrayMathExpression<ARG>: ARG must fulfill the ArrayMathConcept.");
+
+    using ARG::ARG;
+};
+
+/********************************************************/
+/*                                                      */
+/*         ArrayMathExpression<PointerND<0, T>>         */
+/*                                                      */
+/********************************************************/
+
+    // Class to represent constants in array expressions. It inherits
     // PointerND<0, T> so that we can later call universalPointerNDFunction()
     // to do the actual computations.
 template <class T>
-struct ArrayMathValueOperator
+struct ArrayMathExpression<PointerND<0, T>>
 : public PointerND<0, T>
 , public ArrayMathTag
 {
@@ -247,7 +264,7 @@ struct ArrayMathValueOperator
 
     difference_type shape_;
 
-    ArrayMathValueOperator(T const & data)
+    ArrayMathExpression(T const & data)
     : base_type(data)
     {}
 
@@ -293,24 +310,24 @@ struct ArrayMathValueOperator
 
 /********************************************************/
 /*                                                      */
-/*                ArrayMathArrayOperator                */
+/*          ArrayMathExpression<PointerND<N, T>>        */
 /*                                                      */
 /********************************************************/
 
-    // Class to wrap arrays in array expressions. It inherits the appropriate
+    // Class to represent arrays in array expressions. It inherits the appropriate
     // PointerND<N, T> so that we can later call universalPointerNDFunction()
     // to do the actual computations.
-template <class ARG>
-struct ArrayMathArrayOperator
-: public decltype(((ARG*)0)->pointer_nd())
+template <int N, class T>
+struct ArrayMathExpression<PointerND<N, T>>
+: public PointerND<N, T>
 , public ArrayMathTag
 {
-    typedef decltype(((ARG*)0)->pointer_nd())    base_type;
+    typedef PointerND<N, T>                      base_type;
     typedef typename base_type::difference_type  difference_type;
 
     difference_type shape_, permutation_;
 
-    ArrayMathArrayOperator(ARG const & a)
+    ArrayMathExpression(ArrayViewND<N, T> const & a)
     : base_type(a.pointer_nd())
     , shape_(a.shape())
     , permutation_(array_detail::permutationToOrder(a.shape(), a.byte_strides(), C_ORDER))
@@ -364,6 +381,36 @@ struct ArrayMathArrayOperator
 
 /********************************************************/
 /*                                                      */
+/*                   ArrayMathArgType                   */
+/*                                                      */
+/********************************************************/
+
+    // Choose the appropriate ArrayMathExpression according to the ARG type.
+template <class ARG>
+struct ArrayMathTypeChooser
+{
+    typedef typename 
+        std::conditional<ArrayMathConcept<ARG>::value,
+                         ARG,
+                         ArrayMathExpression<PointerND<0, ARG>>>::type type;
+};
+
+template <int N, class T>
+struct ArrayMathTypeChooser<ArrayViewND<N, T>>
+{
+    typedef ArrayMathExpression<PointerND<N, T>> type;
+};
+
+template <int N, class T, class A>
+struct ArrayMathTypeChooser<ArrayND<N, T, A>>
+    : public ArrayMathTypeChooser<ArrayViewND<N, T>>
+{};
+
+template <class ARG>
+using ArrayMathArgType = typename ArrayMathTypeChooser<ARG>::type;
+
+/********************************************************/
+/*                                                      */
 /*                ArrayMathUnaryOperator                */
 /*                                                      */
 /********************************************************/
@@ -375,10 +422,7 @@ template <class ARG>
 struct ArrayMathUnaryOperator
 : public ArrayMathTag
 {
-    typedef typename
-        std::conditional<ArrayNDConcept<ARG>::value,
-                         ArrayMathArrayOperator<ARG>,
-                         ARG>::type arg_type;
+    typedef ArrayMathArgType<ARG> arg_type;
 
     typedef typename arg_type::difference_type  difference_type;
     static const int dimension                = arg_type::dimension;
@@ -484,10 +528,10 @@ struct ArrayMath##NAME \
  \
 template <class ARG> \
 enable_if_t<ArrayNDConcept<ARG>::value || ArrayMathConcept<ARG>::value, \
-            ArrayMath##NAME<ARG>> \
+            ArrayMathExpression<ArrayMath##NAME<ARG>>> \
 FUNCTION(ARG const & arg) \
 { \
-    return ArrayMath##NAME<ARG>(arg); \
+    return {arg}; \
 }
 
 VIGRA_ARRAY_MATH_UNARY(Negate, -, operator-)
@@ -527,21 +571,6 @@ VIGRA_ARRAY_MATH_UNARY(Imag, imag, imag)
 VIGRA_ARRAY_MATH_UNARY(Arg, arg, arg)
 
 #undef VIGRA_ARRAY_MATH_UNARY
-
-/********************************************************/
-/*                                                      */
-/*                   ArrayMathArgType                   */
-/*                                                      */
-/********************************************************/
-
-    // Choose the appropriate array math class according to the ARG type.
-template <class ARG>
-using ArrayMathArgType =
-    typename std::conditional<ArrayNDConcept<ARG>::value,
-                     ArrayMathArrayOperator<ARG>,
-                     typename std::conditional<ArrayMathConcept<ARG>::value,
-                         ARG,
-                         ArrayMathValueOperator<ARG>>::type>::type;
 
 /********************************************************/
 /*                                                      */
@@ -650,23 +679,29 @@ template <class ARG1, class ARG2,
                            ArrayMathConcept<ARG2>::value>
 struct ArrayMathBinaryTraits
 {
-    static const bool value = PromoteTraits<typename ARG1::value_type,
-                                            typename ARG2::value_type>::value;
+    typedef PromoteTraits<typename ARG1::value_type,
+                          typename ARG2::value_type> Traits;
+    static const bool value = Traits::value;
+    typedef typename Traits::type type;
 };
 
 
 template <class ARG1, class ARG2>
 struct ArrayMathBinaryTraits<ARG1, ARG2, true, false>
 {
-    static const bool value = PromoteTraits<typename ARG1::value_type,
-                                            ARG2>::value;
+    typedef PromoteTraits<typename ARG1::value_type,
+                          ARG2> Traits;
+    static const bool value = Traits::value;
+    typedef typename Traits::type type;
 };
 
 template <class ARG1, class ARG2>
 struct ArrayMathBinaryTraits<ARG1, ARG2, false, true>
 {
-    static const bool value = PromoteTraits<ARG1,
-                                            typename ARG2::value_type>::value;
+    typedef PromoteTraits<ARG1,
+                          typename ARG2::value_type> Traits;
+    static const bool value = Traits::value;
+    typedef typename Traits::type type;
 };
 
 template <class ARG1, class ARG2>
@@ -690,7 +725,9 @@ struct ArrayMath##NAME \
     typedef ArrayMathBinaryOperator<ARG1, ARG2>   base_type; \
     typedef typename base_type::arg1_type         arg1_type; \
     typedef typename base_type::arg2_type         arg2_type; \
-    typedef decltype(CALL(**(arg1_type*)0 SEP **(arg2_type*)0)) raw_result_type; \
+    typedef typename arg1_type::value_type        value1_type; \
+    typedef typename arg2_type::value_type        value2_type; \
+    typedef decltype(CALL(*(value1_type*)0 SEP *(value2_type*)0)) raw_result_type; \
     typedef typename std::conditional<std::is_same<raw_result_type, bool>::value, \
                            unsigned char, raw_result_type>::type result_type; \
     typedef typename std::remove_reference<result_type>::type   value_type; \
@@ -715,10 +752,10 @@ struct ArrayMath##NAME \
  \
 template <class ARG1, class ARG2> \
 enable_if_t<ArrayMathBinaryTraits<ARG1, ARG2>::value, \
-            ArrayMath##NAME<ARG1, ARG2> > \
+            ArrayMathExpression<ArrayMath##NAME<ARG1, ARG2>>> \
 FUNCTION(ARG1 const & a1, ARG2 const & a2) \
 { \
-    return ArrayMath##NAME<ARG1, ARG2>(a1, a2); \
+    return {a1, a2}; \
 }
 
 #define VIGRA_NOTHING
@@ -789,10 +826,10 @@ struct ArrayMath##NAME \
  \
 template <class ARG1, class ARG2> \
 enable_if_t<ArrayMathBinaryTraits<ARG1, ARG2>::value, \
-            ArrayMath##NAME<ARG1, ARG2> > \
+            ArrayMathExpression<ArrayMath##NAME<ARG1, ARG2>>> \
 CALL(ARG1 const & a1, ARG2 const & a2) \
 { \
-    return ArrayMath##NAME<ARG1, ARG2>(a1, a2); \
+    return {a1, a2}; \
 }
 
 using vigra::min;
@@ -810,8 +847,10 @@ VIGRA_ARRAYMATH_MINMAX_FUNCTION(Max, max)
 
     // Class to wrap a shape object in an array expression. It serves
     // the role of a Matlab meshgrid / Python mgrid.
+//    template <int N>
+//class ArrayMathMGrid
 template <int N>
-class ArrayMathMGrid
+class ArrayMathExpression<Shape<N>>
 : public ArrayMathTag
 , public PointerNDShape<N>
 {
@@ -819,7 +858,7 @@ public:
     typedef PointerNDShape<N>              base_type;
     typedef Shape<N>                       shape_type;
 
-    explicit ArrayMathMGrid(shape_type const & shape)
+    explicit ArrayMathExpression(shape_type const & shape)
     : base_type(shape)
     {}
 
@@ -836,12 +875,12 @@ public:
 
     inline void inc(int dim) const
     {
-        const_cast<ArrayMathMGrid*>(this)->base_type::inc(dim);
+        const_cast<ArrayMathExpression*>(this)->base_type::inc(dim);
     }
 
     void move(int dim, ArrayIndex diff) const
     {
-        const_cast<ArrayMathMGrid*>(this)->base_type::move(dim, diff);
+        const_cast<ArrayMathExpression*>(this)->base_type::move(dim, diff);
     }
 
     template <class SHAPE>
@@ -859,10 +898,10 @@ public:
 };
 
 template <int N>
-ArrayMathMGrid<N>
+ArrayMathExpression<Shape<N>>
 mgrid(Shape<N> const & shape)
 {
-    return ArrayMathMGrid<N>(shape);
+    return ArrayMathExpression<Shape<N>>(shape);
 }
 
 } // namespace array_math
