@@ -847,8 +847,6 @@ VIGRA_ARRAYMATH_MINMAX_FUNCTION(Max, max)
 
     // Class to wrap a shape object in an array expression. It serves
     // the role of a Matlab meshgrid / Python mgrid.
-//    template <int N>
-//class ArrayMathMGrid
 template <int N>
 class ArrayMathExpression<Shape<N>>
 : public ArrayMathTag
@@ -906,6 +904,7 @@ mgrid(Shape<N> const & shape)
 
 } // namespace array_math
 
+using array_math::ArrayMathExpression;
 using array_math::min;
 using array_math::max;
 
@@ -1024,37 +1023,6 @@ prod(ARG const & a, U res = U{1})
     return res;
 }
 
-//template <class ARG1, class ARG2>
-//enable_if_t<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
-//            bool>
-//operator==(ARG1 const & arg1, ARG2 const & arg2)
-//{
-//    typedef array_math::ArrayMathArgType<ARG1> A1;
-//    typedef array_math::ArrayMathArgType<ARG2> A2;
-//    typedef array_math::ArrayMathUnifyShape<A1::dimension, A2::dimension> ShapeHelper;
-//    typedef typename ShapeHelper::shape_type   shape_type;
-//
-//    A1 a1(arg1);
-//    A2 a2(arg2);
-//
-//    shape_type shape = ShapeHelper::exec(a1.shape(), a2.shape(), false);
-//
-//    if(!a1.hasData() || !a2.hasData() || shape == lemon::INVALID)
-//        return false;
-//
-//    // FIXME: optimize memory order
-//    // auto p  = permutationToOrder(a1.shape_, a1.strides_, C_ORDER);
-//    // pointer_nd.transpose(p);
-//    bool res = true;
-//    array_detail::universalPointerNDFunction(a1, a2, shape,
-//        [&res](typename A1::value_type const & u, typename A2::value_type const & v)
-//        {
-//            if(u != v)
-//                res = false;
-//        });
-//    return res;
-//}
-
 template <class ARG1, class ARG2>
 enable_if_t<array_math::ArrayMathBinaryTraits<ARG1, ARG2>::value,
     bool>
@@ -1081,10 +1049,10 @@ operator==(ARG1 const & arg1, ARG2 const & arg2)
     bool res = true;
     array_detail::universalPointerNDFunction(a1, a2, shape,
         [&res](typename A1::value_type const & u, typename A2::value_type const & v)
-    {
-        if (u != v)
-            res = false;
-    });
+        {
+            if (u != v)
+                res = false;
+        });
     return res;
 }
 

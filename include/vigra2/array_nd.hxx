@@ -616,9 +616,9 @@ public:
     } \
     template <class ARG> \
     ArrayViewND & \
-    operator OP(array_math::ArrayMathExpression<ARG> const & rhs) \
+    operator OP(ArrayMathExpression<ARG> const & rhs) \
     { \
-        typedef typename array_math::ArrayMathExpression<ARG>::value_type U; \
+        typedef typename ArrayMathExpression<ARG>::value_type U; \
         static_assert(std::is_convertible<U, value_type>::value, \
             "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &): value_types of lhs and rhs are incompatible."); \
         \
@@ -1289,26 +1289,22 @@ public:
         vigra_precondition(sums.ndim() == ndim(),
             "ArrayViewND::sum(ArrayViewND): ndim mismatch.");
 
-        typedef array_math::ArrayMathArgType<ArrayViewND<M, U>>  A1;
-        typedef array_math::ArrayMathArgType<ArrayViewND>        A2;
-        typedef array_math::ArrayMathUnifyShape<A1::dimension, A2::dimension> ShapeHelper;
-        typedef typename ShapeHelper::shape_type   shape_type;
+        typedef array_math::ArrayMathBinaryOperator<ArrayViewND<M, U>, ArrayViewND> Op;
 
-        A1 a1(sums);
-        A2 a2(*this);
+        Op op(sums, *this);
 
-        shape_type shape = ShapeHelper::exec(a1.shape(), a2.shape(), false);
-        vigra_precondition(shape != lemon::INVALID,
+        Shape<Op::dimension> shape(tags::size = ndim(), 1);
+        vigra_precondition(op.unifyShape(shape),
             "ArrayViewND::sum(ArrayViewND): shape mismatch.");
 
         // FIXME: check memory overlap
         // FIXME: optimize memory order
         // auto p  = permutationToOrder(a1.shape_, a1.strides_, C_ORDER);
         // pointer_nd.transpose(p);
-        array_detail::universalPointerNDFunction(a1, a2, shape,
-            [](typename A1::value_type & u, typename A2::value_type const & v)
+        array_detail::universalPointerNDFunction(op.arg1_, op.arg2_, shape,
+            [](U & u, T const & v)
             {
-                u += detail::RequiresExplicitCast<typename A1::value_type>::cast(v);
+                u += detail::RequiresExplicitCast<U>::cast(v);
             });
     }
 
@@ -2022,7 +2018,7 @@ class ArrayND
         /** constructor from an array expression
         */
     template<class ARG>
-    ArrayND(array_math::ArrayMathExpression<ARG> const & rhs,
+    ArrayND(ArrayMathExpression<ARG> const & rhs,
             MemoryOrder order = C_ORDER,
             allocator_type const & alloc = allocator_type())
     : view_type(rhs.shape(), 0, order)
@@ -2036,7 +2032,7 @@ class ArrayND
             rhs.transpose_inplace(p);
         }
 
-        using U = typename array_math::ArrayMathExpression<ARG>::value_type;
+        using U = typename ArrayMathExpression<ARG>::value_type;
         array_detail::universalPointerNDFunction(rhs, rhs.shape(),
             [&data = allocated_data_](U const & u)
             {
@@ -2166,7 +2162,7 @@ class ArrayND
     } \
     template <class ARG> \
     ArrayND & \
-    operator OP(array_math::ArrayMathExpression<ARG> const & rhs) \
+    operator OP(ArrayMathExpression<ARG> const & rhs) \
     { \
         if(this->hasData()) \
             view_type::operator OP(rhs); \
