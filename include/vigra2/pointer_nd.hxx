@@ -520,7 +520,42 @@ using PointerNDShape = PointerNDCoupled<Shape<N>>;
 
 namespace array_detail {
 
+enum MemoryOverlap { NoMemoryOverlap = 0, 
+                     TargetOverlapsLeft = 1, 
+                     TargetOverlapsRight = 2,
+                     TargetOverlaps = 3
+};
+
 using vigra::detail::permutationToOrder;
+
+inline MemoryOverlap 
+checkMemoryOverlap(TinyArray<char*, 2> const & target, TinyArray<char*, 2> const & src)
+{
+    MemoryOverlap res = NoMemoryOverlap;
+    if (target[1] <= src[0] || src[1] <= target[0])
+        return res;
+    if (target[0] <= src[0] || target[1] <= src[1])
+        res = (MemoryOverlap)(res | TargetOverlapsLeft);
+    if (src[0] <= target[0] || src[1] <= target[1])
+        res = (MemoryOverlap)(res | TargetOverlapsRight);
+    return res;
+}
+
+template <class SHAPE1, class SHAPE2>
+inline bool 
+compatibleStrides(SHAPE1 const & target, SHAPE2 const & src)
+{
+    if (src.size() == 0)
+        return true;
+    if (src.size() != target.size())
+        return false;
+    for (int k = 0; k<target.size(); ++k)
+        if (src[k] != 0 && src[k] != target[k])
+            return false;
+    return true;
+}
+
+
 
 /********************************************************/
 /*                                                      */

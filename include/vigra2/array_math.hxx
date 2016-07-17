@@ -52,38 +52,62 @@ namespace array_detail {
 
 template <class ARRAY, class ARRAY_MATH, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY>::value && ArrayMathConcept<ARRAY_MATH>::value>
-universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f)
+universalArrayMathFunction(ARRAY & a1, ARRAY_MATH const & h2, FCT f, std::string func_name)
 {
-    auto last = a1.shape() - 1;
-    char * p1 = (char *)a1.data();
-    char * q1 = (char *)(&a1[last]+1);
+    typedef typename std::remove_reference<ARRAY_MATH>::type ARRAY2;
 
-    bool no_overlap        = h2.noMemoryOverlap(p1, q1);
-    bool compatible_layout = h2.compatibleMemoryLayout(p1, a1.byte_strides());
+    static const int dimension =
+        array_math::ArrayMathUnifyDimension<ARRAY::dimension, ARRAY2::dimension>::value;
+    Shape<dimension> shape(tags::size = max(a1.ndim(), h2.ndim()), 1);
+    vigra_precondition(detail::unifyShape(shape, a1.shape()) && h2.unifyShape(shape),
+        func_name + ": shape mismatch.");
 
-    auto p  = permutationToOrder(a1.shape(), a1.byte_strides(), C_ORDER);
+    auto p  = permutationToOrder(shape, a1.byte_strides(), C_ORDER);
     auto h1 = a1.pointer_nd(p);
-    auto s  = transpose(a1.shape(), p);
+    shape  = transpose(shape, p);
 
-    if(no_overlap || compatible_layout)
+    MemoryOverlap overlap = h2.checkMemoryOverlap(a1.memoryRange());
+
+    if (overlap = NoMemoryOverlap)
     {
         h2.transpose_inplace(p);
-        universalPointerNDFunction(h1, h2, s, f);
+        universalPointerNDFunction(h1, h2, shape, f);
+    }
+    else if (h2.compatibleStrides(a1.byte_strides()))
+    {
+        h2.transpose_inplace(p);
+        if (overlap & TargetOverlapsLeft) // target below source => work forward
+            universalPointerNDFunction(h1, h2, shape, f);
+        else                              // target above source => work backward
+            reversePointerNDFunction(h1, h2, shape, f);
     }
     else
     {
-        using TmpArray = ArrayND<ARRAY::dimension, typename ARRAY_MATH::value_type>;
+        using TmpArray = ArrayND<ARRAY::dimension, typename ARRAY2::value_type>;
         TmpArray t2(h2);
         auto ht = t2.pointer_nd(p);
-        universalPointerNDFunction(h1, ht, s, f);
+        universalPointerNDFunction(h1, ht, shape, f);
     }
 }
 
+
 template <class ARRAY_MATH, class FCT>
 enable_if_t<ArrayMathConcept<ARRAY_MATH>::value>
-universalArrayMathFunction(ARRAY_MATH const & a, FCT f)
+universalArrayMathFunction(ARRAY_MATH && a, FCT f, std::string func_name)
 {
-    universalPointerNDFunction(a, a.shape(), f);
+    typedef typename std::remove_reference<ARRAY_MATH>::type ARRAY;
+    typedef typename ARRAY::value_type value_type;
+
+    Shape<ARRAY::dimension> shape(tags::size = a.ndim(), 1);
+    vigra_precondition(a.unifyShape(shape),
+        func_name + ": shape mismatch.");
+
+    if (shape.size() > 1)
+    {
+        // FIXME: optimize memory order
+    }
+
+    array_detail::universalPointerNDFunction(a, shape, f);
 }
 
 } // namespace array_detail
@@ -137,6 +161,8 @@ universalArrayMathFunction(ARRAY_MATH const & a, FCT f)
     Namespace: vigra::array_math
 */
 namespace array_math {
+
+using vigra::array_detail::MemoryOverlap;
 
 /********************************************************/
 /*                                                      */
@@ -198,13 +224,13 @@ struct ArrayMathExpression<PointerND<0, T>>
     : base_type(data)
     {}
 
-    constexpr bool noMemoryOverlap(char *, char *) const
+    constexpr MemoryOverlap checkMemoryOverlap(TinyArray<char*, 2> const &) const
     {
-        return true;
+        return vigra::array_detail::NoMemoryOverlap;
     }
 
     template <class SHAPE>
-    constexpr bool compatibleMemoryLayout(char *, SHAPE const &) const
+    constexpr bool compatibleStrides(SHAPE const &) const
     {
         return true;
     }
@@ -268,20 +294,20 @@ struct ArrayMathExpression<PointerND<N, T>>
                 this->strides_[k] = 0;
     }
 
-    bool noMemoryOverlap(char * p1, char * q1) const
+    TinyArray<char *, 2> memoryRange() const
     {
-        char * p2 = (char *)this->ptr();
-        char * q2 = (char *)(&(*this)[shape_ - 1] + 1);
-        return q2 <= p1 || q1 <= p2;
+        return { this->data_, (char*)(1 + &(*this)[shape_ - 1]) };
+    }
+
+    MemoryOverlap checkMemoryOverlap(TinyArray<char*, 2> const & target) const
+    {
+        return vigra::array_detail::checkMemoryOverlap(target, memoryRange());
     }
 
     template <class SHAPE>
-    bool compatibleMemoryLayout(char * p, SHAPE const & strides) const
+    bool compatibleStrides(SHAPE const & target) const
     {
-        for(int k=0; k<strides.size(); ++k)
-            if(this->strides_[k] != 0 && this->strides_[k] != strides[k])
-                return false;
-        return p <= (char *)this->ptr();
+        return vigra::array_detail::compatibleStrides(target, this->strides_);
     }
 
     template <class SHAPE>
@@ -368,15 +394,15 @@ struct ArrayMathUnaryOperator
         return arg_.hasData();
     }
 
-    bool noMemoryOverlap(char * p1, char * q1) const
+    MemoryOverlap checkMemoryOverlap(TinyArray<char*, 2> const & target) const
     {
-        return arg_.noMemoryOverlap(p1, q1);
+        return arg_.checkMemoryOverlap(target);
     }
 
     template <class SHAPE>
-    bool compatibleMemoryLayout(char * p, SHAPE const & strides) const
+    bool compatibleStrides(SHAPE const & target) const
     {
-        return arg_.compatibleMemoryLayout(p, strides);
+        return arg_.compatibleStrides(target);
     }
 
     template <class SHAPE>
@@ -389,6 +415,12 @@ struct ArrayMathUnaryOperator
     void inc(int axis) const
     {
         arg_.inc(axis);
+    }
+
+    // decrement the pointer of all RHS arrays along the given 'axis'
+    void dec(int axis) const
+    {
+        arg_.dec(axis);
     }
 
     // reset the pointer of all RHS arrays along the given 'axis'
@@ -560,15 +592,15 @@ struct ArrayMathBinaryOperator
         return arg1_.hasData() && arg2_.hasData();
     }
 
-    bool noMemoryOverlap(char * p1, char * q1) const
+    MemoryOverlap checkMemoryOverlap(TinyArray<char*, 2> const & target) const
     {
-        return arg1_.noMemoryOverlap(p1, q1) && arg2_.noMemoryOverlap(p1, q1);
+        return (MemoryOverlap)(arg1_.checkMemoryOverlap(target) | arg2_.checkMemoryOverlap(target));
     }
 
     template <class SHAPE>
-    bool compatibleMemoryLayout(char * p, SHAPE const & strides) const
+    bool compatibleStrides(SHAPE const & target) const
     {
-        return arg1_.compatibleMemoryLayout(p, strides) && arg2_.compatibleMemoryLayout(p, strides);
+        return arg1_.compatibleStrides(target) && arg2_.compatibleStrides(target);
     }
 
     template <class SHAPE>
@@ -583,6 +615,13 @@ struct ArrayMathBinaryOperator
     {
         arg1_.inc(axis);
         arg2_.inc(axis);
+    }
+
+    // decrement the pointer of all RHS arrays along the given 'axis'
+    void dec(int axis) const
+    {
+        arg1_.dec(axis);
+        arg2_.dec(axis);
     }
 
     // reset the pointer of all RHS arrays along the given 'axis'
@@ -827,13 +866,8 @@ public:
     : base_type(shape)
     {}
 
-    constexpr bool noMemoryOverlap(char *, char *) const
-    {
-        return true;
-    }
-
     template <class SHAPE>
-    constexpr bool compatibleMemoryLayout(char *, SHAPE const &) const
+    constexpr bool compatibleStrides(SHAPE const &) const
     {
         return true;
     }
@@ -841,6 +875,11 @@ public:
     inline void inc(int dim) const
     {
         const_cast<ArrayMathExpression*>(this)->base_type::inc(dim);
+    }
+
+    inline void dec(int dim) const
+    {
+        const_cast<ArrayMathExpression*>(this)->base_type::dec(dim);
     }
 
     void move(int dim, ArrayIndex diff) const
@@ -882,89 +921,61 @@ using array_math::max;
 /********************************************************/
 
     // Functions to reduce an array or array expression to a single
-    // number: all, any, sum, prod, ==, !=
+    // number: all, all_finite, any, sum, prod, ==, !=
 
 template <class ARG,
-    VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
-    inline bool
-    all(ARG const & a)
+          VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
+inline bool
+all(ARG && a)
 {
     typedef typename ARG::value_type value_type;
-
-    Shape<ARG::dimension> shape(tags::size = a.ndim(), 1);
-
-    vigra_precondition(a.unifyShape(shape),
-        "all(ARRAY_EXPRESSION): shape mismatch.");
-
-    if (shape.size() > 1)
-    {
-        // FIXME: optimize memory order
-    }
-
     bool res = true;
     value_type zero = value_type();
-    array_detail::universalPointerNDFunction(a, shape,
+    array_detail::universalArrayMathFunction(a,
         [zero, &res](value_type const & v)
         {
             if (v == zero)
                 res = false;
-        });
+        },
+        "all(ARRAY_EXPRESSION)"
+    );
     return res;
 }
 
 template <class ARG,
-         VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
+          VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
 inline bool
-all_finite(ARG const & a)
+all_finite(ARG && a)
 {
     typedef typename ARG::value_type value_type;
-
-    Shape<ARG::dimension> shape(tags::size = a.ndim(), 1);
-
-    vigra_precondition(a.unifyShape(shape),
-        "all(ARRAY_EXPRESSION): shape mismatch.");
-
-    if (shape.size() > 1)
-    {
-        // FIXME: optimize memory order
-    }
-
     bool res = true;
-    value_type zero = value_type();
-    array_detail::universalPointerNDFunction(a, shape,
-        [zero, &res](value_type const & v)
+    array_detail::universalArrayMathFunction(a,
+        [&res](value_type const & v)
         {
             if (!isfinite(v))
                 res = false;
-        });
+        },
+        "all_finite(ARRAY_EXPRESSION)"
+    );
     return res;
 }
 
 template <class ARG,
           VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
 inline bool
-any(ARG const & a)
+any(ARG && a)
 {
     typedef typename ARG::value_type value_type;
-
-    Shape<ARG::dimension> shape(tags::size = a.ndim(), 1);
-
-    vigra_precondition(a.unifyShape(shape),
-        "any(ARRAY_EXPRESSION): shape mismatch.");
-
-    if (shape.size() > 1)
-    {
-        // FIXME: optimize memory order
-    }
-
     bool res = false;
     value_type zero = value_type();
-    array_detail::universalPointerNDFunction(a, shape,
+    array_detail::universalArrayMathFunction(a,
         [zero, &res](value_type const & v)
         {
-            if(v != zero)
+            if (v != zero)
                 res = true;
-        });
+        },
+        "any(ARRAY_EXPRESSION)"
+    );
     return res;
 }
 
@@ -972,24 +983,16 @@ template <class ARG,
           class U = PromoteType<typename ARG::value_type>,
           VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
 inline U
-sum(ARG const & a, U res = {})
+sum(ARG && a, U res = {})
 {
     typedef typename ARG::value_type value_type;
-    Shape<ARG::dimension> shape(tags::size = a.ndim(), 1);
-
-    vigra_precondition(a.unifyShape(shape),
-        "sum(ARRAY_EXPRESSION): shape mismatch.");
-
-    if (shape.size() > 1)
-    {
-        // FIXME: optimize memory order
-    }
-
-    array_detail::universalPointerNDFunction(a, shape,
+    array_detail::universalArrayMathFunction(a,
         [&res](value_type const & v)
         {
             res += v;
-        });
+        },
+        "sum(ARRAY_EXPRESSION)"
+    );
     return res;
 }
 
@@ -997,24 +1000,16 @@ template <class ARG,
           class U = PromoteType<typename ARG::value_type>,
           VIGRA_REQUIRE<ArrayMathConcept<ARG>::value> >
 inline U
-prod(ARG const & a, U res = U{1})
+prod(ARG && a, U res = U{1})
 {
     typedef typename ARG::value_type value_type;
-    Shape<ARG::dimension> shape(tags::size = a.ndim(), 1);
-
-    vigra_precondition(a.unifyShape(shape),
-        "prod(ARRAY_EXPRESSION): shape mismatch.");
-
-    if (shape.size() > 1)
-    {
-        // FIXME: optimize memory order
-    }
-
-    array_detail::universalPointerNDFunction(a, shape,
+    array_detail::universalArrayMathFunction(a,
         [&res](value_type const & v)
         {
             res *= v;
-        });
+        },
+        "prod(ARRAY_EXPRESSION)"
+    );
     return res;
 }
 

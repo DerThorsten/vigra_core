@@ -173,38 +173,35 @@ template <class ARRAY1, class ARRAY2, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
 universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f)
 {
-    // FIXME: handle shape broadcasting
+    // unify shape to take care of singleton axes
+    auto shape = a1.shape();
+    vigra_assert(detail::unifyShape(shape, a2.shape()),
+        "universalArrayNDFunction(): internal error: shape mismatch.");
 
     // optimize axis ordering
     // (the last axis goes into the inner loop and should have smallest stride)
-    auto p      = permutationToOrder(a1.shape(), a1.byte_strides(), C_ORDER);
-    auto h1     = a1.pointer_nd(p);
-    auto h2     = a2.pointer_nd(p);
-    auto shape  = a1.shape().transpose(p);
-    auto last   = shape - 1;
+    auto p  = permutationToOrder(a1.shape(), a1.byte_strides(), C_ORDER);
+    auto h1 = a1.pointer_nd(p);
+    auto h2 = a2.pointer_nd(p);
+    shape   = shape.transpose(p);
 
-    // take care of overlapping arrays (source data could be overwritten)
-    char * p1 = (char *)h1.ptr();
-    char * q1 = (char *)(&h1[last]+1);
-    char * p2 = (char *)h2.ptr();
-    char * q2 = (char *)(&h2[last]+1);
-
-    if(q1 <= p2 || q2 <= p1) // no memory overlap
+    // take care of overlapping arrays (source data could otherwise be overwritten)
+    MemoryOverlap overlap = checkMemoryOverlap(a1.memoryRange(), a2.memoryRange());
+    if (overlap == NoMemoryOverlap)
     {
         universalPointerNDFunction(h1, h2, shape, f);
     }
-    else if(a1.byte_strides() == a2.byte_strides()) // same memory access pattern
+    else if (compatibleStrides(a1.byte_strides(), a2.byte_strides()))
     {
-        if(p1 <= p2) // target below source => work forward
+        if (overlap & TargetOverlapsLeft) // target below source => work forward
             universalPointerNDFunction(h1, h2, shape, f);
-        else         // target above source => work backward
+        else                              // target above source => work backward
             reversePointerNDFunction(h1, h2, shape, f);
     }
     else // complicated overlapping access => create a temporary copy of the source
     {
         ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> t2(a2);
-        auto h2 = t2.pointer_nd(p);
-        universalPointerNDFunction(h1, h2, shape, f);
+        universalPointerNDFunction(h1, t2.pointer_nd(p), shape, f);
     }
 }
 
@@ -620,15 +617,15 @@ public:
     { \
         typedef typename ArrayMathExpression<ARG>::value_type U; \
         static_assert(std::is_convertible<U, value_type>::value, \
-            "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &): value_types of lhs and rhs are incompatible."); \
+            "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &): value types of lhs and rhs are incompatible."); \
         \
-        vigra_precondition(shape() == rhs.shape(), \
-            "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &): shape mismatch."); \
         array_detail::universalArrayMathFunction(*this, rhs, \
             [](value_type & v, U const & u) \
             { \
                 v OP detail::RequiresExplicitCast<value_type>::cast(u); \
-            }); \
+            }, \
+            "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &)" \
+        ); \
         return *this; \
     }
 
@@ -1549,23 +1546,44 @@ public:
     }
 
         /**
-         * returns true iff this view refers to valid data,
-         * i.e. data() is not a NULL pointer.  (this is false after
-         * default construction.)
+         * Returns true iff this view refers to valid data,
+         * i.e. data() is not a NULL pointer. In particular, the function
+         * returns `false` when the array was created with the default
+         * constructor.
          */
     bool hasData() const
     {
         return data_ != 0;
     }
 
+        /**
+        * Returns true iff this view refers to consecutive memory.
+        */
     bool isConsecutive() const
     {
         return (flags_ & ConsecutiveMemory) != 0;
     }
 
+        /**
+        * Returns true iff this view owns its memory.
+        */
     bool ownsMemory() const
     {
         return (flags_ & OwnsMemory) != 0;
+    }
+
+        /**
+        * Returns the addresses of the first array element and one byte beyond the
+        * last array element.
+        */
+    TinyArray<char *, 2> memoryRange() const
+    {
+        return{ data_, (char*)(1 + &(*this)[shape() - 1]) };
+    }
+
+    unsigned flags() const
+    {
+        return flags_;
     }
 
     ArrayViewND & setAxistags(axistags_type const & t)
@@ -1595,11 +1613,6 @@ public:
     bool hasChannelAxis() const
     {
         return channelAxis() != tags::no_channel_axis;
-    }
-
-    unsigned flags() const
-    {
-        return flags_;
     }
 
     pointer_nd_type pointer_nd() const

@@ -81,6 +81,7 @@ struct ArrayNDTest
         shouldEqual(v1.data(), &data1[0]);
         should(v1.isConsecutive());
         shouldNot(v1.ownsMemory());
+        shouldEqual(v1.memoryRange(), (TinyArray<char*, 2>{(char*)&data1.front(), (char*)(1+&data1.back())}));
 
         should(v1 == v1);
         shouldNot(v1 != v1);
@@ -572,6 +573,7 @@ struct ArrayNDTest
                           : 2;
         auto v1 = v.reshape(Shape<M>{4, 4}, AxisTags<M>{axis_y, axis_x});
         shouldEqual(v1.axistags(), (AxisTags<M>{axis_y, axis_x}));
+        ArrayND<M, int> vs = v1;
 
         int count = 0;
         for (int i = 0; i < 4; ++i)
@@ -606,6 +608,73 @@ struct ArrayNDTest
         count = 0;
         for (int i = 0; i < 16; ++i, ++count)
             shouldEqual(v3[i], count);
+
+        using namespace array_detail;
+        {
+            v1 = vs;
+            auto b1 = v1.bind(0, 1),
+                 b2 = v1.bind(0, 2);
+            shouldEqual(checkMemoryOverlap(b1.memoryRange(), b2.memoryRange()), NoMemoryOverlap);
+            b1 = b2;
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    if (i == 1)
+                        shouldEqual((vs[{2, j}]), (v1[{i, j}]));
+                    else
+                        shouldEqual((vs[{i, j}]), (v1[{i, j}]));
+        }
+        {
+            v1 = vs;
+            auto b1 = v1.bind(1, 1),
+                 b2 = v1.bind(1, 2);
+            shouldEqual(checkMemoryOverlap(b1.memoryRange(), b2.memoryRange()), TargetOverlapsLeft);
+            b1 = b2;
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    if (j == 1)
+                        shouldEqual((vs[{i, 2}]), (v1[{i, j}]));
+                    else
+                        shouldEqual((vs[{i, j}]), (v1[{i, j}]));
+        }
+        {
+            v1 = vs;
+            auto b1 = v1.bind(1, 1),
+                 b2 = v1.bind(1, 2);
+            shouldEqual(checkMemoryOverlap(b2.memoryRange(), b1.memoryRange()), TargetOverlapsRight);
+            b2 = b1;
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    if (j == 2)
+                        shouldEqual((vs[{i, 1}]), (v1[{i, j}]));
+                    else
+                        shouldEqual((vs[{i, j}]), (v1[{i, j}]));
+        }
+        {
+            v1 = vs;
+            auto b1 = v1.bind(0, 2),
+                 b2 = v1.bind(1, 1);
+            shouldEqual(checkMemoryOverlap(b1.memoryRange(), b2.memoryRange()), TargetOverlaps);
+            b1 = b2;
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    if (i == 2)
+                        shouldEqual((vs[{j, 1}]), (v1[{i, j}]));
+                    else
+                        shouldEqual((vs[{i, j}]), (v1[{i, j}]));
+        }
+        {
+            v1 = vs;
+            auto b1 = v1.bind(0, 1),
+                 b2 = v1.bind(1, 2);
+            shouldEqual(checkMemoryOverlap(b2.memoryRange(), b1.memoryRange()), TargetOverlaps);
+            b2 = b1;
+            for (int i = 0; i < 4; ++i)
+                for (int j = 0; j < 4; ++j)
+                    if (j == 2)
+                        shouldEqual((vs[{1, i}]), (v1[{i, j}]));
+                    else
+                        shouldEqual((vs[{i, j}]), (v1[{i, j}]));
+        }
     }
 
     void testFunctions()
