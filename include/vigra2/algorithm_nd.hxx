@@ -141,9 +141,10 @@ void
 transformND(ARRAY1 const & src, ARRAY2 & target, FCT && f)
 {
     array_detail::universalArrayNDFunction(target, src,
-        [f](typename ARRAY2::reference u, typename ARRAY1::const_reference v) {
+        [&f](typename ARRAY2::reference u, typename ARRAY1::const_reference v) {
             u = detail::RequiresExplicitCast<typename ARRAY2::value_type>::cast(f(v));
-        }
+        },
+        "transformND()"
     );
 }
 
