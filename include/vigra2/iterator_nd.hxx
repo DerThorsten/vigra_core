@@ -1165,27 +1165,15 @@ class ArrayNDIterator
 /*                                                      */
 /********************************************************/
 
-namespace array_detail
-{
-
-// NOTE: these typedefs are needed in order to workaround a GCC bug. Const and mutable versions.
 template <int INDEX, class COUPLED_POINTERS, int ORDER>
-using IteratorND_get_type = decltype(get<INDEX>(std::declval<IteratorND<COUPLED_POINTERS, ORDER> &>().pointer_nd()));
-
-template <int INDEX, class COUPLED_POINTERS, int ORDER>
-using IteratorND_get_type_const = decltype(get<INDEX>(std::declval<IteratorND<COUPLED_POINTERS, ORDER> const &>().pointer_nd()));
-
-}
-
-template <int INDEX, class COUPLED_POINTERS, int ORDER>
-array_detail::IteratorND_get_type_const<INDEX,COUPLED_POINTERS,ORDER>
+decltype(get<INDEX>(*(COUPLED_POINTERS const*)0))
 get(IteratorND<COUPLED_POINTERS, ORDER> const & i)
 {
     return get<INDEX>(i.pointer_nd());
 }
 
 template <int INDEX, class COUPLED_POINTERS, int ORDER>
-array_detail::IteratorND_get_type<INDEX,COUPLED_POINTERS,ORDER>
+decltype(get<INDEX>(*(COUPLED_POINTERS *)0))
 get(IteratorND<COUPLED_POINTERS, ORDER> & i)
 {
     return get<INDEX>(i.pointer_nd());
