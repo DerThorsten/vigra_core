@@ -48,6 +48,19 @@
 
 namespace vigra {
 
+namespace array_math
+{
+
+// Forward declarations.
+template <class, class>
+struct ArrayMathUnifyDimension;
+
+// Choose the appropriate ArrayMathExpression according to the ARG type.
+template <class>
+struct ArrayMathTypeChooser;
+
+}
+
 namespace array_detail {
 
 /********************************************************/
@@ -61,13 +74,13 @@ namespace array_detail {
     // optimizes loop order to maximize cache locality.
 template <class ARRAY, class ARRAY_MATH, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY>::value && ArrayMathConcept<ARRAY_MATH>::value>
-universalArrayMathFunction(ARRAY & a1, ARRAY_MATH && h2, FCT f, std::string func_name)
+universalArrayMathFunction(ARRAY & a1, ARRAY_MATH && h2, FCT &&f, std::string func_name)
 {
     typedef typename std::remove_reference<ARRAY_MATH>::type ARRAY2;
 
     static const int dimension = array_math::ArrayMathUnifyDimension<ARRAY, ARRAY2>::value;
 
-    array_math::ArrayMathArgType<ARRAY> h1(a1);
+    typename array_math::ArrayMathTypeChooser<ARRAY>::type h1(a1);
     Shape<dimension> shape = h2.shape();
     vigra_precondition(h1.unifyShape(shape), func_name + ": shape mismatch.");
 
@@ -78,7 +91,7 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH && h2, FCT f, std::string func
     if (shape.size() > 1)
     {
         Shape<dimension> strides(tags::size = shape.size());
-        // determine principal strides so that the optmization also works when 
+        // determine principal strides so that the optmization also works when
         // the arrays have singleton axes
         principalStrides(strides, a1, h2);
         p = permutationToOrder(shape, strides, C_ORDER);
@@ -87,21 +100,21 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH && h2, FCT f, std::string func
         shape = transpose(shape, p);
     }
 
-    if (overlap = NoMemoryOverlap)
+    if (overlap == NoMemoryOverlap)
     {
-        universalPointerNDFunction(h1, h2, shape, f);
+        universalPointerNDFunction(h1, h2, shape, std::forward<FCT>(f));
     }
     else if (compatibleStrides)
     {
         if (overlap & TargetOverlapsLeft) // target below source => work forward
-            universalPointerNDFunction(h1, h2, shape, f);
+            universalPointerNDFunction(h1, h2, shape, std::forward<FCT>(f));
         else                              // target above source => work backward
-            reversePointerNDFunction(h1, h2, shape, f);
+            reversePointerNDFunction(h1, h2, shape, std::forward<FCT>(f));
     }
     else
     {
         ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> tmp(std::move(h2));
-        universalPointerNDFunction(h1, tmp.pointer_nd(), shape, f);
+        universalPointerNDFunction(h1, tmp.pointer_nd(), shape, std::forward<FCT>(f));
     }
 }
 
@@ -110,7 +123,7 @@ universalArrayMathFunction(ARRAY & a1, ARRAY_MATH && h2, FCT f, std::string func
     // optimizes loop order to maximize cache locality.
 template <class ARRAY_MATH, class FCT>
 enable_if_t<ArrayMathConcept<ARRAY_MATH>::value>
-universalArrayMathFunction(ARRAY_MATH && a, FCT f, std::string func_name)
+universalArrayMathFunction(ARRAY_MATH && a, FCT &&f, std::string func_name)
 {
     typedef typename std::remove_reference<ARRAY_MATH>::type ARRAY;
     typedef typename ARRAY::value_type value_type;
@@ -128,7 +141,7 @@ universalArrayMathFunction(ARRAY_MATH && a, FCT f, std::string func_name)
         shape = transpose(shape, p);
     }
 
-    array_detail::universalPointerNDFunction(a, shape, f);
+    array_detail::universalPointerNDFunction(a, shape, std::forward<FCT>(f));
 }
 
 } // namespace array_detail
@@ -342,7 +355,7 @@ struct ArrayMathExpression<PointerND<N, T>>
     void principalStrides(SHAPE & strides) const
     {
         ArrayIndex minimalStride = NumericTraits<ArrayIndex>::max();
-        int singletonCount       = ndim();
+        int singletonCount       = this->ndim();
         principalStrides(strides, minimalStride, singletonCount);
     }
 
@@ -375,7 +388,7 @@ struct ArrayMathExpression<PointerND<N, T>>
 template <class ARG>
 struct ArrayMathTypeChooser
 {
-    typedef typename 
+    typedef typename
         std::conditional<ArrayMathConcept<ARG>::value,
                          ARG,
                          ArrayMathExpression<PointerND<0, ARG>>>::type type;
@@ -953,7 +966,7 @@ public:
     template <class SHAPE>
     bool unifyShape(SHAPE & target) const
     {
-        return vigra::detail::unifyShape(target, shape());
+        return vigra::detail::unifyShape(target, this->shape());
     }
 };
 

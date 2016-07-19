@@ -608,7 +608,7 @@ class IteratorND
     ArrayIndex
     operator-(IteratorND const & r) const
     {
-        return scanOrderIndex(coord() - r.coord());
+        return this->scanOrderIndex(coord() - r.coord());
     }
 
     bool operator==(IteratorND const & r) const

@@ -33,6 +33,7 @@
 /*                                                                      */
 /************************************************************************/
 
+#include <climits>
 #include <typeinfo>
 #include <iostream>
 #include <string>
@@ -46,31 +47,31 @@ struct NumericTraitsTest
     NumericTraitsTest()
     {
     }
-    
+
     void testPromote()
     {
         should((std::is_same<unsigned int, PromoteType<unsigned int, short> >::value));
         should((std::is_same<int, PromoteType<unsigned char> >::value));
         should((std::is_same<float, PromoteType<float> >::value));
-        
+
         should((std::is_same<double, RealPromoteType<unsigned char> >::value));
         should((std::is_same<long double, RealPromoteType<long double> >::value));
         should((std::is_same<float, RealPromoteType<float> >::value));
         should((std::is_same<float, RealPromoteType<float, int> >::value));
-        
+
         should((std::is_same<unsigned long long, SquaredNormType<int> >::value));
         should((std::is_same<unsigned long long, SquaredNormType<unsigned int> >::value));
         should((std::is_same<unsigned int, SquaredNormType<unsigned char> >::value));
         should((std::is_same<float, SquaredNormType<float> >::value));
         should((std::is_same<long double, SquaredNormType<long double> >::value));
-        
+
         should((std::is_same<int, NormType<int> >::value));
         should((std::is_same<unsigned int, NormType<unsigned int> >::value));
         should((std::is_same<unsigned char, NormType<unsigned char> >::value));
         should((std::is_same<float, NormType<float> >::value));
         should((std::is_same<long double, NormType<long double> >::value));
     }
-    
+
     void testNumericTraits()
     {
         {
@@ -82,12 +83,12 @@ struct NumericTraitsTest
             shouldEqual(1, T::epsilon());
             shouldEqual(SHRT_MIN, T::min());
             shouldEqual(SHRT_MAX, T::max());
-            
+
             should((std::is_same<int, T::Promote>::value));
             should((std::is_same<unsigned int, T::UnsignedPromote>::value));
             should((std::is_same<double, T::RealPromote>::value));
             should((std::is_same<std::complex<double>, T::ComplexPromote>::value));
-            
+
             shouldEqual(T::fromPromote(INT_MIN), T::min());
             shouldEqual(T::fromPromote(INT_MAX), T::max());
             shouldEqual(T::fromPromote(1), 1);
@@ -104,12 +105,12 @@ struct NumericTraitsTest
             shouldEqual(1, T::epsilon());
             shouldEqual(0, T::min());
             shouldEqual(USHRT_MAX, T::max());
-            
+
             should((std::is_same<int, T::Promote>::value));
             should((std::is_same<unsigned int, T::UnsignedPromote>::value));
             should((std::is_same<double, T::RealPromote>::value));
             should((std::is_same<std::complex<double>, T::ComplexPromote>::value));
-            
+
             shouldEqual(T::fromPromote(INT_MIN), T::min());
             shouldEqual(T::fromPromote(INT_MAX), T::max());
             shouldEqual(T::fromPromote(1), 1);
@@ -126,12 +127,12 @@ struct NumericTraitsTest
             shouldEqual(FLT_EPSILON, T::epsilon());
             shouldEqual(-FLT_MAX, T::min());
             shouldEqual(FLT_MAX, T::max());
-            
+
             should((std::is_same<float, T::Promote>::value));
             should((std::is_same<float, T::UnsignedPromote>::value));
             should((std::is_same<float, T::RealPromote>::value));
             should((std::is_same<std::complex<float>, T::ComplexPromote>::value));
-            
+
             shouldEqual(T::fromPromote(-FLT_MAX), T::min());
             shouldEqual(T::fromPromote(FLT_MAX), T::max());
             shouldEqual(T::fromPromote(1.25f), 1.25f);
@@ -140,21 +141,21 @@ struct NumericTraitsTest
             shouldEqual(T::fromRealPromote(1.25), 1.25f);
         }
     }
-    
+
     void testCloseAtTolerance()
     {
         typedef NumericTraits<float> T;
-        
+
         should(closeAtTolerance(T::zero(), T::epsilon()));
         should(!closeAtTolerance(T::zero(), T::one()));
         should(closeAtTolerance(T::zero(), T::one(), 2.0f));
-        
+
         should(lessEqualAtTolerance(T::zero(), T::epsilon()));
         should(lessEqualAtTolerance(T::epsilon(), T::zero()));
         should(lessEqualAtTolerance(T::zero(), T::one()));
         should(!lessEqualAtTolerance(T::one(), T::zero()));
         should(lessEqualAtTolerance(T::one(), T::zero(), 2.0f));
-        
+
         should(greaterEqualAtTolerance(T::zero(), T::epsilon()));
         should(greaterEqualAtTolerance(T::epsilon(), T::zero()));
         should(!greaterEqualAtTolerance(T::zero(), T::one()));

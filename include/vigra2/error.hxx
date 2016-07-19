@@ -149,21 +149,21 @@ class ContractViolation
 };
 
 
-inline
+[[ noreturn ]] inline
 void throw_contract_error(char const * prefix, char const * message,
                           char const * file, int line)
 {
     throw vigra::ContractViolation(prefix, message, file, line);
 }
 
-inline
+[[ noreturn ]] inline
 void throw_contract_error(char const * prefix, std::string message,
                           char const * file, int line)
 {
     throw vigra::ContractViolation(prefix, message.c_str(), file, line);
 }
 
-inline
+[[ noreturn ]] inline
 void throw_runtime_error(char const * message, char const * file, int line)
 {
     std::ostringstream what;
@@ -171,7 +171,7 @@ void throw_runtime_error(char const * message, char const * file, int line)
     throw std::runtime_error(what.str());
 }
 
-inline
+[[ noreturn ]] inline
 void throw_runtime_error(std::string message, char const * file, int line)
 {
     std::ostringstream what;

@@ -272,9 +272,6 @@ class TinyArrayBase
 
     static const ArrayIndex static_ndim  = sizeof...(N);
     static const ArrayIndex static_size  = ShapeHelper::total_size;
-#if !defined(_MSC_VER) || _MSC_VER > 1900
-    static constexpr index_type static_shape = index_type{ N... };
-#endif
     static const bool may_use_uninitialized_memory =
                                    UninitializedMemoryTraits<VALUETYPE>::value;
 
@@ -360,7 +357,7 @@ class TinyArrayBase
         return *this;
     }
 
-    TinyArrayBase & operator=(value_type const (&v)[static_ndim])
+    TinyArrayBase & operator=(value_type const (&v)[static_size])
     {
         for(int i=0; i<static_size; ++i)
             data_[i] = v[i];
@@ -1126,6 +1123,7 @@ class TinyArray
 
     typedef typename BaseType::value_type value_type;
     static const ArrayIndex static_ndim = BaseType::static_ndim;
+    static const ArrayIndex static_size = BaseType::static_size;
 
     explicit constexpr
     TinyArray(value_type const & v = value_type())
@@ -1155,7 +1153,7 @@ class TinyArray
               value_type const & v = value_type())
     : BaseType(v)
     {
-        vigra_assert(size.value == BaseType::static_size,
+        vigra_assert(size.value == static_size,
             "TinyArray(size): size argument conflicts with array length.");
     }
 
@@ -1163,7 +1161,7 @@ class TinyArray
     TinyArray(tags::SizeProxy size, SkipInitialization)
     : BaseType(DontInit)
     {
-        vigra_assert(size.value == BaseType::static_size,
+        vigra_assert(size.value == static_size,
             "TinyArray(size): size argument conflicts with array length.");
     }
 
@@ -1171,7 +1169,7 @@ class TinyArray
     TinyArray(ArrayIndex size, SkipInitialization)
     : BaseType(DontInit)
     {
-        vigra_assert(size == BaseType::static_size,
+        vigra_assert(size == static_size,
             "TinyArray(size): size argument conflicts with array length.");
     }
 
@@ -1229,7 +1227,7 @@ class TinyArray
         return *this;
     }
 
-    TinyArray & operator=(value_type const (&v)[static_ndim])
+    TinyArray & operator=(value_type const (&v)[static_size])
     {
         BaseType::operator=(v);
         return *this;

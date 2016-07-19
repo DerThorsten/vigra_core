@@ -277,7 +277,7 @@ struct TinyArrayTest
     {
         should((std::is_same<IV, PromoteType<IV>>::value));
         should((std::is_same<TinyArray<double, 3>, RealPromoteType<IV>>::value));
-        should((std::is_same<typename IV::AsType<double>, RealPromoteType<IV>>::value));
+        should((std::is_same<typename IV::template AsType<double>, RealPromoteType<IV>>::value));
 
         IV ivm3 = -iv3;
         FV fvm3 = -fv3;

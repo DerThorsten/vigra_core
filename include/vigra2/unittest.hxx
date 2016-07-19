@@ -242,15 +242,15 @@ int catch_signals( Generator function_object, detail::errstream & err, int timeo
 
 extern "C" {
 
-inline jmp_buf & unit_test_jump_buffer()
+inline jmp_buf * unit_test_jump_buffer()
 {
     static jmp_buf unit_test_jump_buffer_;
-    return unit_test_jump_buffer_;
+    return &unit_test_jump_buffer_;
 }
 
 static void unit_test_signal_handler(int sig)
 {
-    longjmp(unit_test_jump_buffer(), sig);
+    longjmp(*unit_test_jump_buffer(), sig);
 }
 
 } // extern "C"
@@ -283,7 +283,7 @@ int catch_signals( Generator function_object, detail::errstream & err, int timeo
         alarm(timeout);
     }
 
-    sigtype = setjmp(unit_test_jump_buffer());
+    sigtype = setjmp(*unit_test_jump_buffer());
     if(sigtype == 0)
     {
        result = function_object();

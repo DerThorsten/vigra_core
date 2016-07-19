@@ -170,12 +170,12 @@ VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(long double)
 template <class ARRAY, class FCT,
           VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
 void
-universalArrayNDFunction(ARRAY & a, FCT f)
+universalArrayNDFunction(ARRAY & a, FCT &&f)
 {
     auto p = permutationToOrder(a.shape(), a.byte_strides(), C_ORDER);
     auto h = a.pointer_nd(p);
     auto s = transpose(a.shape(), p);
-    universalPointerNDFunction(h, s, f);
+    universalPointerNDFunction(h, s, std::forward<FCT>(f));
 }
 
     // Execute a functor for every pair of array elements.
@@ -183,7 +183,7 @@ universalArrayNDFunction(ARRAY & a, FCT f)
     // optimizes loop order to maximize cache locality.
 template <class ARRAY1, class ARRAY2, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
-universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f,
+universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT &&f,
                          std::string func_name = "universalArrayNDFunction(): internal error")
 {
     // unify shape (takes care of singleton axes)
@@ -197,7 +197,7 @@ universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f,
     if (shape.size() > 1)
     {
         decltype(shape) strides(tags::size = shape.size());
-        // determine principal strides so that the optmization also works when 
+        // determine principal strides so that the optmization also works when
         // the arrays have singleton axes
         principalStrides(strides, a1, a2);
         p = permutationToOrder(shape, strides, C_ORDER);
@@ -211,20 +211,20 @@ universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f,
     MemoryOverlap overlap = checkMemoryOverlap(a1.memoryRange(), a2.memoryRange());
     if (overlap == NoMemoryOverlap)
     {
-        universalPointerNDFunction(h1, h2, shape, f);
+        universalPointerNDFunction(h1, h2, shape, std::forward<FCT>(f));
     }
     else if (compatibleStrides(a1.byte_strides(), a2.byte_strides()))
     {
         if (overlap & TargetOverlapsLeft) // target below source => work forward
-            universalPointerNDFunction(h1, h2, shape, f);
+            universalPointerNDFunction(h1, h2, shape, std::forward<FCT>(f));
         else                              // target above source => work backward
-            reversePointerNDFunction(h1, h2, shape, f);
+            reversePointerNDFunction(h1, h2, shape, std::forward<FCT>(f));
     }
     else // complicated overlapping access => create a temporary copy of the source
     {
         typedef array_math::ArrayMathArgType<ARRAY2> EXPR;
         ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> tmp(EXPR(h2, shape));
-        universalPointerNDFunction(h1, tmp.pointer_nd(), shape, f);
+        universalPointerNDFunction(h1, tmp.pointer_nd(), shape, std::forward<FCT>(f));
     }
 }
 
@@ -235,7 +235,7 @@ universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT f,
     // overlapping memory.
 template <class ARRAY1, class ARRAY2, class FCT>
 enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
-universalArrayNDFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f,
+universalArrayNDFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT &&f,
     std::string func_name = "universalArrayNDFunction(): internal error")
 {
     // unify shape (takes care of singleton axes)
@@ -249,7 +249,7 @@ universalArrayNDFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f,
     if (shape.size() > 1)
     {
         decltype(shape) strides(tags::size = shape.size());
-        // determine principal strides so that the optmization also works when 
+        // determine principal strides so that the optmization also works when
         // the arrays have singleton axes
         principalStrides(strides, a1, a2);
         p = permutationToOrder(shape, strides, C_ORDER);
@@ -259,7 +259,7 @@ universalArrayNDFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT f,
     auto h2 = a2.pointer_nd(p);
     auto s  = transpose(a1.shape(), p);
 
-    universalPointerNDFunction(h1, h2, s, f);
+    universalPointerNDFunction(h1, h2, s, std::forward<FCT>(f));
 }
 
 } // namespace array_detail
@@ -2080,7 +2080,7 @@ class ArrayND
 
         auto p = array_detail::permutationToOrder(this->shape(),
                                                   this->byte_strides(), C_ORDER);
-        array_detail::universalPointerNDFunction(rhs.pointer_nd(p), shape().transpose(p),
+        array_detail::universalPointerNDFunction(rhs.pointer_nd(p), this->shape().transpose(p),
             [&data=allocated_data_](U const & u)
             {
                 data.emplace_back(detail::RequiresExplicitCast<T>::cast(u));
@@ -2346,6 +2346,13 @@ swap(ArrayND<N,T,A> & array1, ArrayND<N,T,A> & array2)
 
 namespace array_detail {
 
+template <class COUPLED_POINTERS>
+IteratorND<COUPLED_POINTERS>
+makeCoupledIteratorImpl(MemoryOrder order, COUPLED_POINTERS const & pointers)
+{
+    return IteratorND<COUPLED_POINTERS>(pointers, order);
+}
+
 template <class COUPLED_POINTERS, int N, class T, class ... REST>
 IteratorND<typename PointerNDTypeImpl<COUPLED_POINTERS, T, REST...>::type>
 makeCoupledIteratorImpl(MemoryOrder order, COUPLED_POINTERS const & inner_pointers,
@@ -2357,13 +2364,6 @@ makeCoupledIteratorImpl(MemoryOrder order, COUPLED_POINTERS const & inner_pointe
         "makeCoupledIterator(): arrays have incompatible shapes.");
     PointerNDCoupled<T, COUPLED_POINTERS> pointer_nd(a.pointer_nd(), inner_pointers);
     return makeCoupledIteratorImpl(order, pointer_nd, rest ...);
-}
-
-template <class COUPLED_POINTERS>
-IteratorND<COUPLED_POINTERS>
-makeCoupledIteratorImpl(MemoryOrder order, COUPLED_POINTERS const & pointers)
-{
-    return IteratorND<COUPLED_POINTERS>(pointers, order);
 }
 
 } // namespace array_detail

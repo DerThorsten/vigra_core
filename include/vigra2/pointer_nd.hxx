@@ -316,8 +316,8 @@ class PointerNDCoupled
 {
   public:
     typedef NEXT                          base_type;
-    static const unsigned int index     = base_type::index+1; // index of this member of the chain
-    static const unsigned int dimension = base_type::dimension;
+    static const int index =              base_type::index+1; // index of this member of the chain
+    static const int dimension =          base_type::dimension;
     typedef PointerND<dimension, T>       pointer_nd_type;
 
     typedef typename pointer_nd_type::value_type       value_type;
@@ -413,8 +413,8 @@ template <int N>
 class PointerNDCoupled<Shape<N>>
 {
 public:
-    static const unsigned int index      = 0; // index of this member of the chain
-    static const unsigned int dimension  = N;
+    static const int index =               0; // index of this member of the chain
+    static const int dimension =           N;
 
     typedef Shape<N>                       value_type;
     typedef value_type const *             pointer;
@@ -561,10 +561,10 @@ checkMemoryOverlap(TinyArray<char*, 2> const & target, TinyArray<char*, 2> const
 /*                                                      */
 /********************************************************/
 
-    // check if two arrays have the same strides, ignoring 
+    // check if two arrays have the same strides, ignoring
     // singleton dimensions and wrapped scalars
 template <class SHAPE1, class SHAPE2>
-inline bool 
+inline bool
 compatibleStrides(SHAPE1 const & target, SHAPE2 const & src)
 {
     if (src.size() == 0)
@@ -666,20 +666,27 @@ isCConsecutive(PointerND<N, T> const & p, SHAPE const & shape, int dim)
     // This optimization is probably overkill for now, but serves as a proof-of-concept for
     // future optimizations, e.g. via AVX.
 template <class P, class SHAPE, class FCT>
-constexpr bool consecutivePointerNDFunction(P &, SHAPE const &, FCT, int)
+constexpr bool consecutivePointerNDFunction(P &&, SHAPE const &, FCT &&, int)
 {
     return false;
 }
 
 template <class P1, class P2, class SHAPE, class FCT>
-constexpr bool consecutivePointerNDFunction(P1 &, P2 &, SHAPE const &, FCT, int)
+constexpr bool consecutivePointerNDFunction(P1 &&, P2 &&, SHAPE const &, FCT &&, int)
 {
     return false;
 }
 
 template <int N, class T, class SHAPE, class FCT>
 inline bool
-consecutivePointerNDFunction(PointerND<N, T> & pn, SHAPE const & shape, FCT f, int dim)
+consecutivePointerNDFunction(const PointerND<N, T> & pn, SHAPE const & shape, FCT &&f, int dim)
+{
+  return consecutivePointerNDFunction(PointerND<N, T>(pn),shape,std::forward<FCT>(f),dim);
+}
+
+template <int N, class T, class SHAPE, class FCT>
+inline bool
+consecutivePointerNDFunction(PointerND<N, T> && pn, SHAPE const & shape, FCT &&f, int dim)
 {
     static_assert(N != 0,
         "consecutivePointerNDFunction(): internal error: N==0 should never happen.");
@@ -696,8 +703,16 @@ consecutivePointerNDFunction(PointerND<N, T> & pn, SHAPE const & shape, FCT f, i
 
 template <int M, class T, int N, class U, class SHAPE, class FCT>
 inline bool
-consecutivePointerNDFunction(PointerND<M, T> & pn1, PointerND<N, U> & pn2,
-                             SHAPE const & shape, FCT f, int dim)
+consecutivePointerNDFunction(const PointerND<M, T> & pn1, const PointerND<N, U> & pn2,
+                             SHAPE const & shape, FCT &&f, int dim)
+{
+  return consecutivePointerNDFunction(PointerND<M, T>(pn1),PointerND<N, U>(pn1),shape,std::forward<FCT>(f),dim);
+}
+
+template <int M, class T, int N, class U, class SHAPE, class FCT>
+inline bool
+consecutivePointerNDFunction(PointerND<M, T> && pn1, PointerND<N, U> && pn2,
+                             SHAPE const & shape, FCT &&f, int dim)
 {
     auto count = isCConsecutive(pn1, shape, dim);
     if(count == 0 || isCConsecutive(pn2, shape, dim) != count)
@@ -712,8 +727,16 @@ consecutivePointerNDFunction(PointerND<M, T> & pn1, PointerND<N, U> & pn2,
 
 template <class T, int N, class U, class SHAPE, class FCT>
 inline bool
-consecutivePointerNDFunction(PointerND<0, T> & pn1, PointerND<N, U> & pn2,
-                             SHAPE const & shape, FCT f, int dim)
+consecutivePointerNDFunction(const PointerND<0, T> & pn1, const PointerND<N, U> & pn2,
+                             SHAPE const & shape, FCT &&f, int dim)
+{
+  return consecutivePointerNDFunction(pn1,PointerND<N, U>(pn2),shape,std::forward<FCT>(f),dim);
+}
+
+template <class T, int N, class U, class SHAPE, class FCT>
+inline bool
+consecutivePointerNDFunction(PointerND<0, T> pn1, PointerND<N, U> && pn2,
+                             SHAPE const & shape, FCT &&f, int dim)
 {
     auto count = isCConsecutive(pn2, shape, dim);
     if(count == 0)
@@ -728,8 +751,16 @@ consecutivePointerNDFunction(PointerND<0, T> & pn1, PointerND<N, U> & pn2,
 
 template <int N, class T, class U, class SHAPE, class FCT>
 inline bool
-consecutivePointerNDFunction(PointerND<N, T> & pn1, PointerND<0, U> & pn2,
-                             SHAPE const & shape, FCT f, int dim)
+consecutivePointerNDFunction(const PointerND<N, T> & pn1, const PointerND<0, U>  & pn2,
+                             SHAPE const & shape, FCT &&f, int dim)
+{
+  return consecutivePointerNDFunction(PointerND<N, T>(pn1),pn2,shape,std::forward<FCT>(f),dim);
+}
+
+template <int N, class T, class U, class SHAPE, class FCT>
+inline bool
+consecutivePointerNDFunction(PointerND<N, T> && pn1, PointerND<0, U> pn2,
+                             SHAPE const & shape, FCT &&f, int dim)
 {
     auto count = isCConsecutive(pn1, shape, dim);
     if(count == 0)
@@ -756,12 +787,12 @@ consecutivePointerNDFunction(PointerND<N, T> & pn1, PointerND<0, U> & pn2,
 template <class POINTER_ND, class SHAPE, class FCT,
           VIGRA_REQUIRE<PointerNDConcept<POINTER_ND>::value> >
 void
-universalPointerNDFunction(POINTER_ND & h, SHAPE const & shape, FCT f, int dim = 0)
+universalPointerNDFunction(POINTER_ND && h, SHAPE const & shape, FCT &&f, int dim = 0)
 {
     vigra_assert(dim < shape.size(),
         "universalPointerNDFunction(): internal error: dim >= shape.size() should never happen.");
 
-    if(consecutivePointerNDFunction(h, shape, f, dim))
+    if(consecutivePointerNDFunction(std::forward<POINTER_ND>(h), shape, std::forward<FCT>(f), dim))
         return;
 
     auto N = shape[dim];
@@ -773,7 +804,7 @@ universalPointerNDFunction(POINTER_ND & h, SHAPE const & shape, FCT f, int dim =
     else
     {
         for(ArrayIndex k=0; k<N; ++k, h.inc(dim))
-            universalPointerNDFunction(h, shape, f, dim+1);
+            universalPointerNDFunction(std::forward<POINTER_ND>(h), shape, std::forward<FCT>(f), dim+1);
     }
     h.move(dim, -N);
 }
@@ -783,13 +814,13 @@ universalPointerNDFunction(POINTER_ND & h, SHAPE const & shape, FCT f, int dim =
 template <class POINTER_ND1, class POINTER_ND2, class SHAPE, class FCT,
           VIGRA_REQUIRE<PointerNDConcept<POINTER_ND1>::value && PointerNDConcept<POINTER_ND2>::value> >
 void
-universalPointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & shape,
-                           FCT f, int dim = 0)
+universalPointerNDFunction(POINTER_ND1 && h1, POINTER_ND2 && h2, SHAPE const & shape,
+                           FCT &&f, int dim = 0)
 {
     vigra_assert(dim < shape.size(),
         "universalPointerNDFunction(): internal error: dim >= shape.size() should never happen.");
 
-    if(consecutivePointerNDFunction(h1, h2, shape, f, dim))
+    if(consecutivePointerNDFunction(std::forward<POINTER_ND1>(h1), std::forward<POINTER_ND2>(h2), shape, std::forward<FCT>(f), dim))
         return;
 
     auto N = shape[dim];
@@ -801,7 +832,7 @@ universalPointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & sha
     else
     {
         for(ArrayIndex k=0; k<N; ++k, h1.inc(dim), h2.inc(dim))
-            universalPointerNDFunction(h1, h2, shape, f, dim+1);
+            universalPointerNDFunction(std::forward<POINTER_ND1>(h1), std::forward<POINTER_ND2>(h2), shape, std::forward<FCT>(f), dim+1);
     }
     h1.move(dim, -N);
     h2.move(dim, -N);
@@ -818,8 +849,8 @@ universalPointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & sha
 template <class POINTER_ND1, class POINTER_ND2, class SHAPE, class FCT,
           VIGRA_REQUIRE<PointerNDConcept<POINTER_ND1>::value && PointerNDConcept<POINTER_ND2>::value> >
 void
-reversePointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & shape,
-                         FCT f, int dim = 0)
+reversePointerNDFunction(POINTER_ND1 && h1, POINTER_ND2 && h2, SHAPE const & shape,
+                         FCT &&f, int dim = 0)
 {
     vigra_assert(dim < shape.size(),
         "reversePointerNDFunction(): internal error: dim >= shape.size() should never happen.");
@@ -836,7 +867,7 @@ reversePointerNDFunction(POINTER_ND1 & h1, POINTER_ND2 & h2, SHAPE const & shape
     else
     {
         for(ArrayIndex k=N; k>0; --k, h1.dec(dim), h2.dec(dim))
-            reversePointerNDFunction(h1, h2, shape, f, dim+1);
+            reversePointerNDFunction(std::forward<POINTER_ND1>(h1), std::forward<POINTER_ND2>(h2), shape, std::forward<FCT>(f), dim+1);
     }
     h1.inc(dim);
     h2.inc(dim);
