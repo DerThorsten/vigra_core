@@ -977,6 +977,47 @@ mgrid(Shape<N> const & shape)
     return ArrayMathExpression<Shape<N>>(shape);
 }
 
+/********************************************************/
+/*                                                      */
+/*                 ArrayMathCustomFunctor               */
+/*                                                      */
+/********************************************************/
+
+template <class ARG1, class ARG2, class FCT>
+struct ArrayMathCustomFunctor
+: public ArrayMathBinaryOperator<ARG1, ARG2>
+{
+    typedef ArrayMathBinaryOperator<ARG1, ARG2>   base_type;
+    typedef typename base_type::arg1_type         arg1_type;
+    typedef typename base_type::arg2_type         arg2_type;
+    typedef typename arg1_type::value_type        value1_type;
+    typedef typename arg2_type::value_type        value2_type;
+    typedef typename std::result_of<FCT(value1_type,value2_type)>::type raw_result_type;
+    typedef typename std::conditional<std::is_same<raw_result_type, bool>::value,
+                           unsigned char, raw_result_type>::type result_type;
+    typedef typename std::remove_reference<result_type>::type   value_type;
+
+    FCT && f_;
+
+    ArrayMathCustomFunctor(ARG1 const & a1, ARG2 const & a2, FCT && f)
+    : base_type(a1, a2)
+    , f_(std::forward<FCT>(f))
+    {}
+
+    value_type const * ptr() const { return 0; }
+
+    result_type operator*() const
+    {
+        return f_(*this->arg1_, *this->arg2_);
+    }
+
+    template <class SHAPE>
+    result_type operator[](SHAPE const & s) const
+    {
+        return f_(this->arg1_[s], this->arg2_[s]);
+    }
+};
+
 } // namespace array_math
 
 using array_math::ArrayMathExpression;

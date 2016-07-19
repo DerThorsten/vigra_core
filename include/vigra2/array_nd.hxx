@@ -420,7 +420,7 @@ class ArrayViewND
     {
         for (int k = 0; k < ndim(); ++k)
             if (shape_[k] == 1)
-                strides_[k] = 0; // sizeof(T);
+                strides_[k] = 0;
     }
 
     unsigned isConsecutiveImpl() const
