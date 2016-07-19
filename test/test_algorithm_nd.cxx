@@ -37,6 +37,7 @@
 #include <iostream>
 #include <string>
 #include <numeric>
+#include <functional>
 #include <vigra2/unittest.hxx>
 #include <vigra2/algorithm_nd.hxx>
 #include <vigra2/timing.hxx>
@@ -65,24 +66,28 @@ struct AlgorithmNDTest
             shouldEqual(dot(coord, cstrides), count);
             ++count;
         });
+        shouldEqual(count, 24);
 
         count = 0;
         foreachCoordinate(S{3,3,3}, shape+3, [&count, cstrides](S const & coord) {
             shouldEqual(dot(coord-3, cstrides), count);
             ++count;
         });
+        shouldEqual(count, 24);
 
         count = 0;
         foreachCoordinate(shape, [&count, fstrides](S const & coord) {
             shouldEqual(dot(coord, fstrides), count);
             ++count;
         }, F_ORDER);
+        shouldEqual(count, 24);
 
         count = 0;
         foreachCoordinate(S{3,3,3}, shape+3, [&count, fstrides](S const & coord) {
             shouldEqual(dot(coord-3, fstrides), count);
             ++count;
         }, F_ORDER);
+        shouldEqual(count, 24);
 
         S ustrides = { 6, 1, 3 },
           order    = { 1, 2, 0 };
@@ -92,12 +97,14 @@ struct AlgorithmNDTest
             shouldEqual(dot(coord, ustrides), count);
             ++count;
         }, order);
+        shouldEqual(count, 24);
 
         count = 0;
         foreachCoordinate(S{3,3,3}, shape+3, [&count, ustrides](S const & coord) {
             shouldEqual(dot(coord-3, ustrides), count);
             ++count;
         }, order);
+        shouldEqual(count, 24);
     }
 
     void testAlgorithmND()
