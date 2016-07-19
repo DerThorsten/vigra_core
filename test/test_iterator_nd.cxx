@@ -283,6 +283,18 @@ struct IteratorNDTest
             shouldNot(diter.isValid());
             should(diter.atEnd());
         }
+
+        {
+            CID diter(s);
+
+            for(auto & coord: CID(s))
+            {
+                shouldEqual(*diter, coord);
+                ++diter;
+            }
+
+            should(diter.atEnd());
+        }
     }
 
     void testSpeed()
@@ -295,10 +307,9 @@ struct IteratorNDTest
         USETICTOC;
         TIC;
         int count = 0;
-        for (; iter.isValid(); ++iter)
-        //for (; iter != end; ++iter)
+        for (auto & coord: iter)
         {
-            count += (*iter)[0];
+            count += coord[0];
         }
         TOC;
         std::cerr << count << "\n";
