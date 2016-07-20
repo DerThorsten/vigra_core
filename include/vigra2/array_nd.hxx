@@ -62,101 +62,7 @@ namespace vigra {
 
 using std::swap;
 
-template <class T>
-class FFTWComplex;
-
-template <class T, unsigned int R, unsigned int G, unsigned int B>
-class RGBValue;
-
 namespace array_detail {
-
-/********************************************************/
-/*                                                      */
-/*                   VectorElementSize                  */
-/*                                                      */
-/********************************************************/
-
-template <class T>
-struct VectorElementSize;
-
-template <class T>
-struct VectorElementSize<std::complex<T> >
-{
-    static int size(std::complex<T> const *)
-    {
-        return 2;
-    }
-};
-
-template <class T>
-struct VectorElementSize<FFTWComplex<T> >
-{
-    static int size(FFTWComplex<T> const *)
-    {
-        return 2;
-    }
-};
-
-template <class T, int SIZE>
-struct VectorElementSize<TinyArray<T, SIZE> >
-{
-    static int size(TinyArray<T, SIZE> const * t)
-    {
-        return t ? t->size() : 1;
-    }
-};
-
-template <class T, unsigned int R, unsigned int G, unsigned int B>
-struct VectorElementSize<RGBValue<T, R, G, B> >
-{
-    static int size(RGBValue<T, R, G, B> const *)
-    {
-        return 3;
-    }
-};
-
-#define VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(TYPE) \
-template <>  \
-struct VectorElementSize<TYPE> \
-{ \
-    static int size(TYPE const *) \
-    { \
-        return 1; \
-    } \
-};
-
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(bool)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(char)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(signed char)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(signed short)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(signed int)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(signed long)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(signed long long)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(unsigned char)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(unsigned short)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(unsigned int)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(unsigned long)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(unsigned long long)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(float)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(double)
-VIGRA_DEFINE_VECTOR_ELEMENT_SIZE(long double)
-
-#undef VIGRA_DEFINE_VECTOR_ELEMENT_SIZE
-
-// template <int M>
-// inline ArrayIndex
-// scanOrderToOffset(ArrayIndex d,
-                  // Shape<M> const & shape,
-                  // Shape<M> const & strides)
-// {
-    // ArrayIndex res = 0;
-    // for(int k=0; k<shape.size(); ++k)
-    // {
-        // res += strides[k] * (d % shape[k]);
-        // d /= shape[k];
-    // }
-    // return res;
-// }
 
 /********************************************************/
 /*                                                      */
@@ -952,12 +858,11 @@ public:
             \endcode
         */
     template <class U=T,
-              VIGRA_REQUIRE<!std::is_scalar<U>::value> >
-    ArrayViewND<N, typename U::value_type>
+              VIGRA_REQUIRE<(NumericTraits<U>::static_size > 0)> >
+    ArrayViewND<N, typename NumericTraits<U>::value_type>
     bindElementChannel(ArrayIndex i) const
     {
-        vigra_precondition(0 <= i &&
-                           i < array_detail::VectorElementSize<T>::size(data()),
+        vigra_precondition(0 <= i && i < NumericTraits<U>::static_size,
             "ArrayViewND::bindElementChannel(i): 'i' out of range.");
         return expandElements(0).bind(0, i);
     }
@@ -980,17 +885,17 @@ public:
             \endcode
         */
     template <class U=T,
-              VIGRA_REQUIRE<!std::is_scalar<U>::value> >
-    ArrayViewND<(N == runtime_size ? runtime_size : N+1), typename U::value_type>
+              VIGRA_REQUIRE<(NumericTraits<U>::static_size > 0)> >
+    ArrayViewND<(N == runtime_size ? runtime_size : N+1), typename NumericTraits<U>::value_type>
     expandElements(ArrayIndex d) const
     {
-        using Value  = typename T::value_type;
+        using Value  = typename NumericTraits<T>::value_type;
         using Result = ArrayViewND <(N == runtime_size ? runtime_size : N + 1), Value>;
 
         vigra_precondition(0 <= d && d <= ndim(),
             "ArrayViewND::expandElements(d): 0 <= 'd' <= ndim() required.");
 
-        int s = array_detail::VectorElementSize<T>::size(data());
+        static const int s = NumericTraits<T>::static_size;
         return Result(shape_.insert(d, s),
                       tags::byte_strides = strides_.insert(d, sizeof(Value)),
                       axistags_.insert(d, tags::axis_c),

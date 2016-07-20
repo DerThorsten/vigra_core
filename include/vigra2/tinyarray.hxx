@@ -784,6 +784,7 @@ class TinyArrayBase<VALUETYPE, DERIVED, runtime_size>
     using difference_type        = std::ptrdiff_t;
     using index_type             = ArrayIndex;
 
+    static const ArrayIndex static_size  = runtime_size;
     static const ArrayIndex static_ndim  = 1;
     static const bool may_use_uninitialized_memory =
                                    UninitializedMemoryTraits<VALUETYPE>::value;
@@ -1117,9 +1118,8 @@ template <class VALUETYPE, int M, int ... N>
 class TinyArray
 : public TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, M, N...>, M, N...>
 {
-    using BaseType = TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, M, N...>, M, N...>;
-
   public:
+    using BaseType = TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, M, N...>, M, N...>;
 
     typedef typename BaseType::value_type value_type;
     static const ArrayIndex static_ndim = BaseType::static_ndim;
@@ -1279,8 +1279,8 @@ template <class VALUETYPE>
 class TinyArray<VALUETYPE, runtime_size>
 : public TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, runtime_size>, runtime_size>
 {
-    using BaseType = TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, runtime_size>, runtime_size>;
   public:
+    using BaseType = TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, runtime_size>, runtime_size>;
 
     using value_type = VALUETYPE;
 
@@ -1456,9 +1456,8 @@ template <class VALUETYPE, int M, int ... N>
 class TinyArrayView
 : public TinyArrayBase<VALUETYPE, TinyArrayView<VALUETYPE, M, N...>, M, N...>
 {
-    using BaseType = TinyArrayBase<VALUETYPE, TinyArrayView<VALUETYPE, M, N...>, M, N...>;
-
   public:
+    using BaseType = TinyArrayBase<VALUETYPE, TinyArrayView<VALUETYPE, M, N...>, M, N...>;
 
     typedef typename BaseType::value_type value_type;
     typedef typename BaseType::pointer pointer;
@@ -1560,9 +1559,8 @@ template <class VALUETYPE, int N>
 class TinySymmetricView
 : public TinyArrayBase<VALUETYPE, TinySymmetricView<VALUETYPE, N>, N*(N+1)/2>
 {
-    using BaseType = TinyArrayBase<VALUETYPE, TinySymmetricView<VALUETYPE, N>, N*(N+1)/2>;
-
   public:
+    using BaseType = TinyArrayBase<VALUETYPE, TinySymmetricView<VALUETYPE, N>, N*(N+1)/2>;
 
     typedef typename BaseType::value_type value_type;
     typedef typename BaseType::pointer pointer;
@@ -2788,6 +2786,50 @@ template <class T1, class T2, int N>
 struct PromoteTraits<TinySymmetricView<T1, N>, TinySymmetricView<T2, N> >
 {
     typedef TinyArray<PromoteType<T1, T2>, N*(N+1)/2>  type;
+};
+
+template <class T, class D, int ...N>
+struct NumericTraits<TinyArrayBase<T, D, N...>>
+{
+    typedef TinyArrayBase<T, D, N...>  Type;
+    typedef T                          value_type;
+    typedef PromoteType<Type>          Promote;
+    typedef RealPromoteType<Type>      RealPromote;
+    typedef TinyArray<typename NumericTraits<T>::UnsignedPromote, N...>               UnsignedPromote;
+    typedef TinyArray<std::complex<typename NumericTraits<T>::ComplexPromote>, N...>  ComplexPromote;
+
+    static Type zero() { return {}; }
+    static Type one() { return {NumericTraits<T>::one()}; }
+    static Type nonZero() { return {NumericTraits<T>::one()}; }
+    static Type epsilon() { return {NumericTraits<T>::epsilon()}; }
+    static Type smallestPositive() { return {NumericTraits<T>::smallestPositive()}; }
+
+    static const std::ptrdiff_t static_size = Type::static_size;
+
+    static Promote toPromote(Type const & v) { return v; }
+    static Type    fromPromote(Promote const & v) { return v; }
+    static Type    fromRealPromote(RealPromote v) { return Type(v); }
+};
+
+template <class T, int ...N>
+struct NumericTraits<TinyArray<T, N...>>
+: public NumericTraits<typename TinyArray<T, N...>::BaseType>
+{
+    typedef TinyArray<T, N...>  Type;
+};
+
+template <class T, int ...N>
+struct NumericTraits<TinyArrayView<T, N...>>
+: public NumericTraits<typename TinyArrayView<T, N...>::BaseType>
+{
+    typedef TinyArrayView<T, N...>  Type;
+};
+
+template <class T, int N>
+struct NumericTraits<TinySymmetricView<T, N>>
+: public NumericTraits<typename TinySymmetricView<T, N>::BaseType>
+{
+    typedef TinySymmetricView<T, N>  Type;
 };
 
 // mask cl.exe shortcomings [end]

@@ -210,12 +210,26 @@ unifyShape(SHAPE1 & target, SHAPE2 const & src)
             continue;
         else if (target[k] == 1)
             target[k] = src[k];
-        else 
+        else
             return false;
     }
     return true;
 }
-    
+
+// template <int M>
+// inline ArrayIndex
+// scanOrderToOffset(ArrayIndex d,
+                  // Shape<M> const & shape,
+                  // Shape<M> const & strides)
+// {
+    // ArrayIndex res = 0;
+    // for(int k=0; k<shape.size(); ++k)
+    // {
+        // res += strides[k] * (d % shape[k]);
+        // d /= shape[k];
+    // }
+    // return res;
+// }
 
 } // namespace detail
 

@@ -193,7 +193,9 @@ struct NumericTraits
     typedef RealPromoteType<T>          RealPromote;
     typedef Promote                     UnsignedPromote;
     typedef std::complex<RealPromote>   ComplexPromote;
-    typedef T                           ValueType;
+    typedef T                           value_type;
+
+    static const std::ptrdiff_t static_size = runtime_size;
 };
 
 //////////////////////////////////////////////////////
@@ -207,7 +209,7 @@ struct NumericTraits<bool>
     typedef unsigned int UnsignedPromote;
     typedef double RealPromote;
     typedef std::complex<RealPromote> ComplexPromote;
-    typedef Type ValueType;
+    typedef Type value_type;
 
     static constexpr bool zero() noexcept { return false; }
     static constexpr bool one() noexcept { return true; }
@@ -219,6 +221,7 @@ struct NumericTraits<bool>
 
     static const bool minConst = false;
     static const bool maxConst = true;
+    static const std::ptrdiff_t static_size = 1;
 
     static Promote toPromote(bool v) { return v ? 1 : 0; }
     static RealPromote toRealPromote(bool v) { return v ? 1.0 : 0.0; }
@@ -234,7 +237,7 @@ template<class T>
 struct SignedNumericTraits
 {
     typedef T             Type;
-    typedef Type          ValueType;
+    typedef Type          value_type;
     typedef PromoteType<Type> Promote;
     typedef typename std::make_unsigned<Promote>::type UnsignedPromote;
     typedef RealPromoteType<Type> RealPromote;
@@ -250,6 +253,7 @@ struct SignedNumericTraits
 
     static const Type minConst = min();
     static const Type maxConst = max();
+    static const std::ptrdiff_t static_size = 1;
 
     static Promote      toPromote(Type v)     { return v; }
     static RealPromote  toRealPromote(Type v) { return v; }
@@ -287,7 +291,7 @@ template<class T>
 struct UnsignedNumericTraits
 {
     typedef T             Type;
-    typedef Type          ValueType;
+    typedef Type          value_type;
     typedef PromoteType<Type> Promote;
     typedef typename std::make_unsigned<Promote>::type UnsignedPromote;
     typedef RealPromoteType<Type> RealPromote;
@@ -303,6 +307,7 @@ struct UnsignedNumericTraits
 
     static const Type minConst = min();
     static const Type maxConst = max();
+    static const std::ptrdiff_t static_size = 1;
 
     static Promote      toPromote(Type v)     { return v; }
     static RealPromote  toRealPromote(Type v) { return v; }
@@ -340,7 +345,7 @@ template<class T>
 struct FloatNumericTraits
 {
     typedef T    Type;
-    typedef Type ValueType;
+    typedef Type value_type;
     typedef Type Promote;
     typedef Type UnsignedPromote;
     typedef Type RealPromote;
@@ -353,6 +358,8 @@ struct FloatNumericTraits
     static constexpr Type smallestPositive() noexcept { return std::numeric_limits<Type>::min(); }
     static constexpr Type min() noexcept { return std::numeric_limits<Type>::lowest(); }
     static constexpr Type max() noexcept { return std::numeric_limits<Type>::max(); }
+
+    static const std::ptrdiff_t static_size = 1;
 
     static Promote      toPromote(Type v) { return v; }
     static RealPromote  toRealPromote(Type v) { return v; }
@@ -382,13 +389,15 @@ struct NumericTraits<std::complex<T> >
     typedef std::complex<typename NumericTraits<T>::UnsignedPromote> UnsignedPromote;
     typedef std::complex<typename NumericTraits<T>::RealPromote> RealPromote;
     typedef std::complex<RealPromote> ComplexPromote;
-    typedef T ValueType;
+    typedef T value_type;
 
     static Type zero() { return Type(0.0); }
     static Type one() { return Type(1.0); }
     static Type nonZero() { return one(); }
     static Type epsilon() { return Type(NumericTraits<T>::epsilon()); }
     static Type smallestPositive() { return Type(NumericTraits<T>::smallestPositive()); }
+
+    static const std::ptrdiff_t static_size = 2;
 
     static Promote toPromote(Type const & v) { return v; }
     static Type    fromPromote(Promote const & v) { return v; }
