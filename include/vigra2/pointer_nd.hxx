@@ -1123,7 +1123,7 @@ universalArrayNDFunction(TARGET && target, ARRAY_OR_EXPR && src, FCT &&f,
         // determine principal strides so that the optmization also works when
         // the arrays have singleton axes
         principalStrides(strides, target, src);
-        p = detail::permutationToOrder(shape, strides, C_ORDER);
+        p = detail::permutationToOrder(strides, C_ORDER);
     }
 
     auto tp = target.pointer_nd(p);
@@ -1172,7 +1172,7 @@ universalArrayNDFunction(TARGET && target, FCT && f,
         // determine principal strides so that the optmization also works when
         // the arrays have singleton axes
         target.principalStrides(strides);
-        auto p = detail::permutationToOrder(shape, strides, C_ORDER);
+        auto p = detail::permutationToOrder(strides, C_ORDER);
         universalPointerNDFunction(target.pointer_nd(p), shape.transpose(p), std::forward<FCT>(f));
     }
     else

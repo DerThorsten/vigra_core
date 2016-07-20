@@ -160,41 +160,49 @@ namespace detail {
 /*                                                      */
 /********************************************************/
 
-    // Compute a permutation that transposes an array with given shape
-    // and strides into the given order (C_ORDER or F_ORDER).
+    // Compute a permutation that transposes an array with given strides
+    // into the given order (C_ORDER or F_ORDER). Singleton axes must be
+    // marked by zero strides.
     //
     // In case of C_ORDER, the transposed array will have ascending strides,
     // except for singleton dimensions, which will be placed into the leading
     // dimensions. This transposition optimizes memory locality in nested loops
     // when the outer loop iterates over the first dimension and the inner loop
-    // over the last dimensions. In case of F_ORDER, the transposition is simply
-    // reversed.
-template <class SHAPE>
-inline SHAPE
-permutationToOrder(SHAPE const & shape, SHAPE const & stride,
-                   MemoryOrder order)
+    // over the last dimensions. In case of F_ORDER, the transposition is reversed.
+template <int N>
+inline Shape<N>
+permutationToOrder(Shape<N> const & stride, MemoryOrder order)
 {
-    using V = typename SHAPE::value_type;
-    SHAPE res = SHAPE::range(shape.size());
+    Shape<N> res = Shape<N>::range(stride.size());
     if(order == C_ORDER)
         std::sort(res.begin(), res.end(),
-                 [shape, stride](V l, V r)
+                 [stride](ArrayIndex l, ArrayIndex r)
                  {
-                    if(shape[l] == 1 || shape[r] == 1)
-                        return shape[l] < shape[r];
+                    if(stride[l] == 0 || stride[r] == 0)
+                        return stride[l] < stride[r];
                     return stride[r] < stride[l];
                  });
     else
         std::sort(res.begin(), res.end(),
-                 [shape, stride](V l, V r)
+                 [stride](ArrayIndex l, ArrayIndex r)
                  {
-                    if(shape[l] == 1 || shape[r] == 1)
-                        return shape[r] < shape[l];
+                    if(stride[l] == 0 || stride[r] == 0)
+                        return stride[r] < stride[l];
                     return stride[l] < stride[r];
                  });
     return res;
 }
 
+/********************************************************/
+/*                                                      */
+/*                       unifyShape()                   */
+/*                                                      */
+/********************************************************/
+
+    // Create a common shape for `src` and the old state of `target`,
+    // where singleton axes are expanded to the size of the corresponding
+    // axis in the other shape. The result is stored in `target`.
+    // The function returns `false` if the shapes are incompatible.
 template <int N, int M>
 inline bool
 unifyShape(Shape<N> & target, Shape<M> const & src)

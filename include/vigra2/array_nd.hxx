@@ -993,7 +993,7 @@ public:
     ArrayViewND
     transpose(MemoryOrder order) const
     {
-        return transpose(detail::permutationToOrder(shape_, strides_, order));
+        return transpose(detail::permutationToOrder(strides_, order));
     }
 
     /** Check if the array contains only non-zero elements (or if all elements
@@ -1461,7 +1461,7 @@ public:
 
     pointer_nd_type pointer_nd(MemoryOrder order) const
     {
-        return pointer_nd(detail::permutationToOrder(shape_, strides_, order));
+        return pointer_nd(detail::permutationToOrder(strides_, order));
     }
 
         /** returns a scan-order iterator pointing
@@ -1474,7 +1474,7 @@ public:
 
     iterator begin()
     {
-        return iterator(*this, detail::permutationToOrder(shape_, strides_, F_ORDER));
+        return iterator(*this, detail::permutationToOrder(strides_, F_ORDER));
     }
 
         /** returns a const scan-order iterator pointing
@@ -1487,7 +1487,7 @@ public:
 
     const_iterator begin() const
     {
-        return const_iterator(*this, detail::permutationToOrder(shape_, strides_, F_ORDER));
+        return const_iterator(*this, detail::permutationToOrder(strides_, F_ORDER));
     }
 
         /** returns a scan-order iterator pointing
@@ -1869,8 +1869,7 @@ class ArrayND
     {
         allocated_data_.reserve(this->size());
 
-        auto p = detail::permutationToOrder(this->shape(),
-                                            this->byte_strides(), C_ORDER);
+        auto p = detail::permutationToOrder(this->byte_strides(), C_ORDER);
         universalPointerNDFunction(rhs.pointer_nd(p), this->shape().transpose(p),
             [&data=allocated_data_](U const & u)
             {
@@ -1894,7 +1893,7 @@ class ArrayND
 
         if (order != C_ORDER)
         {
-            auto p = detail::permutationToOrder(this->shape(), this->byte_strides(), C_ORDER);
+            auto p = detail::permutationToOrder(this->byte_strides(), C_ORDER);
             rhs.transpose_inplace(p);
         }
 
