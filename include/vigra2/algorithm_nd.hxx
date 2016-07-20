@@ -126,7 +126,7 @@ template <class ARRAY, class FCT,
 void
 foreachND(ARRAY && array, FCT && f)
 {
-    universalArrayNDFunction(std::forward<ARRAY>(array), std::forward<FCT>(f));
+    universalArrayNDFunction(std::forward<ARRAY>(array), std::forward<FCT>(f), "foreachND()");
 }
 
 /**********************************************************/

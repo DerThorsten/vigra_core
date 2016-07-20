@@ -381,24 +381,19 @@ public:
         return *this;
     }
 
-        /** Assignment of a scalar.
-         */
-    ArrayViewND &
-    operator=(value_type const & u)
-    {
-        return init(u);
-    }
-
         /** Init with given value.
          */
     ArrayViewND & init(value_type const & u)
     {
-        universalArrayNDFunction(*this,
-                                           [u](value_type & v) { v = u; });
-        return *this;
+        return operator=(u);
     }
 
 #ifdef DOXYGEN
+        /** Assignment of a scalar.
+         */
+    ArrayViewND &
+    operator=(value_type const & u);
+
         /** Assignment of a differently typed array or an array expression. It copies the elements
             of\a rhs or fails with a <tt>PreconditionViolation</tt> exception when
             the shapes do not match.
@@ -433,6 +428,22 @@ public:
          */
     template <class ARRAY_LIKE>
     ArrayViewND & operator/=(ARRAY_LIKE const & rhs);
+
+        /** Add-assignment of a scalar.
+         */
+    ArrayViewND & operator+=(value_type const & u);
+
+        /** Subtract-assignment of a scalar.
+         */
+    ArrayViewND & operator-=(value_type const & u);
+
+        /** Multiply-assignment of a scalar.
+         */
+    ArrayViewND & operator*=(value_type const & u);
+
+        /** Divide-assignment of a scalar.
+         */
+    ArrayViewND & operator/=(value_type const & u);
 
 #else
 
@@ -477,6 +488,13 @@ public:
     operator OP(ArrayMathExpression<ARG> const & rhs) \
     { \
         return operator OP(ArrayMathExpression<ARG>(rhs)); \
+    } \
+    \
+    ArrayViewND & operator OP(value_type const & u) \
+    { \
+        universalArrayNDFunction(*this, [u](value_type & v) { v OP u; }, \
+            "ArrayViewND::operator" #OP "(value_type const &)"); \
+        return *this; \
     }
 
     VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT(=)
@@ -488,42 +506,6 @@ public:
 #undef VIGRA_ARRAYND_ARITHMETIC_ASSIGNMENT
 
 #endif // DOXYGEN
-
-        /** Add-assignment of a scalar.
-         */
-    ArrayViewND & operator+=(value_type const & u)
-    {
-        universalArrayNDFunction(*this,
-                                           [u](value_type & v) { v += u; });
-        return *this;
-    }
-
-        /** Subtract-assignment of a scalar.
-         */
-    ArrayViewND & operator-=(value_type const & u)
-    {
-        universalArrayNDFunction(*this,
-                                           [u](value_type & v) { v -= u; });
-        return *this;
-    }
-
-        /** Multiply-assignment of a scalar.
-         */
-    ArrayViewND & operator*=(value_type const & u)
-    {
-        universalArrayNDFunction(*this,
-                                           [u](value_type & v) { v *= u; });
-        return *this;
-    }
-
-        /** Divide-assignment of a scalar.
-         */
-    ArrayViewND & operator/=(value_type const & u)
-    {
-        universalArrayNDFunction(*this,
-                                           [u](value_type & v) { v /= u; });
-        return *this;
-    }
 
         /** Access element.
          */
@@ -1026,7 +1008,7 @@ public:
             {
                 if (v == zero)
                     res = false;
-            });
+            }, "ArrayViewND::all()");
         return res;
     }
 
@@ -1040,7 +1022,7 @@ public:
             {
                 if (!isfinite(v))
                     res = false;
-            });
+            }, "ArrayViewND::all_finite()");
             return res;
     }
 
@@ -1056,7 +1038,7 @@ public:
             {
                 if(v != zero)
                     res = true;
-            });
+            }, "ArrayViewND::any()");
         return res;
     }
 
@@ -1074,7 +1056,7 @@ public:
                     res[0] = v;
                 if(res[1] < v)
                     res[1] = v;
-            });
+            }, "ArrayViewND::minmax()");
         return res;
     }
 
@@ -1112,7 +1094,7 @@ public:
             [&res](value_type const & v)
             {
                 res += v;
-            });
+            }, "ArrayViewND::sum()");
         return res;
     }
 
@@ -1203,7 +1185,9 @@ public:
             [&res](value_type const & v)
             {
                 res *= v;
-            });
+            },
+            "ArrayViewND::prod()"
+        );
         return res;
     }
 
@@ -1559,7 +1543,7 @@ squaredNorm(ArrayViewND<N, T> const & a)
         [&res](T const & v)
         {
             res += v*v;
-        });
+        }, "squaredNorm(ArrayViewND)");
     return res;
 }
 
@@ -1591,7 +1575,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
             {
                 if(res < abs(v))
                     res = abs(v);
-            });
+            }, "norm(ArrayViewND)");
         return res;
       }
       case 0:
@@ -1603,7 +1587,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
             {
                 if(v != zero)
                     res += 1;
-            });
+            }, "norm(ArrayViewND)");
         return res;
       }
       case 1:
@@ -1613,7 +1597,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
             [&res](T const & v)
             {
                 res += abs(v);
-            });
+            }, "norm(ArrayViewND)");
         return res;
       }
       case 2:
@@ -1623,7 +1607,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
             [&res](T const & v)
             {
                 res += v*v;
-            });
+            }, "norm(ArrayViewND)");
         return sqrt(res);
       }
       default:

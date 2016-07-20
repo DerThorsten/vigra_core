@@ -1102,7 +1102,7 @@ template <class TARGET, class ARRAY_OR_EXPR, class FCT>
 enable_if_t<ArrayNDConcept<TARGET>::value &&
            (ArrayMathConcept<ARRAY_OR_EXPR>::value || ArrayNDConcept<ARRAY_OR_EXPR>::value)>
 universalArrayNDFunction(TARGET && target, ARRAY_OR_EXPR && src, FCT &&f,
-                         std::string func_name = "universalArrayNDFunction(): internal error")
+                         std::string func_name)
 {
     using namespace array_detail;
 
@@ -1145,6 +1145,7 @@ universalArrayNDFunction(TARGET && target, ARRAY_OR_EXPR && src, FCT &&f,
     }
     else
     {
+        // hopeless overlap, create a temporary copy of src
         ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> tmp(forwardPointerND(sp, shape));
         universalPointerNDFunction(tp, tmp.pointer_nd(), shape, std::forward<FCT>(f));
     }
@@ -1156,7 +1157,7 @@ universalArrayNDFunction(TARGET && target, ARRAY_OR_EXPR && src, FCT &&f,
 template <class TARGET, class FCT>
 enable_if_t<ArrayNDConcept<TARGET>::value || ArrayMathConcept<TARGET>::value>
 universalArrayNDFunction(TARGET && target, FCT && f,
-                         std::string func_name = "universalArrayNDFunction(): internal error")
+                         std::string func_name)
 {
     typedef typename std::remove_reference<TARGET>::type ARRAY;
 
