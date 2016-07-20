@@ -62,114 +62,6 @@ namespace vigra {
 
 using std::swap;
 
-namespace array_detail {
-
-/********************************************************/
-/*                                                      */
-/*              universalArrayNDFunction()              */
-/*                                                      */
-/********************************************************/
-
-    // Execute a functor for every array element.
-    // The function takes care of singleton axes and
-    // optimizes loop order to maximize cache locality.
-template <class ARRAY, class FCT,
-          VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
-void
-universalArrayNDFunction(ARRAY & a, FCT &&f)
-{
-    auto p = permutationToOrder(a.shape(), a.byte_strides(), C_ORDER);
-    auto h = a.pointer_nd(p);
-    auto s = transpose(a.shape(), p);
-    universalPointerNDFunction(h, s, std::forward<FCT>(f));
-}
-
-    // Execute a functor for every pair of array elements.
-    // The function takes care of overlapping memory, singleton axes, and
-    // optimizes loop order to maximize cache locality.
-template <class ARRAY1, class ARRAY2, class FCT>
-enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
-universalArrayNDFunction(ARRAY1 & a1, ARRAY2 const & a2, FCT &&f,
-                         std::string func_name = "universalArrayNDFunction(): internal error")
-{
-    // unify shape (takes care of singleton axes)
-    auto shape = a1.shape();
-    vigra_precondition(detail::unifyShape(shape, a2.shape()),
-        func_name + ": shape mismatch.");
-
-    // optimize axis ordering
-    // (the last axis goes into the inner loop and should have smallest stride)
-    decltype(shape) p(tags::size = shape.size());
-    if (shape.size() > 1)
-    {
-        decltype(shape) strides(tags::size = shape.size());
-        // determine principal strides so that the optmization also works when
-        // the arrays have singleton axes
-        principalStrides(strides, a1, a2);
-        p = permutationToOrder(shape, strides, C_ORDER);
-    }
-
-    auto h1 = a1.pointer_nd(p);
-    auto h2 = a2.pointer_nd(p);
-    shape   = shape.transpose(p);
-
-    // take care of overlapping arrays (source data could otherwise be overwritten)
-    MemoryOverlap overlap = checkMemoryOverlap(a1.memoryRange(), a2.memoryRange());
-    if (overlap == NoMemoryOverlap)
-    {
-        universalPointerNDFunction(h1, h2, shape, std::forward<FCT>(f));
-    }
-    else if (compatibleStrides(a1.byte_strides(), a2.byte_strides()))
-    {
-        if (overlap & TargetOverlapsLeft) // target below source => work forward
-            universalPointerNDFunction(h1, h2, shape, std::forward<FCT>(f));
-        else                              // target above source => work backward
-            reversePointerNDFunction(h1, h2, shape, std::forward<FCT>(f));
-    }
-    else // complicated overlapping access => create a temporary copy of the source
-    {
-        typedef array_math::ArrayMathArgType<ARRAY2> EXPR;
-        ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> tmp(EXPR(h2, shape));
-        universalPointerNDFunction(h1, tmp.pointer_nd(), shape, std::forward<FCT>(f));
-    }
-}
-
-    // Execute a functor for every pair of array elements.
-    // The function takes care of singleton axes and
-    // optimizes loop order to maximize cache locality.
-    // Since both arrays are read-only, we need not worry about
-    // overlapping memory.
-template <class ARRAY1, class ARRAY2, class FCT>
-enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
-universalArrayNDFunction(ARRAY1 const & a1, ARRAY2 const & a2, FCT &&f,
-    std::string func_name = "universalArrayNDFunction(): internal error")
-{
-    // unify shape (takes care of singleton axes)
-    auto shape = a1.shape();
-    vigra_assert(detail::unifyShape(shape, a2.shape()),
-        func_name + ": shape mismatch.");
-
-    // optimize axis ordering
-    // (the last axis goes into the inner loop and should have smallest stride)
-    decltype(shape) p(tags::size = shape.size());
-    if (shape.size() > 1)
-    {
-        decltype(shape) strides(tags::size = shape.size());
-        // determine principal strides so that the optmization also works when
-        // the arrays have singleton axes
-        principalStrides(strides, a1, a2);
-        p = permutationToOrder(shape, strides, C_ORDER);
-    }
-
-    auto h1 = a1.pointer_nd(p);
-    auto h2 = a2.pointer_nd(p);
-    auto s  = transpose(a1.shape(), p);
-
-    universalPointerNDFunction(h1, h2, s, std::forward<FCT>(f));
-}
-
-} // namespace array_detail
-
 /********************************************************/
 /*                                                      */
 /*                      ArrayViewND                     */
@@ -312,13 +204,13 @@ class ArrayViewND
     template <int M, class U>
     void copyImpl(ArrayViewND<M, U> const & rhs)
     {
-        vigra_precondition(shape() == rhs.shape(),
-            "ArrayViewND::operator=(ArrayViewND const &): shape mismatch.");
-        array_detail::universalArrayNDFunction(*this, rhs,
+        universalArrayNDFunction(*this, rhs,
             [](value_type & v, U const & u)
             {
                 v = detail::RequiresExplicitCast<value_type>::cast(u);
-            });
+            },
+            "ArrayViewND::operator=(ArrayViewND const &)"
+        );
     }
 
         // ensure that singleton axes have zero stride
@@ -501,7 +393,7 @@ public:
          */
     ArrayViewND & init(value_type const & u)
     {
-        array_detail::universalArrayNDFunction(*this,
+        universalArrayNDFunction(*this,
                                            [u](value_type & v) { v = u; });
         return *this;
     }
@@ -552,13 +444,13 @@ public:
         static_assert(std::is_convertible<U, value_type>::value, \
             "ArrayViewND::operator" #OP "(ArrayViewND const &): value_types of lhs and rhs are incompatible."); \
             \
-        vigra_precondition(shape() == rhs.shape(), \
-            "ArrayViewND::operator" #OP "(ArrayViewND const &): shape mismatch."); \
-        array_detail::universalArrayNDFunction(*this, rhs, \
+        universalArrayNDFunction(*this, rhs, \
             [](value_type & v, U const & u) \
             { \
                 v OP detail::RequiresExplicitCast<value_type>::cast(u); \
-            }); \
+            }, \
+           "ArrayViewND::operator" #OP "(ArrayViewND const &)" \
+        ); \
         return *this; \
     } \
     \
@@ -570,7 +462,7 @@ public:
         static_assert(std::is_convertible<U, value_type>::value, \
             "ArrayViewND::operator" #OP "(ARRAY_MATH_EXPRESSION const &): value types of lhs and rhs are incompatible."); \
         \
-        array_detail::universalArrayMathFunction(*this, std::move(rhs), \
+        universalArrayNDFunction(*this, std::move(rhs), \
             [](value_type & v, U const & u) \
             { \
                 v OP detail::RequiresExplicitCast<value_type>::cast(u); \
@@ -601,7 +493,7 @@ public:
          */
     ArrayViewND & operator+=(value_type const & u)
     {
-        array_detail::universalArrayNDFunction(*this,
+        universalArrayNDFunction(*this,
                                            [u](value_type & v) { v += u; });
         return *this;
     }
@@ -610,7 +502,7 @@ public:
          */
     ArrayViewND & operator-=(value_type const & u)
     {
-        array_detail::universalArrayNDFunction(*this,
+        universalArrayNDFunction(*this,
                                            [u](value_type & v) { v -= u; });
         return *this;
     }
@@ -619,7 +511,7 @@ public:
          */
     ArrayViewND & operator*=(value_type const & u)
     {
-        array_detail::universalArrayNDFunction(*this,
+        universalArrayNDFunction(*this,
                                            [u](value_type & v) { v *= u; });
         return *this;
     }
@@ -628,7 +520,7 @@ public:
          */
     ArrayViewND & operator/=(value_type const & u)
     {
-        array_detail::universalArrayNDFunction(*this,
+        universalArrayNDFunction(*this,
                                            [u](value_type & v) { v /= u; });
         return *this;
     }
@@ -874,8 +766,6 @@ public:
             Possible value types of the original array are: \ref TinyArray, \ref RGBValue,
             \ref FFTWComplex, <tt>std::complex</tt>, and the built-in number types (in this
             case, <tt>expandElements</tt> is equivalent to <tt>insertSingletonDimension</tt>).
-            The function requires the array's element type <tt>T</tt> to define
-            an embedded type <tt>T::value_type</tt>.
 
             <b>Usage:</b>
             \code
@@ -928,15 +818,15 @@ public:
             \endcode
         */
     template <class U=T,
-              VIGRA_REQUIRE<!std::is_scalar<U>::value> >
-    ArrayViewND<runtime_size, typename U::value_type>
+              VIGRA_REQUIRE<(NumericTraits<U>::static_size > 1)> >
+    ArrayViewND<runtime_size, typename NumericTraits<U>::value_type>
     ensureChannelAxis(ArrayIndex d) const
     {
         return expandElements(d);
     }
 
     template <class U=T,
-              VIGRA_REQUIRE<std::is_scalar<U>::value> >
+              VIGRA_REQUIRE<(NumericTraits<U>::static_size == 1)> >
     ArrayViewND<runtime_size, T>
     ensureChannelAxis(ArrayIndex d) const
     {
@@ -1121,7 +1011,7 @@ public:
     ArrayViewND
     transpose(MemoryOrder order) const
     {
-        return transpose(array_detail::permutationToOrder(shape_, strides_, order));
+        return transpose(detail::permutationToOrder(shape_, strides_, order));
     }
 
     /** Check if the array contains only non-zero elements (or if all elements
@@ -1131,7 +1021,7 @@ public:
     {
         bool res = true;
         value_type zero = value_type();
-        array_detail::universalArrayNDFunction(*this,
+        universalArrayNDFunction(*this,
             [zero, &res](value_type const & v)
             {
                 if (v == zero)
@@ -1145,7 +1035,7 @@ public:
     bool all_finite() const
     {
         bool res = true;
-        array_detail::universalArrayNDFunction(*this,
+        universalArrayNDFunction(*this,
             [&res](value_type const & v)
             {
                 if (!isfinite(v))
@@ -1161,7 +1051,7 @@ public:
     {
         bool res = false;
         value_type zero = value_type();
-        array_detail::universalArrayNDFunction(*this,
+        universalArrayNDFunction(*this,
             [zero, &res](value_type const & v)
             {
                 if(v != zero)
@@ -1177,7 +1067,7 @@ public:
     TinyArray<T, 2> minmax() const
     {
         TinyArray<T, 2> res(NumericTraits<T>::max(), NumericTraits<T>::min());
-        array_detail::universalArrayNDFunction(*this,
+        universalArrayNDFunction(*this,
             [&res](value_type const & v)
             {
                 if(v < res[0])
@@ -1218,7 +1108,7 @@ public:
     template <typename U = T>
     PromoteType<U> sum(PromoteType<U> res = PromoteType<U>{}) const
     {
-        array_detail::universalArrayNDFunction(*this,
+        universalArrayNDFunction(*this,
             [&res](value_type const & v)
             {
                 res += v;
@@ -1257,7 +1147,7 @@ public:
         vigra_precondition(sums.ndim() == ndim(),
             "ArrayViewND::sum(ArrayViewND): ndim mismatch.");
 
-        array_detail::universalArrayNDFunction(sums, *this,
+        universalArrayNDFunction(sums, *this,
             [](U & u, T const & v)
             {
                 u += detail::RequiresExplicitCast<U>::cast(v);
@@ -1309,7 +1199,7 @@ public:
     template <class U = T>
     PromoteType<U> prod(PromoteType<U> res = PromoteType<U>{1}) const
     {
-        array_detail::universalArrayNDFunction(*this,
+        universalArrayNDFunction(*this,
             [&res](value_type const & v)
             {
                 res *= v;
@@ -1338,11 +1228,13 @@ public:
             "ArrayViewND::swapData(): incompatible dimensions.");
         vigra_precondition(shape() == rhs.shape(),
             "ArrayViewND::swapData(): shape mismatch.");
-        array_detail::universalArrayNDFunction(*this, rhs,
+        universalArrayNDFunction(*this, rhs,
             [](value_type & v, U & u)
             {
                 vigra::swap(u, v);
-            });
+            },
+            "ArrayNDView::swapData()"
+        );
     }
 
     template <int M>
@@ -1407,6 +1299,12 @@ public:
     }
 #endif
 
+    template <int M>
+    bool unifyShape(Shape<M> & target) const
+    {
+        return detail::unifyShape(target, shape_);
+    }
+
         /** the array's shape.
          */
     difference_type const & shape() const
@@ -1447,6 +1345,12 @@ public:
     ArrayIndex byte_strides(int n) const
     {
         return strides_[n];
+    }
+
+    template <int M>
+    void principalStrides(Shape<M> & target) const
+    {
+        target = strides_;
     }
 
         /** return the array's axistags for every dimension.
@@ -1573,7 +1477,7 @@ public:
 
     pointer_nd_type pointer_nd(MemoryOrder order) const
     {
-        return pointer_nd(array_detail::permutationToOrder(shape_, strides_, order));
+        return pointer_nd(detail::permutationToOrder(shape_, strides_, order));
     }
 
         /** returns a scan-order iterator pointing
@@ -1586,8 +1490,7 @@ public:
 
     iterator begin()
     {
-        return iterator(*this,
-                  array_detail::permutationToOrder(shape_, strides_, F_ORDER));
+        return iterator(*this, detail::permutationToOrder(shape_, strides_, F_ORDER));
     }
 
         /** returns a const scan-order iterator pointing
@@ -1600,8 +1503,7 @@ public:
 
     const_iterator begin() const
     {
-        return const_iterator(*this,
-                  array_detail::permutationToOrder(shape_, strides_, F_ORDER));
+        return const_iterator(*this, detail::permutationToOrder(shape_, strides_, F_ORDER));
     }
 
         /** returns a scan-order iterator pointing
@@ -1653,7 +1555,7 @@ SquaredNormType<ArrayViewND<N, T> >
 squaredNorm(ArrayViewND<N, T> const & a)
 {
     auto res = SquaredNormType<ArrayViewND<N, T> >();
-    array_detail::universalArrayNDFunction(a,
+    universalArrayNDFunction(a,
         [&res](T const & v)
         {
             res += v*v;
@@ -1684,7 +1586,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
       case -1:
       {
         auto res = NormType<ArrayViewND<N, T> >();
-        array_detail::universalArrayNDFunction(array,
+        universalArrayNDFunction(array,
             [&res](T const & v)
             {
                 if(res < abs(v))
@@ -1696,7 +1598,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
       {
         auto res = NormType<ArrayViewND<N, T> >();
         auto zero = T();
-        array_detail::universalArrayNDFunction(array,
+        universalArrayNDFunction(array,
             [&res, zero](T const & v)
             {
                 if(v != zero)
@@ -1707,7 +1609,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
       case 1:
       {
         auto res = NormType<ArrayViewND<N, T> >();
-        array_detail::universalArrayNDFunction(array,
+        universalArrayNDFunction(array,
             [&res](T const & v)
             {
                 res += abs(v);
@@ -1717,7 +1619,7 @@ norm(ArrayViewND<N, T> const & array, int type = 2)
       case 2:
       {
         auto res = SquaredNormType<ArrayViewND<N, T> >();
-        array_detail::universalArrayNDFunction(array,
+        universalArrayNDFunction(array,
             [&res](T const & v)
             {
                 res += v*v;
@@ -1983,9 +1885,9 @@ class ArrayND
     {
         allocated_data_.reserve(this->size());
 
-        auto p = array_detail::permutationToOrder(this->shape(),
-                                                  this->byte_strides(), C_ORDER);
-        array_detail::universalPointerNDFunction(rhs.pointer_nd(p), this->shape().transpose(p),
+        auto p = detail::permutationToOrder(this->shape(),
+                                            this->byte_strides(), C_ORDER);
+        universalPointerNDFunction(rhs.pointer_nd(p), this->shape().transpose(p),
             [&data=allocated_data_](U const & u)
             {
                 data.emplace_back(detail::RequiresExplicitCast<T>::cast(u));
@@ -2008,13 +1910,13 @@ class ArrayND
 
         if (order != C_ORDER)
         {
-            auto p = array_detail::permutationToOrder(this->shape(), this->byte_strides(), C_ORDER);
+            auto p = detail::permutationToOrder(this->shape(), this->byte_strides(), C_ORDER);
             rhs.transpose_inplace(p);
         }
 
         typedef typename std::remove_reference<ArrayMathExpression<ARG>>::type RHS;
         using U = typename RHS::value_type;
-        array_detail::universalPointerNDFunction(rhs, rhs.shape(),
+        universalPointerNDFunction(rhs, rhs.shape(),
             [&data = allocated_data_](U const & u)
             {
                 data.emplace_back(detail::RequiresExplicitCast<T>::cast(u));

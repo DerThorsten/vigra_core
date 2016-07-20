@@ -55,11 +55,41 @@
 
 namespace vigra {
 
+/* This header contains VIGRA's low-level APIs for multi-dimensional arrays.
+*/
+
+/********************************************************/
+/*                                                      */
+/*                  forward declarations                */
+/*                                                      */
+/********************************************************/
+
 template <int N, class T>
 class ArrayViewND;
 
 template <int N, class T, class Alloc = std::allocator<T> >
 class ArrayND;
+
+namespace array_math {
+
+// Forward declarations.
+template <class, class>
+struct ArrayMathUnifyDimension;
+
+// Choose the appropriate ArrayMathExpression according to the ARG type.
+template <class>
+struct ArrayMathTypeChooser;
+
+template <class>
+struct ArrayMathExpression;
+
+} // namespace array_math
+
+/********************************************************/
+/*                                                      */
+/*                  tags::byte_strides                  */
+/*                                                      */
+/********************************************************/
 
 namespace tags {
 
@@ -91,8 +121,6 @@ ByteStridesTag byte_strides;
 }
 
 } // namespace tags
-
-
 
 /********************************************************/
 /*                                                      */
@@ -226,6 +254,23 @@ class PointerND
     {
         return strides_[dim] / sizeof(T);
     }
+
+    template <class STRIDES>
+    bool
+    compatibleStrides(STRIDES const & other) const
+    {
+        if (other.size() == 0)
+            return true;
+        // FIXME: can singletons be considered as compatible strides?
+        return strides_ == other;
+    }
+
+    template <class SHAPE>
+    PointerND
+    pointer_nd(SHAPE const & permutation) const
+    {
+        return PointerND(tags::byte_strides = strides_.transpose(permutation), (T const*)data_);
+    }
 };
 
 /********************************************************/
@@ -294,6 +339,19 @@ class PointerND<0, T>
     constexpr ArrayIndex strides(int) const
     {
         return 0;
+    }
+
+    template <class STRIDES>
+    constexpr bool compatibleStrides(STRIDES const &) const
+    {
+        return true;
+    }
+
+    template <class SHAPE>
+    PointerND
+    pointer_nd(SHAPE const &) const
+    {
+        return PointerND(*this);
     }
 };
 
@@ -525,7 +583,119 @@ using PointerNDShape = PointerNDCoupled<Shape<N>>;
 
 namespace array_detail {
 
-using vigra::detail::permutationToOrder;
+/********************************************************/
+/*                                                      */
+/*                   PointerNDTypeImpl                  */
+/*                                                      */
+/********************************************************/
+
+    // helper classes to construct PointerNDCoupled lists
+template <class COUPLED_POINTERS, class ... REST>
+struct PointerNDTypeImpl;
+
+template <class COUPLED_POINTERS, class T, class ... REST>
+struct PointerNDTypeImpl<COUPLED_POINTERS, T, REST...>
+{
+    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
+                                         REST...>::type    type;
+};
+
+template <class COUPLED_POINTERS, int N, class T, class ... REST>
+struct PointerNDTypeImpl<COUPLED_POINTERS, ArrayViewND<N, T>, REST...>
+{
+    static_assert(CompatibleDimensions<N, COUPLED_POINTERS::dimension>::value,
+        "PointerNDCoupled<...>: dimension mismatch.");
+    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
+                                         REST...>::type    type;
+};
+
+template <class COUPLED_POINTERS, int N, class T, class A, class ... REST>
+struct PointerNDTypeImpl<COUPLED_POINTERS, ArrayND<N, T, A>, REST...>
+{
+    static_assert(CompatibleDimensions<N, COUPLED_POINTERS::dimension>::value,
+        "PointerNDCoupled<...>: dimension mismatch.");
+    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
+                                         REST...>::type    type;
+};
+
+template <class T, class U>
+struct PointerNDTypeImpl<PointerNDCoupled<T, U>>
+{
+    typedef PointerNDCoupled<T, U> type;
+};
+
+/********************************************************/
+/*                                                      */
+/*                  PointerNDCoupledCast                */
+/*                                                      */
+/********************************************************/
+
+    // helper classes to extract the elements of a PointerNDCoupled list.
+template <int K, class COUPLED_POINTERS, bool MATCH = (K == COUPLED_POINTERS::index)>
+struct PointerNDCoupledCast
+{
+    static_assert( 0 <= K && K < COUPLED_POINTERS::index,
+        "get<INDEX>(): index out of range.");
+
+    typedef PointerNDCoupledCast<K, typename COUPLED_POINTERS::base_type> Next;
+    typedef typename Next::type type;
+
+    static type & cast(COUPLED_POINTERS & h)
+    {
+        return Next::cast(h);
+    }
+
+    static type const & cast(COUPLED_POINTERS const & h)
+    {
+        return Next::cast(h);
+    }
+};
+
+template <int K, class COUPLED_POINTERS>
+struct PointerNDCoupledCast<K, COUPLED_POINTERS, true>
+{
+    typedef COUPLED_POINTERS type;
+
+    static type & cast(COUPLED_POINTERS & h)
+    {
+        return h;
+    }
+
+    static type const & cast(COUPLED_POINTERS const & h)
+    {
+        return h;
+    }
+};
+
+} // namespace array_detail
+
+template <int N, class ... REST>
+using PointerNDCoupledType = typename array_detail::PointerNDTypeImpl<PointerNDShape<N>, REST...>::type;
+
+/********************************************************/
+/*                                                      */
+/*            get<INDEX>(PointerNDCoupled)              */
+/*                                                      */
+/********************************************************/
+
+    // extract the current element at `INDEX` during a coupled array iteration
+template <int INDEX, class T, class NEXT>
+auto
+get(PointerNDCoupled<T, NEXT> const & h)
+-> decltype(*array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h))
+{
+    return *array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h);
+}
+
+template <int INDEX, class T, class NEXT>
+auto
+get(PointerNDCoupled<T, NEXT> & h)
+-> decltype(*array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h))
+{
+    return *array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h);
+}
+
+ namespace array_detail {
 
 /********************************************************/
 /*                                                      */
@@ -555,26 +725,46 @@ checkMemoryOverlap(TinyArray<char*, 2> const & target, TinyArray<char*, 2> const
     return res;
 }
 
+template <class ARRAY>
+inline
+enable_if_t<ArrayNDConcept<ARRAY>::value, MemoryOverlap>
+checkMemoryOverlap(TinyArray<char*, 2> const & target, ARRAY const & src)
+{
+    return checkMemoryOverlap(target, src.memoryRange());
+}
+
+template <class ARRAY>
+inline
+enable_if_t<ArrayMathConcept<ARRAY>::value, MemoryOverlap>
+checkMemoryOverlap(TinyArray<char*, 2> const & target, ARRAY const & src)
+{
+    return src.checkMemoryOverlap(target);
+}
+
 /********************************************************/
 /*                                                      */
-/*                   compatibleStrides                  */
+/*                      unifyShape                      */
 /*                                                      */
 /********************************************************/
 
-    // check if two arrays have the same strides, ignoring
-    // singleton dimensions and wrapped scalars
-template <class SHAPE1, class SHAPE2>
-inline bool
-compatibleStrides(SHAPE1 const & target, SHAPE2 const & src)
+    // Create a common shape for `src` and the old state of `target`,
+    // where singleton axes are expanded to the size of the corresponding
+    // axis in the other shape. The result is stored in `target`.
+    // The function returns `false` if the shapes are incompatible.
+template <int N, class ARRAY>
+inline
+enable_if_t<ArrayNDConcept<ARRAY>::value, bool>
+unifyShape(Shape<N> & target, ARRAY const & src)
 {
-    if (src.size() == 0)
-        return true;
-    if (src.size() != target.size())
-        return false;
-    for (int k = 0; k<target.size(); ++k)
-        if (src[k] != 0 && src[k] != target[k])
-            return false;
-    return true;
+    return detail::unifyShape(target, src.shape());
+}
+
+template <int N, class ARRAY>
+inline
+enable_if_t<ArrayMathConcept<ARRAY>::value, bool>
+unifyShape(Shape<N> & target, ARRAY const & src)
+{
+    return src.unifyShape(target);
 }
 
 /********************************************************/
@@ -608,10 +798,10 @@ principalStrides(SHAPE1 & target, SHAPE2 const & src,
     }
 }
 
-template <class SHAPE, class ARRAY1, class ARRAY2>
+template <int N, class ARRAY1, class ARRAY2>
 inline
 enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayNDConcept<ARRAY2>::value>
-principalStrides(SHAPE & strides, ARRAY1 const & a1, ARRAY2 const & a2)
+principalStrides(Shape<N> & strides, ARRAY1 const & a1, ARRAY2 const & a2)
 {
     ArrayIndex minimalStride = NumericTraits<ArrayIndex>::max();
     int singletonCount = strides.size();
@@ -619,10 +809,10 @@ principalStrides(SHAPE & strides, ARRAY1 const & a1, ARRAY2 const & a2)
     principalStrides(strides, a2.byte_strides(), minimalStride, singletonCount);
 }
 
-template <class SHAPE, class ARRAY1, class ARRAY2>
+template <int N, class ARRAY1, class ARRAY2>
 inline
 enable_if_t<ArrayNDConcept<ARRAY1>::value && ArrayMathConcept<ARRAY2>::value>
-principalStrides(SHAPE & strides, ARRAY1 const & a1, ARRAY2 const & a2)
+principalStrides(Shape<N> & strides, ARRAY1 const & a1, ARRAY2 const & a2)
 {
     ArrayIndex minimalStride = NumericTraits<ArrayIndex>::max();
     int singletonCount = strides.size();
@@ -652,6 +842,32 @@ isCConsecutive(PointerND<N, T> const & p, SHAPE const & shape, int dim)
     }
     return size / sizeof(T);
 }
+
+/********************************************************/
+/*                                                      */
+/*                  forwardPointerND                    */
+/*                                                      */
+/********************************************************/
+
+    // Create an ArrayMathExpression from a PointerND and shape.
+    // Just forwards `src` if it already is an ArrayMathExpression.
+template <class ARRAY, class SHAPE>
+inline
+enable_if_t<ArrayMathConcept<ARRAY>::value, ARRAY &&>
+forwardPointerND(ARRAY && src, SHAPE const &)
+{
+    return std::forward<ARRAY>(src);
+}
+
+template <int N, class T, class SHAPE>
+inline
+array_math::ArrayMathExpression<PointerND<N, T>>
+forwardPointerND(PointerND<N, T> const & p, SHAPE const & s)
+{
+    return array_math::ArrayMathExpression<PointerND<N, T>>(p, s);
+}
+
+} // namespace array_detail
 
 /********************************************************/
 /*                                                      */
@@ -691,7 +907,7 @@ consecutivePointerNDFunction(PointerND<N, T> && pn, SHAPE const & shape, FCT &&f
     static_assert(N != 0,
         "consecutivePointerNDFunction(): internal error: N==0 should never happen.");
 
-    auto count = isCConsecutive(pn, shape, dim);
+    auto count = array_detail::isCConsecutive(pn, shape, dim);
     if(count == 0)
         return false;
 
@@ -714,8 +930,8 @@ inline bool
 consecutivePointerNDFunction(PointerND<M, T> && pn1, PointerND<N, U> && pn2,
                              SHAPE const & shape, FCT &&f, int dim)
 {
-    auto count = isCConsecutive(pn1, shape, dim);
-    if(count == 0 || isCConsecutive(pn2, shape, dim) != count)
+    auto count = array_detail::isCConsecutive(pn1, shape, dim);
+    if(count == 0 || array_detail::isCConsecutive(pn2, shape, dim) != count)
         return false;
 
     auto p1 = pn1.ptr();
@@ -738,7 +954,7 @@ inline bool
 consecutivePointerNDFunction(PointerND<0, T> pn1, PointerND<N, U> && pn2,
                              SHAPE const & shape, FCT &&f, int dim)
 {
-    auto count = isCConsecutive(pn2, shape, dim);
+    auto count = array_detail::isCConsecutive(pn2, shape, dim);
     if(count == 0)
         return false;
 
@@ -762,7 +978,7 @@ inline bool
 consecutivePointerNDFunction(PointerND<N, T> && pn1, PointerND<0, U> pn2,
                              SHAPE const & shape, FCT &&f, int dim)
 {
-    auto count = isCConsecutive(pn1, shape, dim);
+    auto count = array_detail::isCConsecutive(pn1, shape, dim);
     if(count == 0)
         return false;
 
@@ -875,114 +1091,93 @@ reversePointerNDFunction(POINTER_ND1 && h1, POINTER_ND2 && h2, SHAPE const & sha
 
 /********************************************************/
 /*                                                      */
-/*                   PointerNDTypeImpl                  */
+/*               universalArrayNDFunction()             */
 /*                                                      */
 /********************************************************/
 
-    // helper classes to construct PointerNDCoupled lists
-template <class COUPLED_POINTERS, class ... REST>
-struct PointerNDTypeImpl;
-
-template <class COUPLED_POINTERS, class T, class ... REST>
-struct PointerNDTypeImpl<COUPLED_POINTERS, T, REST...>
+    // Apply a lambda function to `src` and `target`, possibly storing the reault in
+    // `target`. The function optimizes loop order to maximize cache locality and
+    // takes care of overlapping memory and singleton axes.
+template <class TARGET, class ARRAY_OR_EXPR, class FCT>
+enable_if_t<ArrayNDConcept<TARGET>::value &&
+           (ArrayMathConcept<ARRAY_OR_EXPR>::value || ArrayNDConcept<ARRAY_OR_EXPR>::value)>
+universalArrayNDFunction(TARGET && target, ARRAY_OR_EXPR && src, FCT &&f,
+                         std::string func_name = "universalArrayNDFunction(): internal error")
 {
-    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
-                                         REST...>::type    type;
-};
+    using namespace array_detail;
 
-template <class COUPLED_POINTERS, int N, class T, class ... REST>
-struct PointerNDTypeImpl<COUPLED_POINTERS, ArrayViewND<N, T>, REST...>
-{
-    static_assert(CompatibleDimensions<N, COUPLED_POINTERS::dimension>::value,
-        "PointerNDCoupled<...>: dimension mismatch.");
-    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
-                                         REST...>::type    type;
-};
+    typedef typename std::remove_reference<TARGET>::type        ARRAY1;
+    typedef typename std::remove_reference<ARRAY_OR_EXPR>::type ARRAY2;
 
-template <class COUPLED_POINTERS, int N, class T, class A, class ... REST>
-struct PointerNDTypeImpl<COUPLED_POINTERS, ArrayND<N, T, A>, REST...>
-{
-    static_assert(CompatibleDimensions<N, COUPLED_POINTERS::dimension>::value,
-        "PointerNDCoupled<...>: dimension mismatch.");
-    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
-                                         REST...>::type    type;
-};
+    static const int dimension = array_math::ArrayMathUnifyDimension<ARRAY1, ARRAY2>::value;
 
-template <class T, class U>
-struct PointerNDTypeImpl<PointerNDCoupled<T, U>>
-{
-    typedef PointerNDCoupled<T, U> type;
-};
+    // find the common shape, possibly expanding singleton axes
+    Shape<dimension> shape = target.shape();
+    vigra_precondition(unifyShape(shape, src), func_name + ": shape mismatch.");
 
-/********************************************************/
-/*                                                      */
-/*                  PointerNDCoupledCast                */
-/*                                                      */
-/********************************************************/
-
-    // helper classes to extract the elements of a PointerNDCoupled list.
-template <int K, class COUPLED_POINTERS, bool MATCH = (K == COUPLED_POINTERS::index)>
-struct PointerNDCoupledCast
-{
-    static_assert( 0 <= K && K < COUPLED_POINTERS::index,
-        "get<INDEX>(): index out of range.");
-
-    typedef PointerNDCoupledCast<K, typename COUPLED_POINTERS::base_type> Next;
-    typedef typename Next::type type;
-
-    static type & cast(COUPLED_POINTERS & h)
+    Shape<dimension> p(tags::size = shape.size());
+    if (shape.size() > 1)
     {
-        return Next::cast(h);
+        // optimize loop order
+        Shape<dimension> strides(tags::size = shape.size());
+        // determine principal strides so that the optmization also works when
+        // the arrays have singleton axes
+        principalStrides(strides, target, src);
+        p = detail::permutationToOrder(shape, strides, C_ORDER);
     }
 
-    static type const & cast(COUPLED_POINTERS const & h)
+    auto tp = target.pointer_nd(p);
+    auto sp = src.pointer_nd(p);
+    shape   = shape.transpose(p);
+
+    // take care of overlapping arrays (source data could otherwise be overwritten)
+    MemoryOverlap overlap = checkMemoryOverlap(target.memoryRange(), src);
+    if (overlap == NoMemoryOverlap)
     {
-        return Next::cast(h);
+        universalPointerNDFunction(tp, sp, shape, std::forward<FCT>(f));
     }
-};
-
-template <int K, class COUPLED_POINTERS>
-struct PointerNDCoupledCast<K, COUPLED_POINTERS, true>
-{
-    typedef COUPLED_POINTERS type;
-
-    static type & cast(COUPLED_POINTERS & h)
+    else if (sp.compatibleStrides(tp.byte_strides()))
     {
-        return h;
+        if (overlap & TargetOverlapsLeft) // target below source => work forward
+            universalPointerNDFunction(tp, sp, shape, std::forward<FCT>(f));
+        else                              // target above source => work backward
+            reversePointerNDFunction(tp, sp, shape, std::forward<FCT>(f));
     }
-
-    static type const & cast(COUPLED_POINTERS const & h)
+    else
     {
-        return h;
+        ArrayND<ARRAY2::dimension, typename ARRAY2::value_type> tmp(forwardPointerND(sp, shape));
+        universalPointerNDFunction(tp, tmp.pointer_nd(), shape, std::forward<FCT>(f));
     }
-};
-
-} // namespace array_detail
-
-template <int N, class ... REST>
-using PointerNDCoupledType = typename array_detail::PointerNDTypeImpl<PointerNDShape<N>, REST...>::type;
-
-/********************************************************/
-/*                                                      */
-/*            get<INDEX>(PointerNDCoupled)              */
-/*                                                      */
-/********************************************************/
-
-    // extract the current element at `INDEX` during a coupled array iteration
-template <int INDEX, class T, class NEXT>
-auto
-get(PointerNDCoupled<T, NEXT> const & h)
--> decltype(*array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h))
-{
-    return *array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h);
 }
 
-template <int INDEX, class T, class NEXT>
-auto
-get(PointerNDCoupled<T, NEXT> & h)
--> decltype(*array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h))
+    // Apply a lambda function to `target`, which may be an array or
+    // expression template. The function optimizes loop order to maximize
+    // cache locality and takes care of singleton axes.
+template <class TARGET, class FCT>
+enable_if_t<ArrayNDConcept<TARGET>::value || ArrayMathConcept<TARGET>::value>
+universalArrayNDFunction(TARGET && target, FCT && f,
+                         std::string func_name = "universalArrayNDFunction(): internal error")
 {
-    return *array_detail::PointerNDCoupledCast<INDEX, PointerNDCoupled<T, NEXT>>::cast(h);
+    typedef typename std::remove_reference<TARGET>::type ARRAY;
+
+    // find the common shape, possibly expanding singleton axes
+    Shape<ARRAY::dimension> shape(tags::size = target.ndim());
+    vigra_precondition(target.unifyShape(shape), func_name + ": shape mismatch.");
+
+    if (shape.size() > 1)
+    {
+        // optimize loop order
+        Shape<ARRAY::dimension> strides(tags::size = shape.size());
+        // determine principal strides so that the optmization also works when
+        // the arrays have singleton axes
+        target.principalStrides(strides);
+        auto p = detail::permutationToOrder(shape, strides, C_ORDER);
+        universalPointerNDFunction(target.pointer_nd(p), shape.transpose(p), std::forward<FCT>(f));
+    }
+    else
+    {
+        universalPointerNDFunction(target.pointer_nd(), shape, std::forward<FCT>(f));
+    }
 }
 
 } // namespace vigra

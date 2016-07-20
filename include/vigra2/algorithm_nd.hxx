@@ -126,7 +126,7 @@ template <class ARRAY, class FCT,
 void
 foreachND(ARRAY && array, FCT && f)
 {
-    array_detail::universalArrayNDFunction(std::forward<ARRAY>(array), std::forward<FCT>(f));
+    universalArrayNDFunction(std::forward<ARRAY>(array), std::forward<FCT>(f));
 }
 
 /**********************************************************/
@@ -140,7 +140,7 @@ template <class ARRAY1, class ARRAY2, class FCT,
 void
 transformND(ARRAY1 const & src, ARRAY2 & target, FCT && f)
 {
-    array_detail::universalArrayNDFunction(target, src,
+    universalArrayNDFunction(target, src,
         [&f](typename ARRAY2::reference u, typename ARRAY1::const_reference v) {
             u = detail::RequiresExplicitCast<typename ARRAY2::value_type>::cast(f(v));
         },
@@ -157,7 +157,7 @@ transformND(ARRAY1 const & src1, ARRAY2 const & src2, ARRAY3 & target, FCT && f)
 {
     using namespace array_math;
     typedef ArrayMathExpression<ArrayMathCustomFunctor<ARRAY1, ARRAY2, FCT>> FCT_WRAPPER;
-    array_detail::universalArrayMathFunction(target, FCT_WRAPPER(src1, src2, std::forward<FCT>(f)),
+    universalArrayNDFunction(target, FCT_WRAPPER(src1, src2, std::forward<FCT>(f)),
         [](typename ARRAY3::reference u, typename FCT_WRAPPER::result_type v) {
             u = detail::RequiresExplicitCast<typename ARRAY3::value_type>::cast(v);
         },

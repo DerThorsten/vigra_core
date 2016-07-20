@@ -195,9 +195,9 @@ permutationToOrder(SHAPE const & shape, SHAPE const & stride,
     return res;
 }
 
-template <class SHAPE1, class SHAPE2>
+template <int N, int M>
 inline bool
-unifyShape(SHAPE1 & target, SHAPE2 const & src)
+unifyShape(Shape<N> & target, Shape<M> const & src)
 {
     if (src.size() == 0)
         return true;
@@ -206,11 +206,14 @@ unifyShape(SHAPE1 & target, SHAPE2 const & src)
 
     for (int k = 0; k<target.size(); ++k)
     {
-        if (src[k] == target[k] || src[k] == 1)
-            continue;
-        else if (target[k] == 1)
-            target[k] = src[k];
-        else
+        if(target[k] <= 1)
+        {
+            if(src[k] > 1)
+                target[k] = src[k];
+            else
+                target[k] = 1;
+        }
+        else if(src[k] > 1 && target[k] != src[k])
             return false;
     }
     return true;

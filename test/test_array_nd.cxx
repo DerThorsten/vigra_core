@@ -330,17 +330,17 @@ struct ArrayNDTest
     {
         {
             // low-level tests
-            S res = array_detail::permutationToOrder(s, S{ 6,2,1 }, C_ORDER);
+            S res = detail::permutationToOrder(s, S{ 6,2,1 }, C_ORDER);
             shouldEqual(res, (S{ 0,1,2 }));
-            res = array_detail::permutationToOrder(s, S{ 1,4,12 }, C_ORDER);
+            res = detail::permutationToOrder(s, S{ 1,4,12 }, C_ORDER);
             shouldEqual(res, (S{ 2,1,0 }));
-            res = array_detail::permutationToOrder(s, S{ 3, 1, 12 }, C_ORDER);
+            res = detail::permutationToOrder(s, S{ 3, 1, 12 }, C_ORDER);
             shouldEqual(res, (S{ 2,0,1 }));
-            res = array_detail::permutationToOrder(S{ 4,3,1 }, S{ 3,1,1 }, C_ORDER);
+            res = detail::permutationToOrder(S{ 4,3,1 }, S{ 3,1,1 }, C_ORDER);
             shouldEqual(res, (S{ 2,0,1 }));
-            res = array_detail::permutationToOrder(S{ 4,1,3 }, S{ 3,1,1 }, C_ORDER);
+            res = detail::permutationToOrder(S{ 4,1,3 }, S{ 3,1,1 }, C_ORDER);
             shouldEqual(res, (S{ 1,0,2 }));
-            res = array_detail::permutationToOrder(S{ 1,3,1 }, S{ 1,1,1 }, C_ORDER);
+            res = detail::permutationToOrder(S{ 1,3,1 }, S{ 1,1,1 }, C_ORDER);
             shouldEqual(res, (S{ 0,2,1 }));
         }
 
