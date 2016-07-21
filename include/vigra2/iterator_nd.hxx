@@ -1044,16 +1044,39 @@ class ArrayNDIterator
 
     ArrayNDIterator() = default;
 
-    explicit
     ArrayNDIterator(ArrayViewND<N, T> const & array,
                     MemoryOrder order = C_ORDER)
-    : base_type(pointer_nd_type(const_cast<ArrayViewND<N, T> &>(array).pointer_nd(),
+    : base_type(pointer_nd_type(array.pointer_nd(),
                                 PointerNDShape<N>(array.shape())), order)
     {}
 
     ArrayNDIterator(ArrayViewND<N, T> const & array,
                     shape_type const & order)
-    : base_type(pointer_nd_type(const_cast<ArrayViewND<N, T> &>(array).pointer_nd(),
+    : base_type(pointer_nd_type(array.pointer_nd(),
+                                PointerNDShape<N>(array.shape())), order)
+    {}
+
+    ArrayNDIterator(ArrayViewND<N, T> & array,
+                    MemoryOrder order = C_ORDER)
+    : base_type(pointer_nd_type(array.pointer_nd(),
+                                PointerNDShape<N>(array.shape())), order)
+    {}
+
+    ArrayNDIterator(ArrayViewND<N, T> & array,
+                    shape_type const & order)
+    : base_type(pointer_nd_type(array.pointer_nd(),
+                                PointerNDShape<N>(array.shape())), order)
+    {}
+
+    ArrayNDIterator(ArrayViewND<N, T> && array,
+                    MemoryOrder order = C_ORDER)
+    : base_type(pointer_nd_type(array.pointer_nd(),
+                                PointerNDShape<N>(array.shape())), order)
+    {}
+
+    ArrayNDIterator(ArrayViewND<N, T> && array,
+                    shape_type const & order)
+    : base_type(pointer_nd_type(array.pointer_nd(),
                                 PointerNDShape<N>(array.shape())), order)
     {}
 
