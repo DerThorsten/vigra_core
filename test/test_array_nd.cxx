@@ -50,11 +50,12 @@ using namespace vigra;
 template <int N>
 struct ArrayNDTest
 {
-    typedef ArrayND<N, int>         Array;
-    typedef ArrayViewND<N, int>     View;
-    typedef TinyArray<int, 3>       Vector;
-    typedef ArrayViewND<N, Vector>  VectorView;
-    typedef Shape<N>                S;
+    typedef ArrayND<N, int>            Array;
+    typedef ArrayViewND<N, int>        View;
+    typedef ArrayViewND<N, const int>  ConstView;
+    typedef TinyArray<int, 3>          Vector;
+    typedef ArrayViewND<N, Vector>     VectorView;
+    typedef Shape<N>                   S;
 
     S s{ 4,3,2 };
     std::vector<int> data0, data1;
@@ -274,7 +275,7 @@ struct ArrayNDTest
         should((v0.bindRight(Shape<>{}) == v0));
         should((v0.bindRight(Shape<0>()) == v0));
 
-        auto v7 = v0.view();
+        auto v7 = v0.template view<runtime_size>();
         shouldEqual(decltype(v7)::actual_dimension, -1);
         should(v7 == v0);
 
@@ -954,9 +955,14 @@ struct ArrayNDTest
         Array a2(a1), a3(a1);
         a2 += 1;
         a3 -= 1;
-        auto iter = makeCoupledIterator(a1, a2, a3);
+        auto iter = makeCoupledIterator(a1, a2.cview(), const_cast<Array const &>(a3));
 
-        should((std::is_same<IteratorND<PointerNDCoupledType<Array, Array, Array>>, decltype(iter)>::value));
+        should((std::is_same<IteratorND<PointerNDCoupledType<Array, ConstView, Array const>>, decltype(iter)>::value));
+        
+        should((std::is_const<typename std::remove_reference<decltype(get<0>(iter))>::type>::value));
+        should((!std::is_const<typename std::remove_reference<decltype(get<1>(iter))>::type>::value));
+        should((std::is_const<typename std::remove_reference<decltype(get<2>(iter))>::type>::value));
+        should((std::is_const<typename std::remove_reference<decltype(get<3>(iter))>::type>::value));
 
         should(get<0>(iter) == (S{ 0,0,0 }));
         should(&get<1>(iter) == a1.data());
@@ -1002,7 +1008,7 @@ struct ArrayNDTest
             shouldEqual(get<1>(h), 0);
             shouldEqual(get<2>(h), 0);
             shouldEqual(get<3>(h), count);
-            get<3>(h) = 0;
+            const_cast<int &>(get<3>(h)) = 0;
             ++count;
         }
         shouldEqual(count, 24);

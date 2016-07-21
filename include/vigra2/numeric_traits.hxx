@@ -562,15 +562,23 @@ using NormType = typename NormTraits<T>::NormType;
 template <class CONTAINER>
 struct ValueTypeTraits
 {
-    typedef typename std::decay<CONTAINER>::type C;
+    typedef typename std::remove_reference<CONTAINER>::type C;
 
     static concepts_detail::Unsupported * test(...);
 
     template <class U>
-    static typename U::value_type * test(U *, typename U::value_type * = 0);
+    static typename U::value_type * test(U const *, typename U::value_type * = 0);
 
-    typedef typename std::remove_pointer<decltype(test((C*)0))>::type type;
-    static const bool value = !std::is_same<concepts_detail::Unsupported, type>::value;
+    typedef typename std::remove_pointer<decltype(test((C*)0))>::type TestResult;
+
+    static const bool value = !std::is_same<concepts_detail::Unsupported, TestResult>::value;
+    typedef typename
+        std::conditional<value,
+                         typename std::conditional<std::is_const<C>::value,
+                                                   typename std::add_const<TestResult>::type,
+                                                   TestResult>::type,
+                         void>::type
+        type;
 };
 
 ///////////////////////////////////////////////////////////////
