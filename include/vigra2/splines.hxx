@@ -318,8 +318,8 @@ class BSplineBase<0, T>
     {
         typedef FixedPoint<IntBits, FracBits> Value;
         return x.value < Value::ONE_HALF && -Value::ONE_HALF <= x.value
-                   ? Value(Value::ONE, FPNoShift)
-                   : Value(0, FPNoShift);
+                   ? Value(Value::ONE, Value::FPNoShift)
+                   : Value(0, Value::FPNoShift);
     }
 
     template <class U, int N>
@@ -411,8 +411,8 @@ class BSpline<1, T>
         typedef FixedPoint<IntBits, FracBits> Value;
         int v = abs(x.value);
         return v < Value::ONE ?
-                Value(Value::ONE - v, FPNoShift)
-                : Value(0, FPNoShift);
+                Value(Value::ONE - v, Value::FPNoShift)
+                : Value(0, Value::FPNoShift);
     }
 
     template <class U, int N>
@@ -529,13 +529,13 @@ class BSpline<2, T>
                POSTMULTIPLY_SHIFT2 = FracBits - 2*PREMULTIPLY_SHIFT2  };
         int v = abs(x.value);
         return v == ONE_HALF
-                   ? Value(ONE_HALF, FPNoShift)
+                   ? Value(ONE_HALF, Value::FPNoShift)
                    : v <= ONE_HALF
                        ? Value(THREE_QUARTERS -
-                               (int)(sq((unsigned)v >> PREMULTIPLY_SHIFT2) >> POSTMULTIPLY_SHIFT2), FPNoShift)
+                               (int)(sq((unsigned)v >> PREMULTIPLY_SHIFT2) >> POSTMULTIPLY_SHIFT2), Value::FPNoShift)
                        : v < THREE_HALVES
-                            ? Value((int)(sq((unsigned)(THREE_HALVES-v) >> PREMULTIPLY_SHIFT1) >> (POSTMULTIPLY_SHIFT1 + 1)), FPNoShift)
-                            : Value(0, FPNoShift);
+                            ? Value((int)(sq((unsigned)(THREE_HALVES-v) >> PREMULTIPLY_SHIFT1) >> (POSTMULTIPLY_SHIFT1 + 1)), Value::FPNoShift)
+                            : Value(0, Value::FPNoShift);
     }
 
     template <class U, int N>
@@ -675,15 +675,15 @@ class BSpline<3, T>
                POSTMULTIPLY_SHIFT = FracBits - 2*PREMULTIPLY_SHIFT };
         int v = abs(x.value);
         return v == ONE
-                   ? Value(ONE_SIXTH, FPNoShift)
+                   ? Value(ONE_SIXTH, Value::FPNoShift)
                    : v < ONE
                        ? Value(TWO_THIRDS +
                                (((int)(sq((unsigned)v >> PREMULTIPLY_SHIFT) >> (POSTMULTIPLY_SHIFT + PREMULTIPLY_SHIFT))
-                                       * (((v >> 1) - ONE) >> PREMULTIPLY_SHIFT)) >> POSTMULTIPLY_SHIFT), FPNoShift)
+                                       * (((v >> 1) - ONE) >> PREMULTIPLY_SHIFT)) >> POSTMULTIPLY_SHIFT), Value::FPNoShift)
                        : v < TWO
                             ? Value((int)((sq((unsigned)(TWO-v) >> PREMULTIPLY_SHIFT) >> (POSTMULTIPLY_SHIFT + PREMULTIPLY_SHIFT))
-                                      * ((unsigned)(TWO-v) >> PREMULTIPLY_SHIFT) / 6) >> POSTMULTIPLY_SHIFT, FPNoShift)
-                            : Value(0, FPNoShift);
+                                      * ((unsigned)(TWO-v) >> PREMULTIPLY_SHIFT) / 6) >> POSTMULTIPLY_SHIFT, Value::FPNoShift)
+                            : Value(0, Value::FPNoShift);
     }
 
     template <class U, int N>

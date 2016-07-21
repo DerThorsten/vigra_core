@@ -213,6 +213,8 @@ public:
         INT_MASK        = MAX ^ FRACTIONAL_MASK
     };
 
+    static const FixedPointNoShift FPNoShift = vigra::FPNoShift;
+
     std::int32_t value;
 
     FixedPoint()
