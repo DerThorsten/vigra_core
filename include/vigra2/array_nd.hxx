@@ -1576,7 +1576,7 @@ public:
         return begin().end();
     }
 
-    template <int M = runtime_size>
+    template <int M = N>
     ArrayViewND<M, T> view() const
     {
         static_assert(M == runtime_size || N == runtime_size || M == N,
@@ -1589,7 +1589,7 @@ public:
                                  data());
     }
 
-    template <int M = runtime_size>
+    template <int M = N>
     ArrayViewND<M, const_value_type> cview() const
     {
         static_assert(M == runtime_size || N == runtime_size || M == N,
