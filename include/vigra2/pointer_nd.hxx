@@ -585,47 +585,6 @@ namespace array_detail {
 
 /********************************************************/
 /*                                                      */
-/*                   PointerNDTypeImpl                  */
-/*                                                      */
-/********************************************************/
-
-    // helper classes to construct PointerNDCoupled lists
-template <class COUPLED_POINTERS, class ... REST>
-struct PointerNDTypeImpl;
-
-template <class COUPLED_POINTERS, class T, class ... REST>
-struct PointerNDTypeImpl<COUPLED_POINTERS, T, REST...>
-{
-    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
-                                         REST...>::type    type;
-};
-
-template <class COUPLED_POINTERS, int N, class T, class ... REST>
-struct PointerNDTypeImpl<COUPLED_POINTERS, ArrayViewND<N, T>, REST...>
-{
-    static_assert(CompatibleDimensions<N, COUPLED_POINTERS::dimension>::value,
-        "PointerNDCoupled<...>: dimension mismatch.");
-    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
-                                         REST...>::type    type;
-};
-
-template <class COUPLED_POINTERS, int N, class T, class A, class ... REST>
-struct PointerNDTypeImpl<COUPLED_POINTERS, ArrayND<N, T, A>, REST...>
-{
-    static_assert(CompatibleDimensions<N, COUPLED_POINTERS::dimension>::value,
-        "PointerNDCoupled<...>: dimension mismatch.");
-    typedef typename PointerNDTypeImpl<PointerNDCoupled<T, COUPLED_POINTERS>,
-                                         REST...>::type    type;
-};
-
-template <class T, class U>
-struct PointerNDTypeImpl<PointerNDCoupled<T, U>>
-{
-    typedef PointerNDCoupled<T, U> type;
-};
-
-/********************************************************/
-/*                                                      */
 /*                  PointerNDCoupledCast                */
 /*                                                      */
 /********************************************************/
@@ -667,10 +626,86 @@ struct PointerNDCoupledCast<K, COUPLED_POINTERS, true>
     }
 };
 
+/********************************************************/
+/*                                                      */
+/*                   PointerNDTypeImpl                  */
+/*                                                      */
+/********************************************************/
+
+    // helper classes to construct PointerNDCoupled lists
+template <class POINTERS, class ... REST>
+struct PointerNDTypeImpl;
+
+template <class POINTERS, class ARRAY, class ... REST>
+struct PointerNDTypeImpl<POINTERS, ARRAY, REST...>
+{
+    static_assert(CompatibleDimensions<NDimTraits<ARRAY>::value, POINTERS::dimension>::value,
+        "makePointerNDCoupled(): dimension mismatch.");
+    typedef typename
+        PointerNDTypeImpl<PointerNDCoupled<typename ValueTypeTraits<ARRAY>::type, POINTERS>,
+                          REST...>::type
+        type;
+};
+
+template <class T, class U>
+struct PointerNDTypeImpl<PointerNDCoupled<T, U>>
+{
+    typedef PointerNDCoupled<T, U> type;
+};
+
+/********************************************************/
+/*                                                      */
+/*               makePointerNDCoupledImpl               */
+/*                                                      */
+/********************************************************/
+
+    // factory helpers to construct PointerNDCoupled lists
+template <class COUPLED_POINTERS>
+inline COUPLED_POINTERS &&
+makePointerNDCoupledImpl(COUPLED_POINTERS && pointers)
+{
+    return std::forward<COUPLED_POINTERS>(pointers);
+}
+
+template <class COUPLED_POINTERS, class ARRAY, class ... REST>
+typename PointerNDTypeImpl<COUPLED_POINTERS, ARRAY, REST...>::type
+makePointerNDCoupledImpl(COUPLED_POINTERS const & inner_pointers,
+                         ARRAY && a, REST && ... rest)
+{
+    static_assert(ArrayNDConcept<ARRAY>::value,
+        "makePointerNDCoupled(): arguments must fulfill the ArrayNDConcept.");
+
+    typedef typename ValueTypeTraits<ARRAY>::type T;
+
+    PointerNDCoupled<T, COUPLED_POINTERS> pointer_nd(a.pointer_nd(), inner_pointers);
+    return makePointerNDCoupledImpl(pointer_nd, std::forward<REST>(rest) ...);
+}
+
 } // namespace array_detail
 
-template <int N, class ... REST>
-using PointerNDCoupledType = typename array_detail::PointerNDTypeImpl<PointerNDShape<N>, REST...>::type;
+/********************************************************/
+/*                                                      */
+/*                 makePointerNDCoupled                 */
+/*                                                      */
+/********************************************************/
+
+template <class ARRAY, class ... REST>
+using PointerNDCoupledType = typename
+    array_detail::PointerNDTypeImpl<PointerNDShape<NDimTraits<ARRAY>::value>, ARRAY, REST...>::type;
+
+    // factory function to construct PointerNDCoupled lists
+template <class ARRAY, class ... REST,
+          VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
+PointerNDCoupledType<ARRAY, REST...>
+makePointerNDCoupled(ARRAY && a, REST && ... rest)
+{
+    typedef typename ValueTypeTraits<ARRAY>::type T;
+    static const int N = NDimTraits<ARRAY>::value;
+
+    PointerNDCoupled<T, PointerNDShape<N>> pointer_nd(a.pointer_nd(),
+                                                      PointerNDShape<N>(a.shape()));
+    return array_detail::makePointerNDCoupledImpl(pointer_nd, std::forward<REST>(rest) ...);
+}
 
 /********************************************************/
 /*                                                      */
@@ -1098,16 +1133,15 @@ reversePointerNDFunction(POINTER_ND1 && h1, POINTER_ND2 && h2, SHAPE const & sha
     // Apply a lambda function to `src` and `target`, possibly storing the reault in
     // `target`. The function optimizes loop order to maximize cache locality and
     // takes care of overlapping memory and singleton axes.
-template <class TARGET, class ARRAY_OR_EXPR, class FCT>
-enable_if_t<ArrayNDConcept<TARGET>::value &&
-           (ArrayMathConcept<ARRAY_OR_EXPR>::value || ArrayNDConcept<ARRAY_OR_EXPR>::value)>
-universalArrayNDFunction(TARGET && target, ARRAY_OR_EXPR && src, FCT &&f,
+template <class TARGET, class ARRAY_LIKE, class FCT>
+enable_if_t<ArrayNDConcept<TARGET>::value && ArrayLikeConcept<ARRAY_LIKE>::value>
+universalArrayNDFunction(TARGET && target, ARRAY_LIKE && src, FCT &&f,
                          std::string func_name)
 {
     using namespace array_detail;
 
-    typedef typename std::remove_reference<TARGET>::type        ARRAY1;
-    typedef typename std::remove_reference<ARRAY_OR_EXPR>::type ARRAY2;
+    typedef typename std::remove_reference<TARGET>::type      ARRAY1;
+    typedef typename std::remove_reference<ARRAY_LIKE>::type  ARRAY2;
 
     static const int dimension = array_math::ArrayMathUnifyDimension<ARRAY1, ARRAY2>::value;
 
@@ -1161,7 +1195,7 @@ universalArrayNDFunction(TARGET && target, ARRAY_OR_EXPR && src, FCT &&f,
     // expression template. The function optimizes loop order to maximize
     // cache locality and takes care of singleton axes.
 template <class TARGET, class FCT>
-enable_if_t<ArrayNDConcept<TARGET>::value || ArrayMathConcept<TARGET>::value>
+enable_if_t<ArrayLikeConcept<TARGET>::value>
 universalArrayNDFunction(TARGET && target, FCT && f,
                          std::string func_name)
 {

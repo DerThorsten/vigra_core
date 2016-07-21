@@ -2210,47 +2210,23 @@ swap(ArrayND<N,T,A> & array1, ArrayND<N,T,A> & array2)
 /*                                                      */
 /********************************************************/
 
-namespace array_detail {
-
-template <class COUPLED_POINTERS>
-IteratorND<COUPLED_POINTERS>
-makeCoupledIteratorImpl(MemoryOrder order, COUPLED_POINTERS const & pointers)
+    // factory function for coupled multi-dimensional iterators
+template <class ARRAY, class ... REST,
+          VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
+IteratorND<PointerNDCoupledType<ARRAY, REST...>>
+makeCoupledIterator(ARRAY && a, REST && ... rest)
 {
-    return IteratorND<COUPLED_POINTERS>(pointers, order);
+    typedef IteratorND<PointerNDCoupledType<ARRAY, REST...>> Result;
+    return Result(makePointerNDCoupled(std::forward<ARRAY>(a), std::forward<REST>(rest)...));
 }
 
-template <class COUPLED_POINTERS, int N, class T, class ... REST>
-IteratorND<typename PointerNDTypeImpl<COUPLED_POINTERS, T, REST...>::type>
-makeCoupledIteratorImpl(MemoryOrder order, COUPLED_POINTERS const & inner_pointers,
-                        ArrayViewND<N, T> const & a, REST const & ... rest)
+template <class ARRAY, class ... REST,
+          VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
+IteratorND<PointerNDCoupledType<ARRAY, REST...>>
+makeCoupledIterator(MemoryOrder order, ARRAY && a, REST && ... rest)
 {
-    static_assert(CompatibleDimensions<N, COUPLED_POINTERS::dimension>::value,
-        "makeCoupledIterator(): arrays have incompatible dimensions.");
-    vigra_precondition(a.shape() == inner_pointers.shape(),
-        "makeCoupledIterator(): arrays have incompatible shapes.");
-    PointerNDCoupled<T, COUPLED_POINTERS> pointer_nd(const_cast<ArrayViewND<N, T> &>(a).pointer_nd(),
-                                                     inner_pointers);
-    return makeCoupledIteratorImpl(order, pointer_nd, rest ...);
-}
-
-} // namespace array_detail
-
-template <int N, class T, class ... REST>
-IteratorND<PointerNDCoupledType<N, T, REST...> >
-makeCoupledIterator(ArrayViewND<N, T> const & a, REST const & ... rest)
-{
-    PointerNDCoupled<T, PointerNDShape<N>> pointer_nd(const_cast<ArrayViewND<N, T> &>(a).pointer_nd(),
-                                                      PointerNDShape<N>(a.shape()));
-    return array_detail::makeCoupledIteratorImpl(C_ORDER, pointer_nd, rest ...);
-}
-
-template <int N, class T, class ... REST>
-IteratorND<PointerNDCoupledType<N, T, REST...> >
-makeCoupledIterator(MemoryOrder order, ArrayViewND<N, T> const & a, REST const & ... rest)
-{
-    PointerNDCoupled<T, PointerNDShape<N>> pointer_nd(const_cast<ArrayViewND<N, T> &>(a).pointer_nd(),
-                                                      PointerNDShape<N>(a.shape()));
-    return array_detail::makeCoupledIteratorImpl(order, pointer_nd, rest ...);
+    typedef IteratorND<PointerNDCoupledType<ARRAY, REST...>> Result;
+    return Result(makePointerNDCoupled(std::forward<ARRAY>(a), std::forward<REST>(rest)...), order);
 }
 
 } // namespace vigra

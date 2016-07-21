@@ -116,6 +116,8 @@ struct TinyArrayTest
         should((TinyArray<BV, SIZE>::may_use_uninitialized_memory == (SIZE != runtime_size)));
         should(UninitializedMemoryTraits<BV>::value == (SIZE != runtime_size));
         should((UninitializedMemoryTraits<TinyArray<TinyArray<int, runtime_size>, SIZE>>::value == false));
+        should(ValueTypeTraits<BV>::value);
+        should((std::is_same<unsigned char, typename ValueTypeTraits<BV>::type>::value));
 
         should(bv0.size() == SIZE);
         should(iv0.size() == SIZE);

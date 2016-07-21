@@ -68,6 +68,23 @@ struct ArrayNDTest
 
     void testConstruction()
     {
+        should(ArrayNDConcept<View>::value);
+        should(ArrayNDConcept<View &>::value);
+        should(ArrayNDConcept<View &&>::value);
+        should(ArrayNDConcept<View const &>::value);
+        should(ArrayLikeConcept<View>::value);
+        should(ArrayLikeConcept<View &>::value);
+        should(ArrayLikeConcept<View &&>::value);
+        should(ArrayLikeConcept<View const &>::value);
+        should(NDimConcept<View>::value);
+        should(NDimConcept<View &>::value);
+        should(NDimConcept<View &&>::value);
+        should(NDimConcept<View const &>::value);
+        shouldEqual(N, NDimTraits<View>::value);
+        shouldEqual(N, NDimTraits<View &>::value);
+        shouldEqual(N, NDimTraits<View &&>::value);
+        shouldEqual(N, NDimTraits<View const &>::value);
+
         View v0;
 
         shouldEqual(v0.shape(), S());
@@ -939,8 +956,7 @@ struct ArrayNDTest
         a3 -= 1;
         auto iter = makeCoupledIterator(a1, a2, a3);
 
-        should((std::is_same<IteratorND<PointerNDCoupledType<N, int, int, int>>, decltype(iter)>::value));
-        should((std::is_same<IteratorND<PointerNDCoupledType<N, Array, Array, Array>>, decltype(iter)>::value));
+        should((std::is_same<IteratorND<PointerNDCoupledType<Array, Array, Array>>, decltype(iter)>::value));
 
         should(get<0>(iter) == (S{ 0,0,0 }));
         should(&get<1>(iter) == a1.data());
