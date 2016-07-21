@@ -2767,24 +2767,28 @@ swap(TinyArrayBase<T1, D1, N...> & l,
 template <class T1, class D1, class T2, class D2, int ...N>
 struct PromoteTraits<TinyArrayBase<T1, D1, N...>, TinyArrayBase<T2, D2, N...> >
 {
+    static const bool value = PromoteTraits<T1, T2>::value;
     typedef TinyArray<PromoteType<T1, T2>, N...>     type;
 };
 
 template <class T1, class T2, int ...N>
 struct PromoteTraits<TinyArray<T1, N...>, TinyArray<T2, N...> >
 {
+    static const bool value = PromoteTraits<T1, T2>::value;
     typedef TinyArray<PromoteType<T1, T2>, N...>      type;
 };
 
 template <class T1, class T2, int ...N>
 struct PromoteTraits<TinyArrayView<T1, N...>, TinyArrayView<T2, N...> >
 {
+    static const bool value = PromoteTraits<T1, T2>::value;
     typedef TinyArray<PromoteType<T1, T2>, N...>      type;
 };
 
 template <class T1, class T2, int N>
 struct PromoteTraits<TinySymmetricView<T1, N>, TinySymmetricView<T2, N> >
 {
+    static const bool value = PromoteTraits<T1, T2>::value;
     typedef TinyArray<PromoteType<T1, T2>, N*(N+1)/2>  type;
 };
 

@@ -44,6 +44,7 @@
 #include <numeric>
 #include <vigra2/unittest.hxx>
 #include <vigra2/array_nd.hxx>
+#include <vigra2/gaussians.hxx>
 
 using namespace vigra;
 
@@ -945,6 +946,13 @@ struct ArrayNDTest
 
         shouldNot(a5.hasData());
         shouldEqual(a5.shape(), (S{}));
+
+        using namespace array_math;
+        double sigma = 1.0, s2 = 0.5 / sq(sigma);
+        Gaussian<> g(sigma);
+        ArrayND<2, double> gaussian(s2 / M_PI * exp(-s2*elementwiseSquaredNorm(mgrid<2>({ 7,7 }) - Shape<2>{3, 3})));
+        for (auto & c : gaussian.coordinates())
+            shouldEqualTolerance(gaussian[c], g(c[0] - 3.0)*g(c[1] - 3.0), 1e-15);
     }
 
     void testIterators()

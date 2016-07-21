@@ -1455,6 +1455,12 @@ public:
         return channelAxis() != tags::no_channel_axis;
     }
 
+    CoordinateIterator<actual_dimension>
+    coordinates() const
+    {
+        return CoordinateIterator<actual_dimension>(shape());
+    }
+
     pointer_nd_type pointer_nd()
     {
         return pointer_nd_type(tags::byte_strides = strides_, data());
