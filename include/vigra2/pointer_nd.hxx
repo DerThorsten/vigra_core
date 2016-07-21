@@ -1130,8 +1130,14 @@ universalArrayNDFunction(TARGET && target, ARRAY_OR_EXPR && src, FCT &&f,
     auto sp = src.pointer_nd(p);
     shape   = shape.transpose(p);
 
-    // take care of overlapping arrays (source data could otherwise be overwritten)
-    MemoryOverlap overlap = checkMemoryOverlap(target.memoryRange(), src);
+    // Take care of overlapping arrays unless the target is read-only
+    // (source data could otherwise be overwritten before reading).
+    typedef typename std::remove_reference<decltype(*tp)>::type TARGET_VALUE;
+    static const bool read_only_target = std::is_const<TARGET_VALUE>::value ||
+                                         !std::is_reference<decltype(*tp)>::value;
+    MemoryOverlap overlap = read_only_target
+                                ? NoMemoryOverlap
+                                : checkMemoryOverlap(target.memoryRange(), src);
     if (overlap == NoMemoryOverlap)
     {
         universalPointerNDFunction(tp, sp, shape, std::forward<FCT>(f));

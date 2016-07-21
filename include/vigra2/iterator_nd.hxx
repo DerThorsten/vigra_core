@@ -1014,20 +1014,22 @@ class ArrayNDIterator
     typedef typename pointer_nd_type::pointer          pointer;
     typedef typename pointer_nd_type::const_pointer    const_pointer;
     typedef typename pointer_nd_type::shape_type       shape_type;
-    typedef Shape<N>                               difference_type;
-    typedef std::random_access_iterator_tag        iterator_category;
+    typedef Shape<N>                                   difference_type;
+    typedef std::random_access_iterator_tag            iterator_category;
 
     ArrayNDIterator() = default;
 
     explicit
     ArrayNDIterator(ArrayViewND<N, T> const & array,
                     MemoryOrder order = C_ORDER)
-    : base_type(pointer_nd_type(array.pointer_nd(), PointerNDShape<N>(array.shape())), order)
+    : base_type(pointer_nd_type(const_cast<ArrayViewND<N, T> &>(array).pointer_nd(),
+                                PointerNDShape<N>(array.shape())), order)
     {}
 
     ArrayNDIterator(ArrayViewND<N, T> const & array,
                     shape_type const & order)
-    : base_type(pointer_nd_type(array.pointer_nd(), PointerNDShape<N>(array.shape())), order)
+    : base_type(pointer_nd_type(const_cast<ArrayViewND<N, T> &>(array).pointer_nd(),
+                                PointerNDShape<N>(array.shape())), order)
     {}
 
     reference operator*()

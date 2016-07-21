@@ -242,9 +242,9 @@ struct ArrayMathExpression<PointerND<N, T>>
 
     difference_type shape_;
 
-    ArrayMathExpression(ArrayViewND<N, T> const & a)
-    : base_type(a.pointer_nd())
-    , shape_(a.shape())
+    ArrayMathExpression(ArrayViewND<N, T> const & array)
+    : base_type(const_cast<ArrayViewND<N, T> &>(array).pointer_nd())
+    , shape_(array.shape())
     {}
 
     ArrayMathExpression(base_type const & p, difference_type const & shape)

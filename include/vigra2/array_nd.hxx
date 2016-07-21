@@ -149,13 +149,17 @@ class ArrayViewND
          */
     typedef PointerND<N, value_type> pointer_nd_type;
 
+        /** the array's const pointer_nd type
+         */
+    typedef PointerND<N, const_value_type> const_pointer_nd_type;
+
          /** scan-order iterator (ArrayNDIterator) type
          */
     typedef ArrayNDIterator<actual_dimension, T> iterator;
 
         /** const scan-order iterator (ArrayNDIterator) type
          */
-    typedef ArrayNDIterator<actual_dimension, T const> const_iterator;
+    typedef ArrayNDIterator<actual_dimension, const_value_type> const_iterator;
 
         // /** the matrix type associated with this array.
          // */
@@ -1449,19 +1453,49 @@ public:
         return channelAxis() != tags::no_channel_axis;
     }
 
-    pointer_nd_type pointer_nd() const
+    pointer_nd_type pointer_nd()
     {
         return pointer_nd_type(tags::byte_strides = strides_, data());
     }
 
-    pointer_nd_type pointer_nd(difference_type const & permutation) const
+    pointer_nd_type pointer_nd(difference_type const & permutation)
     {
         return pointer_nd_type(tags::byte_strides = strides_.transpose(permutation), data());
     }
 
-    pointer_nd_type pointer_nd(MemoryOrder order) const
+    pointer_nd_type pointer_nd(MemoryOrder order)
     {
         return pointer_nd(detail::permutationToOrder(strides_, order));
+    }
+
+    const_pointer_nd_type pointer_nd() const
+    {
+        return const_pointer_nd_type(tags::byte_strides = strides_, data());
+    }
+
+    const_pointer_nd_type pointer_nd(difference_type const & permutation) const
+    {
+        return const_pointer_nd_type(tags::byte_strides = strides_.transpose(permutation), data());
+    }
+
+    const_pointer_nd_type pointer_nd(MemoryOrder order) const
+    {
+        return const_pointer_nd_type(detail::permutationToOrder(strides_, order));
+    }
+
+    const_pointer_nd_type cpointer_nd() const
+    {
+        return const_pointer_nd_type(tags::byte_strides = strides_, data());
+    }
+
+    const_pointer_nd_type cpointer_nd(difference_type const & permutation) const
+    {
+        return const_pointer_nd_type(tags::byte_strides = strides_.transpose(permutation), data());
+    }
+
+    const_pointer_nd_type cpointer_nd(MemoryOrder order) const
+    {
+        return const_pointer_nd_type(detail::permutationToOrder(strides_, order));
     }
 
         /** returns a scan-order iterator pointing
@@ -1486,6 +1520,19 @@ public:
     }
 
     const_iterator begin() const
+    {
+        return const_iterator(*this, detail::permutationToOrder(strides_, F_ORDER));
+    }
+
+        /** returns a const scan-order iterator pointing
+            to the first array element.
+        */
+    const_iterator cbegin(MemoryOrder order) const
+    {
+        return const_iterator(*this, order);
+    }
+
+    const_iterator cbegin() const
     {
         return const_iterator(*this, detail::permutationToOrder(strides_, F_ORDER));
     }
@@ -1516,15 +1563,44 @@ public:
         return begin().end();
     }
 
+        /** returns a const scan-order iterator pointing
+            beyond the last array element.
+        */
+    const_iterator cend(MemoryOrder order) const
+    {
+        return begin(order).end();
+    }
+
+    const_iterator cend() const
+    {
+        return begin().end();
+    }
+
     template <int M = runtime_size>
     ArrayViewND<M, T> view() const
     {
+        static_assert(M == runtime_size || N == runtime_size || M == N,
+            "ArrayViewND::view(): desired dimension is incompatible with ndim().");
         vigra_precondition(M == runtime_size || M == ndim(),
             "ArrayViewND::view(): desired dimension is incompatible with ndim().");
         return ArrayViewND<M, T>(Shape<M>(shape_.begin(), shape_.begin()+ndim()),
                                  tags::byte_strides = Shape<M>(strides_.begin(), strides_.begin()+ndim()),
                                  AxisTags<M>(axistags_.begin(), axistags_.begin()+ndim()),
                                  data());
+    }
+
+    template <int M = runtime_size>
+    ArrayViewND<M, const_value_type> cview() const
+    {
+        static_assert(M == runtime_size || N == runtime_size || M == N,
+            "ArrayViewND::view(): desired dimension is incompatible with ndim().");
+        vigra_precondition(M == runtime_size || M == ndim(),
+            "ArrayViewND::view(): desired dimension is incompatible with ndim().");
+        return ArrayViewND<M, const_value_type>(
+                    Shape<M>(shape_.begin(), shape_.begin()+ndim()),
+                    tags::byte_strides = Shape<M>(strides_.begin(), strides_.begin()+ndim()),
+                    AxisTags<M>(axistags_.begin(), axistags_.begin()+ndim()),
+                    data());
     }
 };
 
@@ -2152,7 +2228,8 @@ makeCoupledIteratorImpl(MemoryOrder order, COUPLED_POINTERS const & inner_pointe
         "makeCoupledIterator(): arrays have incompatible dimensions.");
     vigra_precondition(a.shape() == inner_pointers.shape(),
         "makeCoupledIterator(): arrays have incompatible shapes.");
-    PointerNDCoupled<T, COUPLED_POINTERS> pointer_nd(a.pointer_nd(), inner_pointers);
+    PointerNDCoupled<T, COUPLED_POINTERS> pointer_nd(const_cast<ArrayViewND<N, T> &>(a).pointer_nd(),
+                                                     inner_pointers);
     return makeCoupledIteratorImpl(order, pointer_nd, rest ...);
 }
 
@@ -2162,7 +2239,8 @@ template <int N, class T, class ... REST>
 IteratorND<PointerNDCoupledType<N, T, REST...> >
 makeCoupledIterator(ArrayViewND<N, T> const & a, REST const & ... rest)
 {
-    PointerNDCoupled<T, PointerNDShape<N>> pointer_nd(a.pointer_nd(), PointerNDShape<N>(a.shape()));
+    PointerNDCoupled<T, PointerNDShape<N>> pointer_nd(const_cast<ArrayViewND<N, T> &>(a).pointer_nd(),
+                                                      PointerNDShape<N>(a.shape()));
     return array_detail::makeCoupledIteratorImpl(C_ORDER, pointer_nd, rest ...);
 }
 
@@ -2170,7 +2248,8 @@ template <int N, class T, class ... REST>
 IteratorND<PointerNDCoupledType<N, T, REST...> >
 makeCoupledIterator(MemoryOrder order, ArrayViewND<N, T> const & a, REST const & ... rest)
 {
-    PointerNDCoupled<T, PointerNDShape<N>> pointer_nd(a.pointer_nd(), PointerNDShape<N>(a.shape()));
+    PointerNDCoupled<T, PointerNDShape<N>> pointer_nd(const_cast<ArrayViewND<N, T> &>(a).pointer_nd(),
+                                                      PointerNDShape<N>(a.shape()));
     return array_detail::makeCoupledIteratorImpl(order, pointer_nd, rest ...);
 }
 
