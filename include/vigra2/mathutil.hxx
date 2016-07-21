@@ -225,10 +225,10 @@ sq(T t)
     */
 template <class T1, class T2,
           VIGRA_REQUIRE<std::is_arithmetic<T1>::value && std::is_arithmetic<T2>::value> >
-inline std::common_type_t<T1, T2>
+inline common_type_t<T1, T2>
 min(T1 const & t1, T2 const & t2)
 {
-    return std::min<std::common_type_t<T1, T2>>(t1, t2);
+    return std::min<common_type_t<T1, T2>>(t1, t2);
 }
 
 template <class T,
@@ -258,10 +258,10 @@ min(T const & t1, T const & t2)
     */
 template <class T1, class T2,
           VIGRA_REQUIRE<std::is_arithmetic<T1>::value && std::is_arithmetic<T2>::value> >
-inline std::common_type_t<T1, T2>
+inline common_type_t<T1, T2>
 max(T1 const & t1, T2 const & t2)
 {
-    return std::max<typename std::common_type<T1, T2>::type>(t1, t2);
+    return std::max<typename common_type<T1, T2>::type>(t1, t2);
 }
 
 template <class T,

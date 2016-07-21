@@ -686,7 +686,7 @@ public:
          */
     template <int M>
     auto
-    bindLeft(Shape<M> const & indices) const -> decltype(bind(indices, indices))
+    bindLeft(Shape<M> const & indices) const -> decltype(this->bind(indices, indices))
     {
         return bind(Shape<M>::range(indices.size()), indices);
     }
@@ -697,7 +697,7 @@ public:
          */
     template <int M>
     auto
-    bindRight(Shape<M> const & indices) const -> decltype(bind(indices, indices))
+    bindRight(Shape<M> const & indices) const -> decltype(this->bind(indices, indices))
     {
         return bind(Shape<M>::range(indices.size()) + ndim() - indices.size(),
                     indices);
@@ -1954,8 +1954,9 @@ class ArrayND
         allocated_data_.reserve(this->size());
 
         auto p = detail::permutationToOrder(this->byte_strides(), C_ORDER);
+        DataVector & data = allocated_data_;
         universalPointerNDFunction(rhs.pointer_nd(p), this->shape().transpose(p),
-            [&data=allocated_data_](U const & u)
+            [&data](U const & u)
             {
                 data.emplace_back(detail::RequiresExplicitCast<T>::cast(u));
             });
@@ -1983,8 +1984,9 @@ class ArrayND
 
         typedef typename std::remove_reference<ArrayMathExpression<ARG>>::type RHS;
         using U = typename RHS::value_type;
+        DataVector & data = allocated_data_;
         universalPointerNDFunction(rhs, rhs.shape(),
-            [&data = allocated_data_](U const & u)
+            [&data](U const & u)
             {
                 data.emplace_back(detail::RequiresExplicitCast<T>::cast(u));
             });

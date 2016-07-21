@@ -66,9 +66,13 @@ namespace concepts_detail {
 }
 
 using std::enable_if;
+using std::common_type;
 
 template <bool Predicate, class T=void>
 using enable_if_t = typename enable_if<Predicate, T>::type;
+
+template <class U, class V>
+using common_type_t = typename common_type<U, V>::type;
 
 struct require_ok {};
 
