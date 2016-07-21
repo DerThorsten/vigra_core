@@ -668,7 +668,7 @@ public:
     bind(Shape<runtime_size> const & axes, Shape<runtime_size> const & indices) const
     {
         vigra_precondition(axes.size() == indices.size(),
-            "ArrayViewND::bind(): size mismatch betwwen 'axes' and 'indices'.");
+            "ArrayViewND::bind(): size mismatch between 'axes' and 'indices'.");
         vigra_precondition(axes.size() <= ndim(),
             "ArrayViewND::bind(): axes.size() <= ndim() required.");
 
@@ -678,22 +678,6 @@ public:
         else
             return a.bind(axes.back(), indices.back())
                        .bind(axes.pop_back(), indices.pop_back());
-    }
-
-        /** Bind the channel axis to index d.
-            This calls <tt>array.bind(array.channelAxis(), d)</tt>
-            when a channel axis is defined and throws an error otherwise.
-            \endcode
-         */
-    ArrayViewND<((N < 0) ? runtime_size : N-1), T>
-    bindChannel(difference_type_1 d) const
-    {
-        int m = channelAxis();
-
-        vigra_assert(m != tags::no_channel_axis,
-            "ArrayViewND::bindChannel(): array has no channel axis.");
-
-        return bind(m, d);
     }
 
         /** Bind the first 'indices.size()' dimensions to 'indices'.
@@ -719,29 +703,47 @@ public:
                     indices);
     }
 
+        /** Bind the channel axis to index d.
+            This calls <tt>array.bind(array.channelAxis(), d)</tt>
+            when a channel axis is defined and throws an error otherwise.
+            \endcode
+         */
+    template <class U=T,
+              VIGRA_REQUIRE<(NumericTraits<U>::static_size == 1)> >
+    ArrayViewND<((N < 0) ? runtime_size : N-1), T>
+    bindChannel(difference_type_1 d) const
+    {
+        int m = channelAxis();
+
+        vigra_assert(m != tags::no_channel_axis,
+            "ArrayViewND::bindChannel(): array has no channel axis.");
+
+        return bind(m, d);
+    }
+
         /** Create a view to channel 'i' of a vector-like value type. Possible value types
             (of the original array) are: \ref TinyVector, \ref RGBValue, \ref FFTWComplex,
             and <tt>std::complex</tt>. The function can be applied whenever the array's
             element type <tt>T</tt> defines an embedded type <tt>T::value_type</tt> which
-            becomes the return type of <tt>bindElementChannel()</tt>.
+            becomes the return type of <tt>bindChannel()</tt>.
 
 
             <b>Usage:</b>
             \code
                 ArrayND<2, RGBValue<float> > rgb_image({h,w});
 
-                ArrayViewND<2, float> red   = rgb_image.bindElementChannel(0);
-                ArrayViewND<2, float> green = rgb_image.bindElementChannel(1);
-                ArrayViewND<2, float> blue  = rgb_image.bindElementChannel(2);
+                ArrayViewND<2, float> red   = rgb_image.bindChannel(0);
+                ArrayViewND<2, float> green = rgb_image.bindChannel(1);
+                ArrayViewND<2, float> blue  = rgb_image.bindChannel(2);
             \endcode
         */
     template <class U=T,
-              VIGRA_REQUIRE<(NumericTraits<U>::static_size > 0)> >
+              VIGRA_REQUIRE<(NumericTraits<U>::static_size > 1)> >
     ArrayViewND<N, typename NumericTraits<U>::value_type>
-    bindElementChannel(ArrayIndex i) const
+    bindChannel(ArrayIndex i) const
     {
         vigra_precondition(0 <= i && i < NumericTraits<U>::static_size,
-            "ArrayViewND::bindElementChannel(i): 'i' out of range.");
+            "ArrayViewND::bindChannel(i): 'i' out of range.");
         return expandElements(0).bind(0, i);
     }
 
@@ -1577,7 +1579,7 @@ public:
     }
 
     template <int M = N>
-    ArrayViewND<M, T> view() const
+    ArrayViewND<M, T> view()
     {
         static_assert(M == runtime_size || N == runtime_size || M == N,
             "ArrayViewND::view(): desired dimension is incompatible with ndim().");
@@ -1590,12 +1592,18 @@ public:
     }
 
     template <int M = N>
+    ArrayViewND<M, const_value_type> view() const
+    {
+        return this->template view<M>();
+    }
+
+    template <int M = N>
     ArrayViewND<M, const_value_type> cview() const
     {
         static_assert(M == runtime_size || N == runtime_size || M == N,
-            "ArrayViewND::view(): desired dimension is incompatible with ndim().");
+            "ArrayViewND::cview(): desired dimension is incompatible with ndim().");
         vigra_precondition(M == runtime_size || M == ndim(),
-            "ArrayViewND::view(): desired dimension is incompatible with ndim().");
+            "ArrayViewND::cview(): desired dimension is incompatible with ndim().");
         return ArrayViewND<M, const_value_type>(
                     Shape<M>(shape_.begin(), shape_.begin()+ndim()),
                     tags::byte_strides = Shape<M>(strides_.begin(), strides_.begin()+ndim()),

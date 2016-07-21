@@ -783,7 +783,7 @@ struct ArrayNDTest
                     shouldEqual((v[{i, j, k}]), (Vector{ count, count+1, count+2 }));
                 }
 
-        auto v2 = v.bindElementChannel(0);
+        auto v2 = v.bindChannel(0);
 
         shouldEqual(v2.ndim(), 3);
         shouldEqual(v2.shape(), s);
@@ -791,8 +791,8 @@ struct ArrayNDTest
         shouldNot(v2.isConsecutive());
 
         should(v1.bind(3, 0) == v2);
-        should(v1.bind(3, 1) == v.bindElementChannel(1));
-        should(v1.bindChannel(2) == v.bindElementChannel(2));
+        should(v1.bind(3, 1) == v.bindChannel(1));
+        should(v1.bindChannel(2) == v.bindChannel(2));
 
         auto v3 = v1.ensureChannelAxis(3);
         shouldEqual(v3.ndim(), v1.ndim());
