@@ -61,8 +61,14 @@ enum MemoryOrder { C_ORDER = 1, F_ORDER = 2, RowMajor = C_ORDER, ColumnMajor = F
 /*                                                        */
 /**********************************************************/
 
+namespace concepts_detail {
+    struct Unsupported {};
+}
+
 using std::enable_if;
-using std::enable_if_t;
+
+template <bool Predicate, class T=void>
+using enable_if_t = typename enable_if<Predicate, T>::type;
 
 struct require_ok {};
 
@@ -138,13 +144,44 @@ struct ArrayMathConcept
 template <class ARRAY>
 struct ArrayLikeConcept
 {
-    static const bool value = ArrayNDConcept<ARRAY>::value | ArrayMathConcept<ARRAY>::value;
+    static const bool value = ArrayNDConcept<ARRAY>::value || ArrayMathConcept<ARRAY>::value;
 };
+
+/**********************************************************/
+/*                                                        */
+/*       dimensions of multi-dimensional arrays           */
+/*                                                        */
+/**********************************************************/
 
 template <int N, int M>
 struct CompatibleDimensions
 {
     static const bool value = N == M || N == runtime_size || M == runtime_size;
+};
+
+template <class ARRAY>
+struct NDimConcept
+{
+    typedef typename std::decay<ARRAY>::type T;
+
+    static char test(...);
+
+    template <class U>
+    static int test(U*, int = U::dimension);
+
+    static const bool value = std::is_same<decltype(test((T*)0)), int>::value;
+};
+
+template <class ARRAY, bool = NDimConcept<ARRAY>::value>
+struct NDimTraits
+{};
+
+template <class ARRAY>
+struct NDimTraits<ARRAY, true>
+{
+    typedef typename std::decay<ARRAY>::type T;
+
+    static const int value = T::dimension;
 };
 
 /**********************************************************/
@@ -153,13 +190,15 @@ struct CompatibleDimensions
 /*                                                        */
 /**********************************************************/
 
-    // currently, we apply ony the simple rule that class T
+    // currently, we apply only the simple rule that class T
     // must be a pointer or array or has an embedded typedef
     // 'iterator_category'. More sophisticated checks should
     // be added when needed.
 template <class T>
 struct IteratorConcept
 {
+    typedef typename std::decay<T>::type V;
+
     static char test(...);
 
     template <class U>
@@ -168,7 +207,7 @@ struct IteratorConcept
     static const bool value =
         std::is_array<T>::value ||
         std::is_pointer<T>::value ||
-        std::is_same<decltype(test((T*)0)), int>::value;
+        std::is_same<decltype(test((V*)0)), int>::value;
 };
 
 } // namespace vigra
