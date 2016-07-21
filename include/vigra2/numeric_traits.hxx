@@ -49,8 +49,7 @@ namespace vigra {
 namespace numeric_traits_detail {
 
 using std::sqrt;
-
-struct Unsupported {};
+using concepts_detail::Unsupported;
 
 struct MatchesAnything
 {
@@ -87,12 +86,6 @@ struct OperatorSupport<bool, bool>
     typedef int DivideResult;
 };
 
-template <class T>
-struct FunctionSupport
-{
-    typedef decltype(check(sqrt(*(T*)0))) SqrtResult;
-};
-
 template <class T1, class T2, class Result>
 struct OperatorTraits
 {
@@ -104,6 +97,12 @@ template <class T1, class T2>
 struct OperatorTraits<T1, T2, Unsupported *>
 {
     static const bool value = false;
+};
+
+template <class T>
+struct FunctionSupport
+{
+    typedef decltype(check(sqrt(*(T*)0))) SqrtResult;
 };
 
 template <class T, class Result>
@@ -558,6 +557,23 @@ template <class T>
 using NormType = typename NormTraits<T>::NormType;
 
 ///////////////////////////////////////////////////////////////
+// ValueTypeTraits
+
+template <class CONTAINER>
+struct ValueTypeTraits
+{
+    typedef typename std::decay<CONTAINER>::type C;
+
+    static concepts_detail::Unsupported * test(...);
+
+    template <class U>
+    static typename U::value_type * test(U *, typename U::value_type * = 0);
+
+    typedef typename std::remove_pointer<decltype(test((C*)0))>::type type;
+    static const bool value = !std::is_same<concepts_detail::Unsupported, type>::value;
+};
+
+///////////////////////////////////////////////////////////////
 // RequiresExplicitCast
 
 namespace detail {
@@ -569,48 +585,20 @@ struct RequiresExplicitCast {
         { return v; }
 };
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1300
-#  define VIGRA_SPECIALIZED_CAST(type) \
-    template <> \
-    struct RequiresExplicitCast<type> { \
-        static type cast(float v) \
-            { return NumericTraits<type>::fromRealPromote(v); } \
-        static type cast(double v) \
-            { return NumericTraits<type>::fromRealPromote(v); } \
-        static type cast(type v) \
-            { return v; } \
-        template <class U> \
-        static type cast(U v) \
-            { return static_cast<type>(v); } \
- \
-    };
-#else
-#  define VIGRA_SPECIALIZED_CAST(type) \
-    template <> \
-    struct RequiresExplicitCast<type> { \
-        static type cast(float v) \
-            { return NumericTraits<type>::fromRealPromote(v); } \
-        static type cast(double v) \
-            { return NumericTraits<type>::fromRealPromote(v); } \
-        static type cast(signed char v) \
-            { return v; } \
-        static type cast(unsigned char v) \
-            { return v; } \
-        static type cast(short v) \
-            { return v; } \
-        static type cast(unsigned short v) \
-            { return v; } \
-        static type cast(int v) \
-            { return v; } \
-        static type cast(unsigned int v) \
-            { return v; } \
-        static type cast(long v) \
-            { return v; } \
-        static type cast(unsigned long v) \
-            { return v; } \
-    };
-#endif
-
+#define VIGRA_SPECIALIZED_CAST(type) \
+template <> \
+struct RequiresExplicitCast<type> { \
+    static type cast(float v) \
+        { return NumericTraits<type>::fromRealPromote(v); } \
+    static type cast(double v) \
+        { return NumericTraits<type>::fromRealPromote(v); } \
+    static type cast(type v) \
+        { return v; } \
+    template <class U> \
+    static type cast(U v) \
+        { return static_cast<type>(v); } \
+\
+};
 
 VIGRA_SPECIALIZED_CAST(signed char)
 VIGRA_SPECIALIZED_CAST(unsigned char)
@@ -620,6 +608,8 @@ VIGRA_SPECIALIZED_CAST(int)
 VIGRA_SPECIALIZED_CAST(unsigned int)
 VIGRA_SPECIALIZED_CAST(long)
 VIGRA_SPECIALIZED_CAST(unsigned long)
+
+#undef VIGRA_SPECIALIZED_CAST
 
 template <>
 struct RequiresExplicitCast<bool> {
@@ -673,8 +663,6 @@ struct RequiresExplicitCast<double> {
     static U cast(U v)
         { return v; }
 };
-
-#undef VIGRA_SPECIALIZED_CAST
 
 } // namespace detail
 
