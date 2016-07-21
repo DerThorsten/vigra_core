@@ -1005,6 +1005,14 @@ all(T const t)
     return t != T();
 }
 
+template <class T,
+          VIGRA_REQUIRE<std::is_arithmetic<T>::value> >
+inline bool
+all_finite(T const t)
+{
+    return isfinite(t);
+}
+
 //@}
 
 } // namespace vigra

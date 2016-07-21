@@ -109,7 +109,7 @@ struct TinyArrayConcept
 struct PointerNDTag {};
 
     // PointerNDConcept refers to the low-level multi-dimensional array API.
-    // By default, 'ARRAY' fulfills the PointerNDConcept if it is derived
+    // By default, 'ARRAY' conforms to the PointerNDConcept if it is derived
     // from PointerNDTag.
     //
     // Alternatively, one can partially specialize PointerNDConcept.
@@ -123,7 +123,7 @@ struct PointerNDConcept
 struct ArrayNDTag {};
 
     // ArrayNDConcept refers to the high-level multi-dimensional array API.
-    // By default, 'ARRAY' fulfills the ArrayNDConcept if it is derived
+    // By default, 'ARRAY' conforms to the ArrayNDConcept if it is derived
     // from 'ArrayNDTag'.
     //
     // Alternatively, one can partially specialize ArrayNDConcept.
@@ -138,6 +138,11 @@ struct ArrayMathTag
 : public PointerNDTag
 {};
 
+    // ArrayMathConcept refers to array expression templates.
+    // By default, 'ARRAY' conforms to the ArrayMathConcept if it
+    // is derived from 'ArrayMathTag'.
+    //
+    // Alternatively, one can partially specialize ArrayMathConcept.
 template <class ARRAY>
 struct ArrayMathConcept
 {
@@ -145,6 +150,10 @@ struct ArrayMathConcept
     static const bool value = std::is_base_of<ArrayMathTag, PLAIN_ARRAY>::value;
 };
 
+    // ArrayLikeConcept is fulfilled when 'ARRAY' is either an array or an
+    // array expression template.
+    //
+    // Alternatively, one can partially specialize ArrayLikeConcept.
 template <class ARRAY>
 struct ArrayLikeConcept
 {

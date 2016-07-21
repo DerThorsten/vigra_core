@@ -1456,9 +1456,9 @@ public:
     }
 
     CoordinateIterator<actual_dimension>
-    coordinates() const
+    coordinates(MemoryOrder order = C_ORDER) const
     {
-        return CoordinateIterator<actual_dimension>(shape());
+        return CoordinateIterator<actual_dimension>(shape(), order);
     }
 
     pointer_nd_type pointer_nd()
@@ -2218,31 +2218,6 @@ inline void
 swap(ArrayND<N,T,A> & array1, ArrayND<N,T,A> & array2)
 {
     array1.swap(array2);
-}
-
-/********************************************************/
-/*                                                      */
-/*                  makeCoupledIterator                 */
-/*                                                      */
-/********************************************************/
-
-    // factory function for coupled multi-dimensional iterators
-template <class ARRAY, class ... REST,
-          VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
-IteratorND<PointerNDCoupledType<ARRAY, REST...>>
-makeCoupledIterator(ARRAY && a, REST && ... rest)
-{
-    typedef IteratorND<PointerNDCoupledType<ARRAY, REST...>> Result;
-    return Result(makePointerNDCoupled(std::forward<ARRAY>(a), std::forward<REST>(rest)...));
-}
-
-template <class ARRAY, class ... REST,
-          VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
-IteratorND<PointerNDCoupledType<ARRAY, REST...>>
-makeCoupledIterator(MemoryOrder order, ARRAY && a, REST && ... rest)
-{
-    typedef IteratorND<PointerNDCoupledType<ARRAY, REST...>> Result;
-    return Result(makePointerNDCoupled(std::forward<ARRAY>(a), std::forward<REST>(rest)...), order);
 }
 
 } // namespace vigra

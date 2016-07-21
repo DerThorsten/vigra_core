@@ -757,6 +757,31 @@ class IteratorND
 
 /********************************************************/
 /*                                                      */
+/*                  makeCoupledIterator                 */
+/*                                                      */
+/********************************************************/
+
+    // factory function for coupled multi-dimensional iterators
+template <class ARRAY, class ... REST,
+          VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
+IteratorND<PointerNDCoupledType<ARRAY, REST...>>
+makeCoupledIterator(ARRAY && a, REST && ... rest)
+{
+    typedef IteratorND<PointerNDCoupledType<ARRAY, REST...>> Result;
+    return Result(makePointerNDCoupled(std::forward<ARRAY>(a), std::forward<REST>(rest)...));
+}
+
+template <class ARRAY, class ... REST,
+          VIGRA_REQUIRE<ArrayNDConcept<ARRAY>::value> >
+IteratorND<PointerNDCoupledType<ARRAY, REST...>>
+makeCoupledIterator(MemoryOrder order, ARRAY && a, REST && ... rest)
+{
+    typedef IteratorND<PointerNDCoupledType<ARRAY, REST...>> Result;
+    return Result(makePointerNDCoupled(std::forward<ARRAY>(a), std::forward<REST>(rest)...), order);
+}
+
+/********************************************************/
+/*                                                      */
 /*                  CoordinateIterator                  */
 /*                                                      */
 /********************************************************/
