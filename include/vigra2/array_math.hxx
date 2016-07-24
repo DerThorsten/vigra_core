@@ -439,11 +439,10 @@ template <class ARG> \
 struct ArrayMath##NAME \
 : public ArrayMathUnaryOperator<ARG> \
 { \
-    typedef ArrayMathUnaryOperator<ARG>   base_type; \
-    typedef typename base_type::arg_type  arg_type; \
+    typedef ArrayMathUnaryOperator<ARG>      base_type; \
+    typedef typename base_type::arg_type     arg_type; \
     typedef decltype(CALL(**(arg_type*)0))   raw_result_type; \
-    typedef typename std::conditional<std::is_same<raw_result_type, bool>::value, \
-                           unsigned char, raw_result_type>::type result_type; \
+    typedef BoolPromote<raw_result_type>     result_type; \
     typedef typename std::remove_reference<result_type>::type   value_type; \
  \
     ArrayMath##NAME(ARG const & a) \
@@ -477,58 +476,58 @@ VIGRA_ARRAY_MATH_UNARY(Not, !, operator!)
 VIGRA_ARRAY_MATH_UNARY(BitwiseNot, ~, operator~)
 
 VIGRA_ARRAY_MATH_UNARY(Abs, vigra::abs, abs)
-VIGRA_ARRAY_MATH_UNARY(Fabs, std::fabs, fabs)
+VIGRA_ARRAY_MATH_UNARY(Fabs, vigra::fabs, fabs)
 
-VIGRA_ARRAY_MATH_UNARY(Cos, std::cos, cos)
-VIGRA_ARRAY_MATH_UNARY(Sin, std::sin, sin)
-VIGRA_ARRAY_MATH_UNARY(Tan, std::tan, tan)
+VIGRA_ARRAY_MATH_UNARY(Cos, vigra::cos, cos)
+VIGRA_ARRAY_MATH_UNARY(Sin, vigra::sin, sin)
+VIGRA_ARRAY_MATH_UNARY(Tan, vigra::tan, tan)
 VIGRA_ARRAY_MATH_UNARY(Sin_pi, vigra::sin_pi, sin_pi)
 VIGRA_ARRAY_MATH_UNARY(Cos_pi, vigra::cos_pi, cos_pi)
-VIGRA_ARRAY_MATH_UNARY(Acos, std::acos, acos)
-VIGRA_ARRAY_MATH_UNARY(Asin, std::asin, asin)
-VIGRA_ARRAY_MATH_UNARY(Atan, std::atan, atan)
+VIGRA_ARRAY_MATH_UNARY(Acos, vigra::acos, acos)
+VIGRA_ARRAY_MATH_UNARY(Asin, vigra::asin, asin)
+VIGRA_ARRAY_MATH_UNARY(Atan, vigra::atan, atan)
 
-VIGRA_ARRAY_MATH_UNARY(Cosh, std::cosh, cosh)
-VIGRA_ARRAY_MATH_UNARY(Sinh, std::sinh, sinh)
-VIGRA_ARRAY_MATH_UNARY(Tanh, std::tanh, tanh)
-VIGRA_ARRAY_MATH_UNARY(Acosh, std::acosh, acosh)
-VIGRA_ARRAY_MATH_UNARY(Asinh, std::asinh, asinh)
-VIGRA_ARRAY_MATH_UNARY(Atanh, std::atanh, atanh)
+VIGRA_ARRAY_MATH_UNARY(Cosh, vigra::cosh, cosh)
+VIGRA_ARRAY_MATH_UNARY(Sinh, vigra::sinh, sinh)
+VIGRA_ARRAY_MATH_UNARY(Tanh, vigra::tanh, tanh)
+VIGRA_ARRAY_MATH_UNARY(Acosh, vigra::acosh, acosh)
+VIGRA_ARRAY_MATH_UNARY(Asinh, vigra::asinh, asinh)
+VIGRA_ARRAY_MATH_UNARY(Atanh, vigra::atanh, atanh)
 
-VIGRA_ARRAY_MATH_UNARY(Sqrt, std::sqrt, sqrt)
-VIGRA_ARRAY_MATH_UNARY(Cbrt, std::cbrt, cbrt)
+VIGRA_ARRAY_MATH_UNARY(Sqrt, vigra::sqrt, sqrt)
+VIGRA_ARRAY_MATH_UNARY(Cbrt, vigra::cbrt, cbrt)
 VIGRA_ARRAY_MATH_UNARY(Sqrti, vigra::sqrti, sqrti)
 VIGRA_ARRAY_MATH_UNARY(Sq, vigra::sq, sq)
-VIGRA_ARRAY_MATH_UNARY(Norm, norm, elementwiseNorm)
-VIGRA_ARRAY_MATH_UNARY(SquaredNorm, squaredNorm, elementwiseSquaredNorm)
+VIGRA_ARRAY_MATH_UNARY(Norm, vigra::norm, elementwiseNorm)
+VIGRA_ARRAY_MATH_UNARY(SquaredNorm, vigra::squaredNorm, elementwiseSquaredNorm)
 
 VIGRA_ARRAY_MATH_UNARY(Exp, vigra::exp, exp)
-VIGRA_ARRAY_MATH_UNARY(Exp2, std::exp2, exp2)
-VIGRA_ARRAY_MATH_UNARY(Expm1, std::expm1, expm1)
-VIGRA_ARRAY_MATH_UNARY(Log, std::log, log)
-VIGRA_ARRAY_MATH_UNARY(Log2, std::log2, log2)
-VIGRA_ARRAY_MATH_UNARY(Log10, std::log10, log10)
-VIGRA_ARRAY_MATH_UNARY(Log1p, std::log1p, log1p)
-VIGRA_ARRAY_MATH_UNARY(Logb, std::logb, logb)
-VIGRA_ARRAY_MATH_UNARY(Ilogb, std::ilogb, ilogb)
+VIGRA_ARRAY_MATH_UNARY(Exp2, vigra::exp2, exp2)
+VIGRA_ARRAY_MATH_UNARY(Expm1, vigra::expm1, expm1)
+VIGRA_ARRAY_MATH_UNARY(Log, vigra::log, log)
+VIGRA_ARRAY_MATH_UNARY(Log2, vigra::log2, log2)
+VIGRA_ARRAY_MATH_UNARY(Log10, vigra::log10, log10)
+VIGRA_ARRAY_MATH_UNARY(Log1p, vigra::log1p, log1p)
+VIGRA_ARRAY_MATH_UNARY(Logb, vigra::logb, logb)
+VIGRA_ARRAY_MATH_UNARY(Ilogb, vigra::ilogb, ilogb)
 
-VIGRA_ARRAY_MATH_UNARY(Ceil, std::ceil, ceil)
-VIGRA_ARRAY_MATH_UNARY(Floor, std::floor, floor)
-VIGRA_ARRAY_MATH_UNARY(Trunc, std::trunc, trunc)
-VIGRA_ARRAY_MATH_UNARY(Round, std::round, round)
-VIGRA_ARRAY_MATH_UNARY(Lround, std::lround, lround)
-VIGRA_ARRAY_MATH_UNARY(Llround, std::llround, llround)
+VIGRA_ARRAY_MATH_UNARY(Ceil, vigra::ceil, ceil)
+VIGRA_ARRAY_MATH_UNARY(Floor, vigra::floor, floor)
+VIGRA_ARRAY_MATH_UNARY(Trunc, vigra::trunc, trunc)
+VIGRA_ARRAY_MATH_UNARY(Round, vigra::round, round)
+VIGRA_ARRAY_MATH_UNARY(Lround, vigra::lround, lround)
+VIGRA_ARRAY_MATH_UNARY(Llround, vigra::llround, llround)
 VIGRA_ARRAY_MATH_UNARY(Roundi, vigra::roundi, roundi)
 VIGRA_ARRAY_MATH_UNARY(Even, vigra::even, even)
 VIGRA_ARRAY_MATH_UNARY(Odd, vigra::odd, odd)
 VIGRA_ARRAY_MATH_UNARY(Sign, vigra::sign, sign)
 VIGRA_ARRAY_MATH_UNARY(Signi, vigra::signi, signi)
 
-VIGRA_ARRAY_MATH_UNARY(Erf, std::erf, erf)
-VIGRA_ARRAY_MATH_UNARY(Erfc, std::erfc, erfc)
-VIGRA_ARRAY_MATH_UNARY(Tgamma, std::tgamma, tgamma)
-VIGRA_ARRAY_MATH_UNARY(Lgamma, std::lgamma, lgamma)
-VIGRA_ARRAY_MATH_UNARY(Loggamma, std::lgamma, loggamma)
+VIGRA_ARRAY_MATH_UNARY(Erf, vigra::erf, erf)
+VIGRA_ARRAY_MATH_UNARY(Erfc, vigra::erfc, erfc)
+VIGRA_ARRAY_MATH_UNARY(Tgamma, vigra::tgamma, tgamma)
+VIGRA_ARRAY_MATH_UNARY(Lgamma, vigra::lgamma, lgamma)
+VIGRA_ARRAY_MATH_UNARY(Loggamma, vigra::lgamma, loggamma)
 
 VIGRA_ARRAY_MATH_UNARY(Conj, conj, conj)
 VIGRA_ARRAY_MATH_UNARY(Real, real, real)
@@ -712,8 +711,7 @@ struct ArrayMath##NAME \
     typedef typename arg1_type::value_type        value1_type; \
     typedef typename arg2_type::value_type        value2_type; \
     typedef decltype(CALL(*(value1_type*)0 SEP *(value2_type*)0)) raw_result_type; \
-    typedef typename std::conditional<std::is_same<raw_result_type, bool>::value, \
-                           unsigned char, raw_result_type>::type result_type; \
+    typedef BoolPromote<raw_result_type>          result_type; \
     typedef typename std::remove_reference<result_type>::type   value_type; \
  \
     ArrayMath##NAME(ARG1 const & a1, ARG2 const & a2) \
@@ -764,14 +762,14 @@ VIGRA_ARRAYMATH_BINARY_OPERATOR(BitwiseAnd, VIGRA_NOTHING, operator&, &)
 VIGRA_ARRAYMATH_BINARY_OPERATOR(BitwiseOr, VIGRA_NOTHING, operator|, |)
 VIGRA_ARRAYMATH_BINARY_OPERATOR(BitwiseXor, VIGRA_NOTHING, operator^, ^)
 
-VIGRA_ARRAYMATH_BINARY_OPERATOR(Atan2, std::atan2, atan2, VIGRA_COMMA)
-VIGRA_ARRAYMATH_BINARY_OPERATOR(Copysign, std::copysign, copysign, VIGRA_COMMA)
-VIGRA_ARRAYMATH_BINARY_OPERATOR(Fdim, std::fdim, fdim, VIGRA_COMMA)
-VIGRA_ARRAYMATH_BINARY_OPERATOR(Fmax, std::fmax, fmax, VIGRA_COMMA)
-VIGRA_ARRAYMATH_BINARY_OPERATOR(Fmin, std::fmin, fmin, VIGRA_COMMA)
-VIGRA_ARRAYMATH_BINARY_OPERATOR(Fmod, std::fmod, fmod, VIGRA_COMMA)
-VIGRA_ARRAYMATH_BINARY_OPERATOR(Hypot, std::hypot, hypot, VIGRA_COMMA)
-VIGRA_ARRAYMATH_BINARY_OPERATOR(Pow, std::pow, pow, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Atan2, vigra::atan2, atan2, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Copysign, vigra::copysign, copysign, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Fdim, vigra::fdim, fdim, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Fmax, vigra::fmax, fmax, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Fmin, vigra::fmin, fmin, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Fmod, vigra::fmod, fmod, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Hypot, vigra::hypot, hypot, VIGRA_COMMA)
+VIGRA_ARRAYMATH_BINARY_OPERATOR(Pow, vigra::pow, pow, VIGRA_COMMA)
 
 VIGRA_ARRAYMATH_BINARY_OPERATOR(ClipUpper, vigra::clipUpper, clipUpper, VIGRA_COMMA)
 VIGRA_ARRAYMATH_BINARY_OPERATOR(ClipLower, vigra::clipLower, clipLower, VIGRA_COMMA)
@@ -794,8 +792,7 @@ struct ArrayMath##NAME \
  \
     typedef typename \
        std::common_type<first_argument_type, second_argument_type>::type raw_result_type; \
-    typedef typename std::conditional<std::is_same<raw_result_type, bool>::value, \
-                           unsigned char, raw_result_type>::type result_type; \
+    typedef BoolPromote<raw_result_type> result_type; \
     typedef typename std::remove_reference<result_type>::type   value_type; \
  \
     ArrayMath##NAME(ARG1 const & a1, ARG2 const & a2) \
@@ -910,8 +907,7 @@ struct ArrayMathCustomFunctor
     typedef typename arg1_type::value_type        value1_type;
     typedef typename arg2_type::value_type        value2_type;
     typedef typename std::result_of<FCT(value1_type,value2_type)>::type raw_result_type;
-    typedef typename std::conditional<std::is_same<raw_result_type, bool>::value,
-                           unsigned char, raw_result_type>::type result_type;
+    typedef BoolPromote<raw_result_type>          result_type;
     typedef typename std::remove_reference<result_type>::type   value_type;
 
     FCT f_;

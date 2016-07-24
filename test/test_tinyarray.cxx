@@ -432,6 +432,16 @@ struct TinyArrayTest
 
         TinyArray<int, 3> shape{200, 100, 50}, refstride(5000, 50, 1);
         shouldEqual(shapeToStrides(shape), refstride);
+
+        TinyArray<int, 4> src{ 1, 2, -3, -4 }, signs{ 2, -3, 4, -5 };
+        shouldEqual(copysign(src, signs), (TinyArray<int, 4>{1, -2, 3, -4}));
+
+        TinyArray<double, 3> left{ 3., 5., 8. }, right{ 4., 12., 15. };
+        shouldEqual(hypot(left, right), (TinyArray<double, 3>{5., 13., 17.}));
+
+        int oddRef[] = { 1, 0, 0, 1, 0, 0 };
+        shouldEqualSequence(oddRef, oddRef + SIZE, odd(iv3).begin());
+        shouldEqualSequence(oddRef, oddRef + SIZE, (iv3 & 1).begin());
     }
 
     void testCross()

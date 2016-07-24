@@ -2140,70 +2140,72 @@ operator%(V1 l,
 
 #else
 
-#define VIGRA_TINYARRAY_OPERATORS(op) \
+#define VIGRA_TINYARRAY_OPERATORS(OP) \
 template <class V1, class DERIVED, int ... N, class V2, \
           VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> > \
 DERIVED & \
-operator op##=(TinyArrayBase<V1, DERIVED, N...> & l, \
-               V2 r) \
+operator##OP##=(TinyArrayBase<V1, DERIVED, N...> & l, \
+                V2 r) \
 { \
     for(int i=0; i<l.size(); ++i) \
-        l[i] op##= r; \
+        l[i] OP##= r; \
     return static_cast<DERIVED &>(l); \
 } \
  \
 template <class V1, class DERIVED, class V2, class OTHER_DERIVED, int ... N> \
 inline DERIVED &  \
-operator op##=(TinyArrayBase<V1, DERIVED, N...> & l, \
-               TinyArrayBase<V2, OTHER_DERIVED, N...> const & r) \
+operator##OP##=(TinyArrayBase<V1, DERIVED, N...> & l, \
+                TinyArrayBase<V2, OTHER_DERIVED, N...> const & r) \
 { \
     VIGRA_ASSERT_RUNTIME_SIZE(N..., l.size() == r.size(), \
-        "TinyArrayBase::operator" #op "=(): size mismatch."); \
+        "TinyArrayBase::operator" #OP "=(): size mismatch."); \
     for(int i=0; i<l.size(); ++i) \
-        l[i] op##= r[i]; \
+        l[i] OP##= r[i]; \
     return static_cast<DERIVED &>(l); \
 } \
 template <class V1, class D1, class V2, class D2, int ... N> \
 inline \
-TinyArray<PromoteType<V1, V2>, N...> \
-operator op(TinyArrayBase<V1, D1, N...> const & l, \
-            TinyArrayBase<V2, D2, N...> const & r) \
+TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> \
+operator##OP(TinyArrayBase<V1, D1, N...> const & l, \
+             TinyArrayBase<V2, D2, N...> const & r) \
 { \
-    TinyArray<PromoteType<V1, V2>, N...> res(l); \
-    return res op##= r; \
+    TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> res(l); \
+    return res OP##= r; \
 } \
  \
 template <class V1, class D1, class V2, int ... N, \
           VIGRA_REQUIRE<!TinyArrayConcept<V2>::value> >\
 inline \
-TinyArray<PromoteType<V1, V2>, N...> \
-operator op(TinyArrayBase<V1, D1, N...> const & l, \
-            V2 r) \
+TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> \
+operator##OP(TinyArrayBase<V1, D1, N...> const & l, \
+             V2 r) \
 { \
-    TinyArray<PromoteType<V1, V2>, N...> res(l); \
-    return res op##= r; \
+    TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> res(l); \
+    return res OP##= r; \
 } \
  \
 template <class V1, class V2, class D2, int ... N, \
-          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value> >\
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value && \
+                        !std::is_base_of<std::ios_base, V1>::value> >\
 inline \
-TinyArray<PromoteType<V1, V2>, N...> \
-operator op(V1 l, \
-            TinyArrayBase<V2, D2, N...> const & r) \
+TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> \
+operator##OP(V1 l, \
+             TinyArrayBase<V2, D2, N...> const & r) \
 { \
-    TinyArray<PromoteType<V1, V2>, N...> res(l); \
-    return res op##= r; \
+    TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> res(l); \
+    return res OP##= r; \
 } \
  \
 template <class V1, class V2, class D2, \
-          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value> >\
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value && \
+                        !std::is_base_of<std::ios_base, V1>::value> >\
 inline \
-TinyArray<PromoteType<V1, V2>, runtime_size> \
-operator op(V1 l, \
-            TinyArrayBase<V2, D2, runtime_size> const & r) \
+TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), runtime_size> \
+operator##OP(V1 l, \
+             TinyArrayBase<V2, D2, runtime_size> const & r) \
 { \
-    TinyArray<PromoteType<V1, V2>, runtime_size> res(r.size(), l); \
-    return res op##= r; \
+    TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), runtime_size> res(r.size(), l); \
+    return res OP##= r; \
 }
 
 VIGRA_TINYARRAY_OPERATORS(+)
@@ -2211,12 +2213,90 @@ VIGRA_TINYARRAY_OPERATORS(-)
 VIGRA_TINYARRAY_OPERATORS(*)
 VIGRA_TINYARRAY_OPERATORS(/)
 VIGRA_TINYARRAY_OPERATORS(%)
+VIGRA_TINYARRAY_OPERATORS(&)
+VIGRA_TINYARRAY_OPERATORS(|)
+VIGRA_TINYARRAY_OPERATORS(^)
+VIGRA_TINYARRAY_OPERATORS(<<)
+VIGRA_TINYARRAY_OPERATORS(>>)
 
 #undef VIGRA_TINYARRAY_OPERATORS
 
 #endif // DOXYGEN
 
-    /// Unary negation
+#define VIGRA_TINYARRAY_UNARY_FUNCTION(FCT) \
+template <class V, class D, int ... N> \
+inline \
+TinyArray<BoolPromote<decltype(FCT(*(V*)0))>, N...> \
+FCT(TinyArrayBase<V, D, N...> const & v) \
+{ \
+    TinyArray<BoolPromote<decltype(FCT(*(V*)0))>, N...> res(v.size(), DontInit); \
+    for(int k=0; k < v.size(); ++k) \
+        res[k] = FCT(v[k]); \
+    return res; \
+}
+
+VIGRA_TINYARRAY_UNARY_FUNCTION(abs)
+VIGRA_TINYARRAY_UNARY_FUNCTION(fabs)
+
+VIGRA_TINYARRAY_UNARY_FUNCTION(cos)
+VIGRA_TINYARRAY_UNARY_FUNCTION(sin)
+VIGRA_TINYARRAY_UNARY_FUNCTION(tan)
+VIGRA_TINYARRAY_UNARY_FUNCTION(sin_pi)
+VIGRA_TINYARRAY_UNARY_FUNCTION(cos_pi)
+VIGRA_TINYARRAY_UNARY_FUNCTION(acos)
+VIGRA_TINYARRAY_UNARY_FUNCTION(asin)
+VIGRA_TINYARRAY_UNARY_FUNCTION(atan)
+
+VIGRA_TINYARRAY_UNARY_FUNCTION(cosh)
+VIGRA_TINYARRAY_UNARY_FUNCTION(sinh)
+VIGRA_TINYARRAY_UNARY_FUNCTION(tanh)
+VIGRA_TINYARRAY_UNARY_FUNCTION(acosh)
+VIGRA_TINYARRAY_UNARY_FUNCTION(asinh)
+VIGRA_TINYARRAY_UNARY_FUNCTION(atanh)
+
+VIGRA_TINYARRAY_UNARY_FUNCTION(sqrt)
+VIGRA_TINYARRAY_UNARY_FUNCTION(cbrt)
+VIGRA_TINYARRAY_UNARY_FUNCTION(sqrti)
+VIGRA_TINYARRAY_UNARY_FUNCTION(sq)
+VIGRA_TINYARRAY_UNARY_FUNCTION(elementwiseNorm)
+VIGRA_TINYARRAY_UNARY_FUNCTION(elementwiseSquaredNorm)
+
+VIGRA_TINYARRAY_UNARY_FUNCTION(exp)
+VIGRA_TINYARRAY_UNARY_FUNCTION(exp2)
+VIGRA_TINYARRAY_UNARY_FUNCTION(expm1)
+VIGRA_TINYARRAY_UNARY_FUNCTION(log)
+VIGRA_TINYARRAY_UNARY_FUNCTION(log2)
+VIGRA_TINYARRAY_UNARY_FUNCTION(log10)
+VIGRA_TINYARRAY_UNARY_FUNCTION(log1p)
+VIGRA_TINYARRAY_UNARY_FUNCTION(logb)
+VIGRA_TINYARRAY_UNARY_FUNCTION(ilogb)
+
+VIGRA_TINYARRAY_UNARY_FUNCTION(ceil)
+VIGRA_TINYARRAY_UNARY_FUNCTION(floor)
+VIGRA_TINYARRAY_UNARY_FUNCTION(trunc)
+VIGRA_TINYARRAY_UNARY_FUNCTION(round)
+VIGRA_TINYARRAY_UNARY_FUNCTION(lround)
+VIGRA_TINYARRAY_UNARY_FUNCTION(llround)
+VIGRA_TINYARRAY_UNARY_FUNCTION(roundi)
+VIGRA_TINYARRAY_UNARY_FUNCTION(even)
+VIGRA_TINYARRAY_UNARY_FUNCTION(odd)
+VIGRA_TINYARRAY_UNARY_FUNCTION(sign)
+VIGRA_TINYARRAY_UNARY_FUNCTION(signi)
+
+VIGRA_TINYARRAY_UNARY_FUNCTION(erf)
+VIGRA_TINYARRAY_UNARY_FUNCTION(erfc)
+VIGRA_TINYARRAY_UNARY_FUNCTION(tgamma)
+VIGRA_TINYARRAY_UNARY_FUNCTION(lgamma)
+VIGRA_TINYARRAY_UNARY_FUNCTION(loggamma)
+
+VIGRA_TINYARRAY_UNARY_FUNCTION(conj)
+VIGRA_TINYARRAY_UNARY_FUNCTION(real)
+VIGRA_TINYARRAY_UNARY_FUNCTION(imag)
+VIGRA_TINYARRAY_UNARY_FUNCTION(arg)
+
+#undef VIGRA_TINYARRAY_UNARY_FUNCTION
+
+    /// Arithmetic negation
 template <class V, class D, int ... N>
 inline
 TinyArray<V, N...>
@@ -2228,82 +2308,53 @@ operator-(TinyArrayBase<V, D, N...> const & v)
     return res;
 }
 
-    /// element-wise absolute value
+    /// Boolean negation
 template <class V, class D, int ... N>
 inline
 TinyArray<V, N...>
-abs(TinyArrayBase<V, D, N...> const & v)
+operator!(TinyArrayBase<V, D, N...> const & v)
 {
     TinyArray<V, N...> res(v.size(), DontInit);
     for(int k=0; k < v.size(); ++k)
-        res[k] = abs(v[k]);
+        res[k] = !v[k];
     return res;
 }
 
-    /** Apply ceil() function to each vector component.
-    */
+    /// Bitwise negation
 template <class V, class D, int ... N>
 inline
 TinyArray<V, N...>
-ceil(TinyArrayBase<V, D, N...> const & v)
+operator~(TinyArrayBase<V, D, N...> const & v)
 {
     TinyArray<V, N...> res(v.size(), DontInit);
     for(int k=0; k < v.size(); ++k)
-        res[k] = ceil(v[k]);
+        res[k] = ~v[k];
     return res;
 }
 
-    /** Apply floor() function to each vector component.
-    */
-template <class V, class D, int ... N>
-inline
-TinyArray<V, N...>
-floor(TinyArrayBase<V, D, N...> const & v)
-{
-    TinyArray<V, N...> res(v.size(), DontInit);
-    for(int k=0; k < v.size(); ++k)
-        res[k] = floor(v[k]);
-    return res;
+#define VIGRA_TINYARRAY_BINARY_FUNCTION(FCT) \
+template <class V1, class D1, class V2, class D2, int ... N> \
+inline \
+TinyArray<decltype(FCT(*(V1*)0, *(V2*)0)), N...> \
+FCT(TinyArrayBase<V1, D1, N...> const & l, \
+    TinyArrayBase<V2, D2, N...> const & r) \
+{ \
+    vigra_assert(l.size() == r.size(), #FCT "(TinyArray, TinyArray): size mismatch."); \
+    TinyArray<decltype(FCT(*(V1*)0, *(V2*)0)), N...> res(l.size(), DontInit); \
+    for(int k=0; k < l.size(); ++k) \
+        res[k] = FCT(l[k], r[k]); \
+    return res; \
 }
 
-    /** Apply round() function to each vector component.
-    */
-template <class V, class D, int ... N>
-inline
-TinyArray<V, N...>
-round(TinyArrayBase<V, D, N...> const & v)
-{
-    TinyArray<V, N...> res(v.size(), DontInit);
-    for(int k=0; k < v.size(); ++k)
-        res[k] = round(v[k]);
-    return res;
-}
+VIGRA_TINYARRAY_BINARY_FUNCTION(atan2)
+VIGRA_TINYARRAY_BINARY_FUNCTION(copysign)
+VIGRA_TINYARRAY_BINARY_FUNCTION(fdim)
+VIGRA_TINYARRAY_BINARY_FUNCTION(fmax)
+VIGRA_TINYARRAY_BINARY_FUNCTION(fmin)
+VIGRA_TINYARRAY_BINARY_FUNCTION(fmod)
+VIGRA_TINYARRAY_BINARY_FUNCTION(hypot)
 
-    /** Apply roundi() function to each vector component, i.e. return an integer vector.
-    */
-template <class V, class D, int ... N>
-inline
-TinyArray<ArrayIndex, N...>
-roundi(TinyArrayBase<V, D, N...> const & v)
-{
-    TinyArray<ArrayIndex, N...> res(v.size(), DontInit);
-    for(int k=0; k < v.size(); ++k)
-        res[k] = roundi(v[k]);
-    return res;
-}
-
-    /** Apply sqrt() function to each vector component.
-    */
-template <class V, class D, int ... N>
-inline
-TinyArray<RealPromoteType<V>, N...>
-sqrt(TinyArrayBase<V, D, N...> const & v)
-{
-    TinyArray<RealPromoteType<V>, N...> res(v.size(), DontInit);
-    for(int k=0; k < v.size(); ++k)
-        res[k] = sqrt(v[k]);
-    return res;
-}
+#undef VIGRA_TINYARRAY_BINARY_FUNCTION
 
     /** Apply pow() function to each vector component.
     */
@@ -2494,39 +2545,6 @@ max(TinyArrayBase<V1, D1, N...> const & l,
         res[k] =  max<PromoteType<V1, V2> >(l[k], r[k]);
     return res;
 }
-
-// // we also have to overload max for like-typed argument to prevent match of std::max()
-// template <class V, class D, int ...N>
-// inline TinyArray<V, N...>
-// max(TinyArrayBase<V, D, N...> const & l,
-    // TinyArrayBase<V, D, N...> const & r)
-// {
-    // return maxImpl(l, r);
-// }
-
-// template <class V, int ...N>
-// inline TinyArray<V, N...>
-// max(TinyArray<V, N...> const & l,
-    // TinyArray<V, N...> const & r)
-// {
-    // return maxImpl(l, r);
-// }
-
-// template <class V, int ...N>
-// inline TinyArray<V, N...>
-// max(TinyArrayView<V, N...> const & l,
-    // TinyArrayView<V, N...> const & r)
-// {
-    // return maxImpl(l, r);
-// }
-
-// template <class V, int N>
-// inline TinyArray<V, N*(N+1)/2>
-// max(TinySymmetricView<V, N> const & l,
-    // TinySymmetricView<V, N> const & r)
-// {
-    // return maxImpl(l, r);
-// }
 
     /** Index of maximal element.
 
@@ -2791,6 +2809,9 @@ struct PromoteTraits<TinySymmetricView<T1, N>, TinySymmetricView<T2, N> >
     static const bool value = PromoteTraits<T1, T2>::value;
     typedef TinyArray<PromoteType<T1, T2>, N*(N+1)/2>  type;
 };
+
+////////////////////////////////////////////////////////////
+// NumericTraits specializations
 
 template <class T, class D, int ...N>
 struct NumericTraits<TinyArrayBase<T, D, N...>>
