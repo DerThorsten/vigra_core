@@ -159,6 +159,12 @@ using PromoteType = typename PromoteTraits<T1, T2>::type;
 template <bool Cond, class T1, class T2 = T1>
 using PromoteTypeIf = enable_if_t<Cond, PromoteType<T1, T2> >;
 
+///////////////////////////////////////////////////////////////
+// BoolPromote
+
+    // replace 'bool' with 'unsigned char'
+template <class T>
+using BoolPromote = typename std::conditional<std::is_same<T, bool>::value, unsigned char, T>::type;
 
 ///////////////////////////////////////////////////////////////
 // RealPromoteTraits
