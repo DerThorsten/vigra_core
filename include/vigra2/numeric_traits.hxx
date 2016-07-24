@@ -41,6 +41,8 @@
 #include <cmath>    // abs(double)
 #include <cstdlib>  // abs(int)
 #include <complex>
+#include <limits>
+
 #include "config.hxx"
 #include "concepts.hxx"
 
