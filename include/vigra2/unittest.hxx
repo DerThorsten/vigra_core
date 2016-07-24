@@ -51,17 +51,6 @@
 #include "config.hxx"
 #include "error.hxx"
 
-#ifdef VIGRA_NO_WORKING_STRINGSTREAM
-#include <strstream>
-#define VIGRA_SSTREAM std::strstream
-#define VIGRA_SSTREAM_STR(s) ((s << char()), std::string(s.str()))
-#else
-#include <sstream>
-#define VIGRA_SSTREAM std::basic_stringstream<char>
-#define VIGRA_SSTREAM_STR(s) s.str()
-#endif
-
-
 #ifdef _MSC_VER
 
 #include <wtypes.h>
@@ -153,13 +142,7 @@ class test_suite;
 
 namespace detail {
 
-struct errstream
-{
-    VIGRA_SSTREAM buf;
-    std::string str() { return VIGRA_SSTREAM_STR(buf); }
-    template <class T>
-    errstream & operator<<(T t) { buf << t;  return *this; }
-};
+typedef std::stringstream errstream;
 
 inline std::string & exception_checkpoint()
 {
