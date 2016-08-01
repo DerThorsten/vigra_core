@@ -43,6 +43,7 @@
 #include "mathutil.hxx"
 #include <iosfwd>   // ostream
 #include <algorithm>
+#include <memory>
 #include <iterator>
 #include <utility>
 
