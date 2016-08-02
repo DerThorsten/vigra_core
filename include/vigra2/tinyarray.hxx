@@ -59,61 +59,11 @@
 
 namespace vigra {
 
-namespace lemon {
-
-#if defined(VIGRA_WITH_LEMON)
-
-using Invalid = ::lemon::Invalid;
-
-#else
-
-struct Invalid
-{
-  public:
-    bool operator==(Invalid) { return true;  }
-    bool operator!=(Invalid) { return false; }
-    bool operator< (Invalid) { return false; }
-};
-
-#endif
-
-const Invalid INVALID = Invalid();
-
-} // namespace lemon
-
 // mask cl.exe shortcomings [begin]
 #if defined(_MSC_VER)
 #pragma warning( push )
 #pragma warning( disable : 4503 )
 #endif
-
-namespace tags {
-
-struct SizeProxy
-{
-    ArrayIndex value;
-};
-
-struct SizeTag
-{
-    SizeProxy operator=(ArrayIndex s) const
-    {
-        return {s};
-    }
-
-    SizeProxy operator()(ArrayIndex s) const
-    {
-        return {s};
-    }
-};
-
-namespace {
-
-SizeTag size;
-
-}
-
-} // namespace tags
 
 using std::swap;
 
@@ -189,12 +139,6 @@ struct TinySize
     static const ArrayIndex value = TinyShapeImpl<0, N...>::total_size;
     static const ArrayIndex ndim  = sizeof...(N);
 };
-
-template <class VALUETYPE, int M=runtime_size, int ... N>
-class TinyArray;
-
-template <class VALUETYPE, int M=runtime_size, int ... N>
-class TinyArrayView;
 
 namespace detail {
 
@@ -669,12 +613,25 @@ class TinyArrayBase
     }
 
         /// factory function for the fixed-size k-th unit vector
-    template <int SIZE>
+    template <int SIZE=static_size>
     static inline
     TinyArray<value_type, SIZE>
     unitVector(ArrayIndex k)
     {
         TinyArray<value_type, SIZE> res;
+        res(k) = 1;
+        return res;
+    }
+
+        /// factory function for the k-th unit vector
+        // (for compatibility with TinyArray<..., runtime_size>)
+    static inline
+    TinyArray<value_type, static_size>
+    unitVector(tags::SizeProxy const & size, ArrayIndex k)
+    {
+        vigra_assert(size.value == static_size,
+            "TinyArray::unitVector(): size mismatch.");
+        TinyArray<value_type, static_size> res;
         res(k) = 1;
         return res;
     }
@@ -1040,9 +997,9 @@ class TinyArrayBase<VALUETYPE, DERIVED, runtime_size>
         /// factory function for the fixed-size k-th unit vector
     static inline
     TinyArray<value_type, runtime_size>
-    unitVector(ArrayIndex size, ArrayIndex k)
+    unitVector(tags::SizeProxy const & size, ArrayIndex k)
     {
-        TinyArray<value_type, runtime_size> res(size);
+        TinyArray<value_type, runtime_size> res(size.value);
         res[k] = 1;
         return res;
     }
@@ -1149,7 +1106,7 @@ class TinyArray
 
         // for compatibility with TinyArray<VALUETYPE, runtime_size>
     explicit
-    TinyArray(tags::SizeProxy size,
+    TinyArray(tags::SizeProxy const & size,
               value_type const & v = value_type())
     : BaseType(v)
     {
@@ -1158,7 +1115,7 @@ class TinyArray
     }
 
         // for compatibility with TinyArray<VALUETYPE, runtime_size>
-    TinyArray(tags::SizeProxy size, SkipInitialization)
+    TinyArray(tags::SizeProxy const & size, SkipInitialization)
     : BaseType(DontInit)
     {
         vigra_assert(size.value == static_size,
@@ -1298,7 +1255,7 @@ class TinyArray<VALUETYPE, runtime_size>
     }
 
     explicit
-    TinyArray(tags::SizeProxy size,
+    TinyArray(tags::SizeProxy const & size,
               value_type const & initial = value_type())
     : TinyArray(size.value, initial)
     {}
@@ -1794,6 +1751,32 @@ operator==(TinyArrayBase<V1, D1, M...> const & l,
     return true;
 }
 
+    /// element-wise equal to a constant
+template <class V1, class D1, class V2, int ...M,
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+inline bool
+operator==(TinyArrayBase<V1, D1, M...> const & l,
+           V2 const & r)
+{
+    for(int k=0; k < l.size(); ++k)
+        if(l[k] != r)
+            return false;
+    return true;
+}
+
+    /// element-wise equal to a constant
+template <class V1, class V2, class D2, int ...M,
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+inline bool
+operator==(V1 const & l,
+           TinyArrayBase<V2, D2, M...> const & r)
+{
+    for(int k=0; k < r.size(); ++k)
+        if(l != r[k])
+            return false;
+    return true;
+}
+
     /// element-wise not equal
 template <class V1, class D1, class V2, class D2, int ... M, int ... N>
 inline bool
@@ -1804,6 +1787,32 @@ operator!=(TinyArrayBase<V1, D1, M...> const & l,
         return true;
     for(int k=0; k < l.size(); ++k)
         if(l[k] != r[k])
+            return true;
+    return false;
+}
+
+    /// element-wise not equal to a constant
+template <class V1, class D1, class V2, int ... M,
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+inline bool
+operator!=(TinyArrayBase<V1, D1, M...> const & l,
+           V2 const & r)
+{
+    for(int k=0; k < l.size(); ++k)
+        if(l[k] != r)
+            return true;
+    return false;
+}
+
+    /// element-wise not equal to a constant
+template <class V1, class V2, class D2, int ... N,
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+inline bool
+operator!=(V1 const & l,
+           TinyArrayBase<V2, D2, N...> const & r)
+{
+    for(int k=0; k < r.size(); ++k)
+        if(l != r[k])
             return true;
     return false;
 }
@@ -2204,7 +2213,7 @@ TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), runtime_size> \
 operator##OP(V1 l, \
              TinyArrayBase<V2, D2, runtime_size> const & r) \
 { \
-    TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), runtime_size> res(r.size(), l); \
+    TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), runtime_size> res(tags::size=r.size(), l); \
     return res OP##= r; \
 }
 

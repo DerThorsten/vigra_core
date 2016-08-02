@@ -182,7 +182,7 @@ struct TinyArrayTest
 
         for(int k=0; k<SIZE; ++k)
         {
-            IV iv = IV::template unitVector<SIZE>(k);
+            IV iv = IV::unitVector(k);
             shouldEqual(iv[k], 1);
             iv[k] = 0;
             should(!any(iv));
@@ -221,8 +221,12 @@ struct TinyArrayTest
     void testComparison()
     {
         should(bv0 == bv0);
+        should(bv0 == 0);
+        should(0 == bv0);
         should(iv0 == iv0);
         should(fv0 == fv0);
+        should(fv0 == 0);
+        should(0 == fv0);
         should(iv0 == bv0);
         should(iv0 == fv0);
         should(fv0 == bv0);
@@ -232,7 +236,11 @@ struct TinyArrayTest
         should(fv3 == fv3);
         should(iv3 == bv3);
         should(iv3 != fv3);
+        should(iv3 != 0);
+        should(0 != iv3);
         should(fv3 != bv3);
+        should(fv3 != 0);
+        should(0 != fv3);
 
         should(bv0 < bv1);
 
@@ -670,6 +678,8 @@ struct TinyArrayTest
         shouldNot(lemon::INVALID != invalid1);
         shouldNot(a == lemon::INVALID);
         shouldNot(lemon::INVALID == a);
+
+        shouldEqual(A::unitVector(tags::size = 3, 1), TA::unitVector(1));
     }
 };
 
