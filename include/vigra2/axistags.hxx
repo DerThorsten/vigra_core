@@ -59,23 +59,6 @@ enum AxisType { Channels = 1,
                 NonChannel = Space | Angle | Time | Frequency | UnknownAxisType,
                 AllAxes = 2*UnknownAxisType-1 };
 
-    // tags are arranged in sorting order
-enum AxisTag  { no_channel_axis = -1,
-                axis_unknown = 0,
-                axis_c,  // channel axis
-                axis_n,  // node map for a graph
-                axis_x,  // spatial x-axis
-                axis_y,  // spatial y-axis
-                axis_z,  // spatial z-axis
-                axis_t,  // time axis
-                axis_fx, // Fourier transform of x-axis
-                axis_fy, // Fourier transform of y-axis
-                axis_fz, // Fourier transform of z-axis
-                axis_ft, // Fourier transform of t-axis
-                axis_e,  // edge map for a graph
-                axis_end // marker for the end of the list
-              };
-
     // order must conform to the indices of AxisTag
 const char * AxisTagKeys[] = { "?",
                                "c",
@@ -105,30 +88,6 @@ AxisType AxisTagTypes[] = { UnknownAxisType,             // unknown
                             AxisType(Time | Frequency),  // ft
                             Edge                         // e
                           };
-
-struct AxisSelectionProxy
-{
-    int value;
-};
-
-struct AxisSelectionTag
-{
-    AxisSelectionProxy operator=(int i) const
-    {
-        return {i};
-    }
-
-    AxisSelectionProxy operator()(int i) const
-    {
-        return {i};
-    }
-};
-
-namespace {
-
-AxisSelectionTag axis;
-
-}
 
 } // namespace tags
 

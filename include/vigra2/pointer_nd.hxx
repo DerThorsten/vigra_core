@@ -87,43 +87,6 @@ struct ArrayMathExpression;
 
 /********************************************************/
 /*                                                      */
-/*                  tags::byte_strides                  */
-/*                                                      */
-/********************************************************/
-
-namespace tags {
-
-template <int N>
-struct ByteStridesProxy
-{
-    Shape<N> value;
-};
-
-struct ByteStridesTag
-{
-    template <int N>
-    ByteStridesProxy<N> operator=(Shape<N> const & s) const
-    {
-        return {s};
-    }
-
-    template <int N>
-    ByteStridesProxy<N> operator()(Shape<N> const & s) const
-    {
-        return {s};
-    }
-};
-
-namespace {
-
-ByteStridesTag byte_strides;
-
-}
-
-} // namespace tags
-
-/********************************************************/
-/*                                                      */
 /*                       PointerND                      */
 /*                                                      */
 /********************************************************/
@@ -570,10 +533,18 @@ public:
         return N;
     }
 
-    // unsigned int borderType() const
-    // {
-        // return detail::BorderTypeImpl<N>::exec(point_, shape_);
-    // }
+    unsigned int borderType() const
+    {
+        unsigned int res = 0;
+        for(int k=0; k<ndim(); ++k)
+        {
+            if(point_[k] == 0)
+                res |= (1 << 2*k);
+            if(point_[k] == shape_[k]-1)
+                res |= (2 << 2*k);
+        }
+        return res;
+    }
 
     value_type point_, shape_;
 };

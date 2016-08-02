@@ -39,21 +39,10 @@
 #define VIGRA2_CONCEPTS_HXX
 
 #include "config.hxx"
+#include "tags.hxx"
 #include <type_traits>
 
 namespace vigra {
-
-    /// use biggest signed type for array indexing
-using ArrayIndex = std::ptrdiff_t;
-
-    /// constants to specialize templates whose size/ndim is only known at runtime
-static const int runtime_size  = -1;
-static const int runtime_ndim  = -1;
-static const int runtime_order = -1;
-
-enum SkipInitialization { DontInit };
-enum ReverseCopyTag { ReverseCopy };
-enum MemoryOrder { C_ORDER = 1, F_ORDER = 2, RowMajor = C_ORDER, ColumnMajor = F_ORDER };
 
 /**********************************************************/
 /*                                                        */
