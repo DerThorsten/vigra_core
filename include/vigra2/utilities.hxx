@@ -1,10 +1,10 @@
 /************************************************************************/
 /*                                                                      */
-/*               Copyright 1998-2002 by Ullrich Koethe                  */
+/*               Copyright 2014-2016 by Ullrich Koethe                  */
 /*                                                                      */
-/*    This file is part of the VIGRA computer vision library.           */
-/*    The VIGRA Website is                                              */
-/*        http://hci.iwr.uni-heidelberg.de/vigra/                       */
+/*    This file is part of the VIGRA2 computer vision library.          */
+/*    The VIGRA2 Website is                                             */
+/*        http://ukoethe.github.io/vigra2                               */
 /*    Please direct questions, bug reports, and contributions to        */
 /*        ullrich.koethe@iwr.uni-heidelberg.de    or                    */
 /*        vigra@informatik.uni-hamburg.de                               */
@@ -33,9 +33,10 @@
 /*                                                                      */
 /************************************************************************/
 
+#pragma once
 
-#ifndef VIGRA_BASICS_HXX
-#define VIGRA_BASICS_HXX
+#ifndef VIGRA2_UTILITIES_HXX
+#define VIGRA2_UTILITIES_HXX
 
 /*#include "config.hxx"
 #include "error.hxx"
@@ -217,4 +218,4 @@ ostream & operator<<(ostream & s, std::pair<T1, T2> const & p)
 #endif
 }
 
-#endif // VIGRA_BASICS_HXX
+#endif // VIGRA2_UTILITIES_HXX
