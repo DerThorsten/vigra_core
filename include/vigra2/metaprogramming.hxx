@@ -40,6 +40,12 @@
 
 namespace vigra {
 
+/****************************************************************************/
+/*                                                                          */
+/*                       integral_min / integral_max                        */
+/*                                                                          */
+/****************************************************************************/
+
 template <long long L, long long R>
 struct integral_min
 {
@@ -57,6 +63,24 @@ struct integral_minmax
 {
     static const long long min = L < R ? L : R;
     static const long long max = L < R ? R : L;
+};
+
+/****************************************************************************/
+/*                                                                          */
+/*                                  MetaPow                                 */
+/*                                                                          */
+/****************************************************************************/
+
+template <int X, unsigned int N>
+struct MetaPow
+{
+    static const long long value = MetaPow<X, N-1>::value * X;
+};
+
+template <int X>
+struct MetaPow<X, 0>
+{
+    static const long long value = 1;
 };
 
 } // namespace vigra
