@@ -43,6 +43,7 @@
 #include "mathutil.hxx"
 #include <iosfwd>   // ostream
 #include <algorithm>
+#include <memory>
 #include <iterator>
 #include <utility>
 
@@ -2153,7 +2154,7 @@ operator%(V1 l,
 template <class V1, class DERIVED, int ... N, class V2, \
           VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> > \
 DERIVED & \
-operator##OP##=(TinyArrayBase<V1, DERIVED, N...> & l, \
+operator OP##=(TinyArrayBase<V1, DERIVED, N...> & l, \
                 V2 r) \
 { \
     for(int i=0; i<l.size(); ++i) \
@@ -2163,7 +2164,7 @@ operator##OP##=(TinyArrayBase<V1, DERIVED, N...> & l, \
  \
 template <class V1, class DERIVED, class V2, class OTHER_DERIVED, int ... N> \
 inline DERIVED &  \
-operator##OP##=(TinyArrayBase<V1, DERIVED, N...> & l, \
+operator OP##=(TinyArrayBase<V1, DERIVED, N...> & l, \
                 TinyArrayBase<V2, OTHER_DERIVED, N...> const & r) \
 { \
     VIGRA_ASSERT_RUNTIME_SIZE(N..., l.size() == r.size(), \
@@ -2175,7 +2176,7 @@ operator##OP##=(TinyArrayBase<V1, DERIVED, N...> & l, \
 template <class V1, class D1, class V2, class D2, int ... N> \
 inline \
 TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> \
-operator##OP(TinyArrayBase<V1, D1, N...> const & l, \
+operator OP(TinyArrayBase<V1, D1, N...> const & l, \
              TinyArrayBase<V2, D2, N...> const & r) \
 { \
     TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> res(l); \
@@ -2186,7 +2187,7 @@ template <class V1, class D1, class V2, int ... N, \
           VIGRA_REQUIRE<!TinyArrayConcept<V2>::value> >\
 inline \
 TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> \
-operator##OP(TinyArrayBase<V1, D1, N...> const & l, \
+operator OP(TinyArrayBase<V1, D1, N...> const & l, \
              V2 r) \
 { \
     TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> res(l); \
@@ -2198,7 +2199,7 @@ template <class V1, class V2, class D2, int ... N, \
                         !std::is_base_of<std::ios_base, V1>::value> >\
 inline \
 TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> \
-operator##OP(V1 l, \
+operator OP(V1 l, \
              TinyArrayBase<V2, D2, N...> const & r) \
 { \
     TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> res(l); \
@@ -2210,7 +2211,7 @@ template <class V1, class V2, class D2, \
                         !std::is_base_of<std::ios_base, V1>::value> >\
 inline \
 TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), runtime_size> \
-operator##OP(V1 l, \
+operator OP(V1 l, \
              TinyArrayBase<V2, D2, runtime_size> const & r) \
 { \
     TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), runtime_size> res(tags::size=r.size(), l); \
