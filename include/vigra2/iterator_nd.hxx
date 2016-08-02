@@ -734,15 +734,15 @@ class IteratorND
         return res;
     }
 
-    // bool atBorder() const
-    // {
-        // return (pointers_.borderType() != 0);
-    // }
+    bool atBorder() const
+    {
+        return (pointers_.borderType() != 0);
+    }
 
-    // unsigned int borderType() const
-    // {
-        // return pointers_.borderType();
-    // }
+    unsigned int borderType() const
+    {
+        return pointers_.borderType();
+    }
 
     reference pointer_nd()
     {
