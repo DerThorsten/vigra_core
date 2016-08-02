@@ -734,6 +734,12 @@ class IteratorND
         return res;
     }
 
+    template <class SHAPE>
+    bool isInside(SHAPE const & p) const
+    {
+        return p.size() == ndim() && allLessEqual(0, p) && allLess(p, shape());
+    }
+
     bool atBorder() const
     {
         return (pointers_.borderType() != 0);
