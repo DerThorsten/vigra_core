@@ -331,18 +331,15 @@ struct NeighborhoodTests
         shouldEqual(pos, S(tags::size=ndim, 1));   // check that all causal neighbors were found
         shouldEqual(neg, S(tags::size = ndim, -1));  // check that all anti-causal neighbors were found
         
-        ArrayND<1, uint8_t> checkNeighborCodes(Shape<1>(neighborExists.size()), (uint8_t)0);
-
         // check neighborhoods at ROI border
-        ArrayND<N, int> a(S(tags::size = ndim, 3));
-        S corner(tags::size = ndim);
-        for(auto i = a.coordinates(); i.isValid(); ++i)
+        ArrayND<1, uint8_t> checkNeighborCodes(Shape<1>(neighborExists.size()), (uint8_t)0);
+        CoordinateIterator<N> i(S(tags::size = ndim, 3));
+        for(; i.isValid(); ++i)
         {
             // create all possible array shapes from 1**N to 3**N
-            auto va = a.subarray(corner, *i+1);
-            
-            // check neighborhood of all pixels
-            for(auto vi = va.begin(); vi.isValid(); ++vi)
+            // and check neighborhood of all pixels
+            CoordinateIterator<N> vi(*i + 1);
+            for(; vi.isValid(); ++vi)
             {
                 int borderType = vi.borderType();
                 
@@ -352,11 +349,11 @@ struct NeighborhoodTests
                 for(unsigned k=0; k<neighborCount; ++k)
                 {
                     // check that neighbors are correctly marked as inside or outside in neighborExists
-                    shouldEqual(va.isInside(vi.coord()+neighborOffsets[k]), neighborExists[borderType][k]);
+                    shouldEqual(vi.isInside(vi.coord()+neighborOffsets[k]), neighborExists[borderType][k]);
                 }
             }
         }
-        
+
         should(checkNeighborCodes.all()); // check that all possible neighborhoods have been tested
     }
 
@@ -393,17 +390,14 @@ struct NeighborhoodTests
         shouldEqual(minmax[0], 1);
         shouldEqual(minmax[1], 1);
         
-        ArrayND<1, uint8_t> checkNeighborCodes(Shape<1>(neighborExists.size()), (uint8_t)0);
-
         // check neighborhoods at ROI border
-        S corner(tags::size = ndim);
+        ArrayND<1, uint8_t> checkNeighborCodes(Shape<1>(neighborExists.size()), (uint8_t)0);
         for(auto i = a.coordinates(); i.isValid(); ++i)
         {
             // create all possible array shapes from 1**N to 3**N
-            auto va = a.subarray(corner, *i + 1);
-            
-            // check neighborhood of all pixels
-            for(auto vi = va.begin(); vi.isValid(); ++vi)
+            // and check neighborhood of all pixels
+            CoordinateIterator<N> vi(*i + 1);
+            for(; vi.isValid(); ++vi)
             {
                 int borderType = vi.borderType();
                 
@@ -413,7 +407,7 @@ struct NeighborhoodTests
                 for(int k=0; k<neighborCount; ++k)
                 {
                     // check that neighbors are correctly marked as inside or outside in neighborExists
-                    shouldEqual(va.isInside(vi.coord()+neighborOffsets[k]), neighborExists[borderType][k]);
+                    shouldEqual(vi.isInside(vi.coord()+neighborOffsets[k]), neighborExists[borderType][k]);
                 }
             }
         }
