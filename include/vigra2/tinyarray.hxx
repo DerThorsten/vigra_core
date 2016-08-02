@@ -1911,6 +1911,34 @@ allLessEqual(TinyArrayBase<V1, D1, N...> const & l,
     return true;
 }
 
+    /// pointwise less-equal with a constant
+    // (typically used to check non-positivity with `r = 0`)
+template <class V1, class D1, class V2, int ... N,
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+inline bool
+allLessEqual(TinyArrayBase<V1, D1, N...> const & l,
+             V2 const & r)
+{
+    for(int k=0; k < l.size(); ++k)
+        if (l[k] > r)
+            return false;
+    return true;
+}
+
+    /// pointwise less-equal with a constant
+    // (typically used to check non-negativity with `l = 0`)
+template <class V1, class V2, class D2, int ... N,
+          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+inline bool
+allLessEqual(V1 const & l,
+             TinyArrayBase<V2, D2, N...> const & r)
+{
+    for(int k=0; k < r.size(); ++k)
+        if (l > r[k])
+            return false;
+    return true;
+}
+
     /// pointwise greater-equal
 template <class V1, class D1, class V2, class D2, int ... N>
 inline bool

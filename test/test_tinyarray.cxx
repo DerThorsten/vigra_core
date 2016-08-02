@@ -249,6 +249,8 @@ struct TinyArrayTest
         should(allGreater(bv1, bv0));
         should(!allGreater(bv3, bv1));
         should(allLessEqual(bv0, bv1));
+        should(allLessEqual(0, bv0));
+        should(allLessEqual(bv0, 0));
         should(allLessEqual(bv1, bv3));
         should(!allLessEqual(bv3, bv1));
         should(allGreaterEqual(bv1, bv0));
