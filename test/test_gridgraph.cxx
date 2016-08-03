@@ -67,6 +67,92 @@ inline ArrayIndex gridGraphMaxDegree(unsigned int N, NeighborhoodType t)
         : pow(3, (int)N) - 1;
 }
 
+template<int N>
+class GridGraphArcDescriptor
+    : public Shape<(N == runtime_size) ? N : N + 1>
+{
+public:
+    static const int dimension = (N == runtime_size) ? N : N + 1;
+    typedef Shape<dimension>                                     base_type;
+    typedef typename base_type::value_type                       value_type;
+    typedef base_type                                            edge_coord_type;
+    typedef value_type                                           index_type;
+    typedef Shape<N>                                             shape_type;
+    typedef decltype(((base_type*)0)->template subarray<0, 1>())  vertex_descriptor_view;
+
+    GridGraphArcDescriptor()
+        : is_reversed_(false)
+    {}
+
+    GridGraphArcDescriptor(lemon::Invalid)
+        : base_type(tags::size = dimension, -1)
+        , is_reversed_(false)
+    {}
+
+    GridGraphArcDescriptor(base_type const & b, bool reversed)
+        : base_type(b)
+        , is_reversed_(reversed)
+    {}
+
+    GridGraphArcDescriptor(shape_type const &vertex,
+        index_type edge_index,
+        bool reversed = false)
+        : base_type(tags::size = vertex.size() + 1, DontInit)
+        , is_reversed_(reversed)
+    {
+        for (int k = 0; k < vertex.size(); ++k)
+            (*this)[k] = vertex[k];
+        this->back() = edge_index;
+    }
+
+    void set(shape_type const & vertex, index_type edge_index, bool reversed)
+    {
+        GridGraphArcDescriptor(vertex, edge_index, reversed).swap(*this);
+    }
+
+    void increment(GridGraphArcDescriptor const & diff, bool opposite = false)
+    {
+        if (diff.is_reversed_)
+        {
+            is_reversed_ = !opposite;
+            for (int k = 0; k < this->size() - 1; ++k)
+                (*this)[k] += diff[k];
+        }
+        else
+        {
+            is_reversed_ = opposite;
+        }
+        this->back() = diff.back();
+    }
+
+    bool isReversed() const
+    {
+        return is_reversed_;
+    }
+
+    template <int M = N>
+    enable_if_t<M != runtime_size, vertex_descriptor_view>
+        vertexDescriptor() const
+    {
+        return this->template subarray<0, N>();
+    }
+
+    template <int M = N>
+    enable_if_t<M == runtime_size, vertex_descriptor_view>
+        vertexDescriptor() const
+    {
+        return this->subarray(0, this->size() - 1);
+    }
+
+    value_type edgeIndex() const
+    {
+        return this->back();
+    }
+
+protected:
+    bool is_reversed_;
+};
+
 namespace detail {
 
 // Create the list of neighbor offsets for the given neighborhood type
@@ -127,9 +213,70 @@ makeArrayNeighborhood(
     }
 }
 
-}} // namespace vigra::detail
+template <class SHAPE>
+void
+computeNeighborIncrements(
+    std::vector<SHAPE> const & neighborOffsets,
+    std::vector<std::vector<bool> > const & neighborExists,
+    std::vector<std::vector<SHAPE> > & adjacentNodeIncrements,
+    std::vector<std::vector<GridGraphArcDescriptor<SHAPE::static_size>>> & adjacentArcIncrements,
+    std::vector<std::vector<ArrayIndex> > & indices,
+    std::vector<std::vector<ArrayIndex> > & backIndices,
+    bool directed)
+{
+    typedef GridGraphArcDescriptor<SHAPE::static_size> ArcDescriptor;
 
+    unsigned int borderTypeCount = neighborExists.size();
+    adjacentNodeIncrements.resize(borderTypeCount);
+    adjacentArcIncrements.resize(borderTypeCount);
+    indices.resize(borderTypeCount);
+    backIndices.resize(borderTypeCount);
 
+    for (unsigned int bt = 0; bt<borderTypeCount; ++bt)
+    {
+        adjacentNodeIncrements[bt].clear();
+        adjacentArcIncrements[bt].clear();
+        indices[bt].clear();
+        backIndices[bt].clear();
+
+        for (unsigned int j = 0; j < neighborOffsets.size(); ++j)
+        {
+            if (neighborExists[bt][j])
+            {
+                if (adjacentNodeIncrements[bt].size() == 0)
+                {
+                    adjacentNodeIncrements[bt].push_back(neighborOffsets[j]);
+                }
+                else
+                {
+                    adjacentNodeIncrements[bt].push_back(neighborOffsets[j] - neighborOffsets[indices[bt].back()]);
+                }
+
+                if (directed || j < neighborOffsets.size() / 2) // directed or backward edge
+                {
+                    adjacentArcIncrements[bt].push_back(ArcDescriptor(Shape(), j));
+                }
+                else if (adjacentArcIncrements[bt].size() == 0 || !adjacentArcIncrements[bt].back().isReversed()) // the first forward edge
+                {
+                    adjacentArcIncrements[bt].push_back(ArcDescriptor(neighborOffsets[j], neighborOffsets.size() - j - 1, true));
+                }
+                else // second or higher forward edge
+                {
+                    adjacentArcIncrements[bt].push_back(ArcDescriptor(neighborOffsets[j] - neighborOffsets[indices[bt].back()],
+                        neighborOffsets.size() - j - 1, true));
+                }
+
+                indices[bt].push_back(j);
+                if (j < neighborOffsets.size() / 2)
+                    backIndices[bt].push_back(j);
+            }
+        }
+    }
+}
+
+} // namespace detail
+
+} // namespace vigra
 
 template <int N>
 struct NeighborhoodTests
@@ -156,7 +303,7 @@ struct NeighborhoodTests
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
-            S s = *i+S(tags::size = ndim, 1);
+            S s = *i + 1;
             CoordinateIterator<N> vi(s), viend = vi.end();
             
             ArrayND<N, int> vertex_map(s);
@@ -193,7 +340,7 @@ struct NeighborhoodTests
         scanOrder[scanOrder.shape() / 2] = 0;
 
         int scanOrderIndex = 0;
-        S anticausal(tags::size = ndim), causal(tags::size = ndim), 
+        S forward(tags::size = ndim), backward(tags::size = ndim), 
           strides = shapeToStrides(scanOrder.shape(), memoryOrder);
         for (int k = 0; k<neighborCount; ++k)
         {
@@ -218,13 +365,13 @@ struct NeighborhoodTests
 
             if (k < neighborCount / 2)
             {
-                should(dot(strides, neighborOffsets[k]) < 0); // check that causal neighbors are first
-                causal += neighborOffsets[k];                 // register causal neighbors
+                should(dot(strides, neighborOffsets[k]) < 0); // check that backward neighbors are first
+                backward += neighborOffsets[k];               // register backward neighbors
             }
             else
             {
-                should(dot(strides, neighborOffsets[k]) > 0); // check that anti-causal neighbors are last
-                anticausal += neighborOffsets[k];             // register anti-causal neighbors
+                should(dot(strides, neighborOffsets[k]) > 0); // check that forward neighbors are last
+                forward += neighborOffsets[k];                // register forward neighbors
             }
 
             shouldEqual(neighborOffsets[k], -neighborOffsets[neighborCount - 1 - k]); // check index of opposite neighbor
@@ -232,8 +379,8 @@ struct NeighborhoodTests
 
         if (neighborhoodType == DirectNeighborhood)
         {
-            shouldEqual(causal, S(tags::size = ndim, -1));     // check that all causal neighbors were found
-            shouldEqual(anticausal, S(tags::size = ndim, 1));  // check that all anti-causal neighbors were found
+            shouldEqual(backward, S(tags::size = ndim, -1)); // check that all backward neighbors were found
+            shouldEqual(forward, S(tags::size = ndim, 1));   // check that all forward neighbors were found
         }
         else
         {
@@ -288,10 +435,10 @@ struct NeighborhoodTests
 
 #if 0    
 
-    template <NeighborhoodType NType>
+    template <NeighborhoodType NType, MemoryOrder Order>
     void testNeighborhoodIterator()
     {
-        detail::makeArrayNeighborhood(neighborOffsets, neighborExists, NType);
+        detail::makeArrayNeighborhood(ndim, NType, Order, neighborOffsets, neighborExists);
         detail::computeNeighborOffsets(neighborOffsets, neighborExists, relativeOffsets, edgeDescrOffsets, neighborIndices, backIndices, true);
         
         // check neighborhoods at ROI border
