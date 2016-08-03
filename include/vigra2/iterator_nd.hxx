@@ -742,12 +742,12 @@ class IteratorND
 
     bool atBorder() const
     {
-        return (pointers_.borderType() != 0);
+        return (this->pointers_.borderType() != 0);
     }
 
     unsigned int borderType() const
     {
-        return pointers_.borderType();
+        return this->pointers_.borderType();
     }
 
     reference pointer_nd()
