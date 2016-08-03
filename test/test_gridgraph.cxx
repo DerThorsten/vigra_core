@@ -43,6 +43,7 @@
 //#include <vigra2/algorithm.hxx>
 
 #include <vector>
+#include <numeric>
 
 //#ifdef WITH_BOOST_GRAPH
 //#  include <boost/graph/graph_concepts.hpp>
@@ -63,139 +64,10 @@ inline ArrayIndex gridGraphMaxDegree(unsigned int N, NeighborhoodType t)
 {
     return t == DirectNeighborhood
         ? 2 * N
-        : pow(3.0, (int)N) - 1;
+        : pow(3, (int)N) - 1;
 }
 
 namespace detail {
-
-template <unsigned int Level>
-struct MakeDirectArrayNeighborhood
-{
-    template <class Array>
-    static void offsets(Array & a)
-    {
-        typedef typename Array::value_type Shape;
-
-        Shape point;
-        point[Level] = -1;
-        a.push_back(point);
-        MakeDirectArrayNeighborhood<Level - 1>::offsets(a);
-        point[Level] = 1;
-        a.push_back(point);
-    }
-
-    template <class Array>
-    static void exists(Array & a, unsigned int borderType)
-    {
-        a.push_back((borderType & (1 << 2 * Level)) == 0);
-        MakeDirectArrayNeighborhood<Level - 1>::exists(a, borderType);
-        a.push_back((borderType & (2 << 2 * Level)) == 0);
-    }
-};
-
-template <>
-struct MakeDirectArrayNeighborhood<0>
-{
-    template <class Array>
-    static void offsets(Array & a)
-    {
-        typedef typename Array::value_type Shape;
-
-        Shape point;
-        point[0] = -1;
-        a.push_back(point);
-        point[0] = 1;
-        a.push_back(point);
-    }
-
-    template <class Array>
-    static void exists(Array & a, unsigned int borderType)
-    {
-        a.push_back((borderType & 1) == 0);
-        a.push_back((borderType & 2) == 0);
-    }
-};
-
-// Likewise, create the offsets to all indirect neighbors according to the same rules.
-template <unsigned int Level>
-struct MakeIndirectArrayNeighborhood
-{
-    template <class Array, class Shape>
-    static void offsets(Array & a, Shape point, bool isCenter = true)
-    {
-        point[Level] = -1;
-        MakeIndirectArrayNeighborhood<Level - 1>::offsets(a, point, false);
-        point[Level] = 0;
-        MakeIndirectArrayNeighborhood<Level - 1>::offsets(a, point, isCenter);
-        point[Level] = 1;
-        MakeIndirectArrayNeighborhood<Level - 1>::offsets(a, point, false);
-    }
-
-    template <class Array>
-    static void exists(Array & a, unsigned int borderType, bool isCenter = true)
-    {
-        if ((borderType & (1 << 2 * Level)) == 0)
-            MakeIndirectArrayNeighborhood<Level - 1>::exists(a, borderType, false);
-        else
-            MakeIndirectArrayNeighborhood<Level - 1>::markOutside(a);
-
-        MakeIndirectArrayNeighborhood<Level - 1>::exists(a, borderType, isCenter);
-
-        if ((borderType & (2 << 2 * Level)) == 0)
-            MakeIndirectArrayNeighborhood<Level - 1>::exists(a, borderType, false);
-        else
-            MakeIndirectArrayNeighborhood<Level - 1>::markOutside(a);
-    }
-
-    template <class Array>
-    static void markOutside(Array & a)
-    {
-        // Call markOutside() three times, for each possible offset at (Level-1)
-        MakeIndirectArrayNeighborhood<Level - 1>::markOutside(a);
-        MakeIndirectArrayNeighborhood<Level - 1>::markOutside(a);
-        MakeIndirectArrayNeighborhood<Level - 1>::markOutside(a);
-    }
-
-};
-
-template <>
-struct MakeIndirectArrayNeighborhood<0>
-{
-    template <class Array, class Shape>
-    static void offsets(Array & a, Shape point, bool isCenter = true)
-    {
-        point[0] = -1;
-        a.push_back(point);
-        if (!isCenter) // the center point is not a neighbor, it's just convenient to do the enumeration this way...
-        {
-            point[0] = 0;
-            a.push_back(point);
-        }
-        point[0] = 1;
-        a.push_back(point);
-    }
-
-    template <class Array>
-    static void exists(Array & a, unsigned int borderType, bool isCenter = true)
-    {
-        a.push_back((borderType & 1) == 0);
-        if (!isCenter)
-        {
-            a.push_back(true);
-        }
-        a.push_back((borderType & 2) == 0);
-    }
-
-    template <class Array>
-    static void markOutside(Array & a)
-    {
-        // Push 'false' three times, for each possible offset at level 0, whenever the point was
-        // outside the ROI in one of the higher levels.
-        a.push_back(false);
-        a.push_back(false);
-        a.push_back(false);
-    }
-};
 
 // Create the list of neighbor offsets for the given neighborhood type
 // and dimension (the dimension is implicitly defined by the Shape type)
@@ -212,20 +84,13 @@ makeArrayNeighborhood(
     neighborOffsets.clear();
     if (neighborhoodType == DirectNeighborhood)
     {
-        if (order == F_ORDER)
-        {
-            for (int k = (int)ndim - 1; k >= 0; --k)
-                neighborOffsets.push_back(-SHAPE::unitVector(tags::size = ndim, k));
-            for (int k = 0; k < (int)ndim; ++k)
-                neighborOffsets.push_back(SHAPE::unitVector(tags::size = ndim, k));
-        }
-        else
-        {
-            for (int k = 0; k < (int)ndim; ++k)
-                neighborOffsets.push_back(-SHAPE::unitVector(tags::size = ndim, k));
-            for (int k = (int)ndim - 1; k >= 0; --k)
-                neighborOffsets.push_back(SHAPE::unitVector(tags::size = ndim, k));
-        }
+        SHAPE axes = (order == F_ORDER)
+            ? reversed(SHAPE::range(ndim))
+            : SHAPE::range(ndim);
+        for (int k = 0; k < (int)ndim; ++k)
+            neighborOffsets.push_back(-SHAPE::unitVector(tags::size = ndim, axes[k]));
+        for (int k = (int)ndim - 1; k >= 0; --k)
+            neighborOffsets.push_back(SHAPE::unitVector(tags::size = ndim, axes[k]));
     }
     else
     {
@@ -240,13 +105,26 @@ makeArrayNeighborhood(
 
     unsigned int borderTypeCount = 1 << 2 * ndim,
                  degree = gridGraphMaxDegree(ndim, neighborhoodType);
-    neighborExists.resize(borderTypeCount, std::vector<bool>(degree, true));
+    neighborExists.clear();
     for (unsigned int bt = 0; bt < borderTypeCount; ++bt)
+    {
+        std::vector<bool> exists(degree);
         for (unsigned int o = 0; o < degree; ++o)
+        {
+            bool inside = true;
             for (unsigned int k = 0; k < ndim; ++k)
-                if((neighborOffsets[o][k] < 0 && (bt & (1 << 2 * k)) != 0) ||
-                   (neighborOffsets[o][k] > 0 && (bt & (2 << 2 * k)) != 0))
-                    neighborExists[bt][o] = false;
+            {
+                if ((neighborOffsets[o][k] < 0 && (bt & (1 << 2 * k)) != 0) ||
+                    (neighborOffsets[o][k] > 0 && (bt & (2 << 2 * k)) != 0))
+                {
+                    inside = false;
+                    break;
+                }
+            }
+            exists[o] = inside;
+        }
+        neighborExists.emplace_back(std::move(exists));
+    }
 }
 
 }} // namespace vigra::detail
@@ -299,57 +177,88 @@ struct NeighborhoodTests
         }
     }   
 
-    void testDirectNeighborhood()
+    void testNeighborhoodImpl(NeighborhoodType neighborhoodType, MemoryOrder memoryOrder)
     {
-        detail::makeArrayNeighborhood(ndim, DirectNeighborhood, F_ORDER, neighborOffsets, neighborExists);
-        
-        static const unsigned int neighborCount = 2*ndim;
+        detail::makeArrayNeighborhood(ndim, neighborhoodType, memoryOrder, neighborOffsets, neighborExists);
+
+        const int neighborCount = (neighborhoodType == DirectNeighborhood)
+                                            ? 2 * ndim
+                                            : pow(3, ndim) - 1;
         shouldEqual(neighborOffsets.size(), neighborCount);
-        shouldEqual(neighborExists.size(), (MetaPow<2, 2 * ndim>::value));
-        //shouldEqual((GridGraphMaxDegree<N, DirectNeighborhood>::value), neighborCount);
-        shouldEqual(gridGraphMaxDegree(ndim, DirectNeighborhood), neighborCount);
-        
-        S pos(tags::size=ndim), neg(tags::size=ndim), strides = cumprod(S(tags::size=ndim, 3)) / 3;
-        for(unsigned k=0; k<neighborCount; ++k)
+        shouldEqual(neighborExists.size(), pow(2, 2*ndim));
+        shouldEqual(gridGraphMaxDegree(ndim, neighborhoodType), neighborCount);
+
+        ArrayND<ndim, int> scanOrder(S(tags::size = ndim, 3), memoryOrder);
+        std::iota(scanOrder.begin(), scanOrder.end(), 1);
+        scanOrder[scanOrder.shape() / 2] = 0;
+
+        int scanOrderIndex = 0;
+        S anticausal(tags::size = ndim), causal(tags::size = ndim), 
+          strides = shapeToStrides(scanOrder.shape(), memoryOrder);
+        for (int k = 0; k<neighborCount; ++k)
         {
-            shouldEqual(sum(abs(neighborOffsets[k])), 1); // test that it is a direct neighbor 
-            
-            if(k < neighborCount/2)
+            // test that neighbors are listed in scan order
+            should(scanOrderIndex < scanOrder[neighborOffsets[k] + 1]);
+            scanOrderIndex = scanOrder[neighborOffsets[k] + 1];
+            shouldEqual(dot(strides, neighborOffsets[k]), scanOrderIndex - scanOrder.size() / 2 - 1);
+
+            if (neighborhoodType == DirectNeighborhood)
+            {
+                // test that offset is +-1 in exactly one direction
+                shouldEqual(sum(abs(neighborOffsets[k])), 1);
+            }
+            else
+            {
+                // check that offset is at most +-1 in any direction
+                shouldEqual(max(abs(neighborOffsets[k])), 1);
+            }
+
+            // mark neighbor as found
+            scanOrder[neighborOffsets[k] + 1] = 0;
+
+            if (k < neighborCount / 2)
             {
                 should(dot(strides, neighborOffsets[k]) < 0); // check that causal neighbors are first
-                neg += neighborOffsets[k];                    // check that all causal neighbors are found
+                causal += neighborOffsets[k];                 // register causal neighbors
             }
             else
             {
                 should(dot(strides, neighborOffsets[k]) > 0); // check that anti-causal neighbors are last
-                pos += neighborOffsets[k];                    // check that all anti-causal neighbors are found
+                anticausal += neighborOffsets[k];             // register anti-causal neighbors
             }
-            
-            shouldEqual(neighborOffsets[k], -neighborOffsets[neighborCount-1-k]); // check index of opposite neighbor
+
+            shouldEqual(neighborOffsets[k], -neighborOffsets[neighborCount - 1 - k]); // check index of opposite neighbor
         }
-        
-        shouldEqual(pos, S(tags::size=ndim, 1));   // check that all causal neighbors were found
-        shouldEqual(neg, S(tags::size = ndim, -1));  // check that all anti-causal neighbors were found
-        
+
+        if (neighborhoodType == DirectNeighborhood)
+        {
+            shouldEqual(causal, S(tags::size = ndim, -1));     // check that all causal neighbors were found
+            shouldEqual(anticausal, S(tags::size = ndim, 1));  // check that all anti-causal neighbors were found
+        }
+        else
+        {
+            shouldNot(scanOrder.any()); // check that all neighbors were found
+        }
+
         // check neighborhoods at ROI border
         ArrayND<1, uint8_t> checkNeighborCodes(Shape<1>(neighborExists.size()), (uint8_t)0);
         CoordinateIterator<N> i(S(tags::size = ndim, 3));
-        for(; i.isValid(); ++i)
+        for (; i.isValid(); ++i)
         {
             // create all possible array shapes from 1**N to 3**N
             // and check neighborhood of all pixels
             CoordinateIterator<N> vi(*i + 1);
-            for(; vi.isValid(); ++vi)
+            for (; vi.isValid(); ++vi)
             {
                 int borderType = vi.borderType();
-                
+
                 shouldEqual(neighborExists[borderType].size(), neighborCount);
                 checkNeighborCodes[borderType] = 1;
-                
-                for(unsigned k=0; k<neighborCount; ++k)
+
+                for (int k = 0; k<neighborCount; ++k)
                 {
                     // check that neighbors are correctly marked as inside or outside in neighborExists
-                    shouldEqual(vi.isInside(vi.coord()+neighborOffsets[k]), neighborExists[borderType][k]);
+                    shouldEqual(vi.isInside(vi.coord() + neighborOffsets[k]), neighborExists[borderType][k]);
                 }
             }
         }
@@ -357,63 +266,26 @@ struct NeighborhoodTests
         should(checkNeighborCodes.all()); // check that all possible neighborhoods have been tested
     }
 
-    void testIndirectNeighborhood()
+    void testDirectNeighborhoodFOrder()
     {
-        detail::makeArrayNeighborhood(ndim, IndirectNeighborhood, F_ORDER, neighborOffsets, neighborExists);
-        
-        ArrayND<N, int> a(S(tags::size=ndim, 3));
-        S center(tags::size=ndim, 1), strides = cumprod(S(tags::size=ndim, 3)) / 3;
-        a[center] = 1;              
-        
-        static const unsigned int neighborCount = MetaPow<3, ndim>::value - 1;
-        shouldEqual(neighborOffsets.size(), neighborCount);
-        shouldEqual(neighborExists.size(), (MetaPow<2, 2 * ndim>::value));
-        shouldEqual(gridGraphMaxDegree(ndim, IndirectNeighborhood), neighborCount);
-        
-        for(unsigned k=0; k<neighborCount; ++k)
-        {
-            shouldEqual(max(abs(neighborOffsets[k])), 1); // check that offset is at most 1 in any direction
-                 
-            if(k < neighborCount/2)
-                should(dot(strides, neighborOffsets[k]) < 0); // check that causal neighbors are first
-            else
-                should(dot(strides, neighborOffsets[k]) > 0); // check that anti-causal neighbors are last
-
-            shouldEqual(neighborOffsets[k], -neighborOffsets[neighborCount-1-k]); // check index of opposite neighbor
-            
-            a[center+neighborOffsets[k]] += 1;  // check that all neighbors are found
-        }
-        
-        // check that all neighbors are found
-        auto minmax = a.minmax();
-        
-        shouldEqual(minmax[0], 1);
-        shouldEqual(minmax[1], 1);
-        
-        // check neighborhoods at ROI border
-        ArrayND<1, uint8_t> checkNeighborCodes(Shape<1>(neighborExists.size()), (uint8_t)0);
-        for(auto i = a.coordinates(); i.isValid(); ++i)
-        {
-            // create all possible array shapes from 1**N to 3**N
-            // and check neighborhood of all pixels
-            CoordinateIterator<N> vi(*i + 1);
-            for(; vi.isValid(); ++vi)
-            {
-                int borderType = vi.borderType();
-                
-                shouldEqual(neighborExists[borderType].size(), neighborCount);
-                checkNeighborCodes[borderType] = 1;
-                
-                for(int k=0; k<neighborCount; ++k)
-                {
-                    // check that neighbors are correctly marked as inside or outside in neighborExists
-                    shouldEqual(vi.isInside(vi.coord()+neighborOffsets[k]), neighborExists[borderType][k]);
-                }
-            }
-        }
-        
-        should(checkNeighborCodes.all()); // check that all possible neighborhoods have been tested
+        testNeighborhoodImpl(DirectNeighborhood, F_ORDER);
     }
+
+    void testDirectNeighborhoodCOrder()
+    {
+        testNeighborhoodImpl(DirectNeighborhood, C_ORDER);
+    }
+
+    void testIndirectNeighborhoodFOrder()
+    {
+        testNeighborhoodImpl(IndirectNeighborhood, F_ORDER);
+    }
+
+    void testIndirectNeighborhoodCOrder()
+    {
+        testNeighborhoodImpl(IndirectNeighborhood, C_ORDER);
+    }
+
 #if 0    
 
     template <NeighborhoodType NType>
@@ -1416,8 +1288,10 @@ struct GridgraphTestSuiteN
     {
         add(testCase(&NeighborhoodTests<N>::testVertexIterator));
 
-        add(testCase(&NeighborhoodTests<N>::testDirectNeighborhood));
-        add(testCase(&NeighborhoodTests<N>::testIndirectNeighborhood));
+        add(testCase(&NeighborhoodTests<N>::testDirectNeighborhoodFOrder));
+        add(testCase(&NeighborhoodTests<N>::testDirectNeighborhoodCOrder));
+        add(testCase(&NeighborhoodTests<N>::testIndirectNeighborhoodFOrder));
+        add(testCase(&NeighborhoodTests<N>::testIndirectNeighborhoodCOrder));
 #if 0
         add(testCase(&NeighborhoodTests<N>::template testNeighborhoodIterator<DirectNeighborhood>));
         add(testCase(&NeighborhoodTests<N>::template testNeighborhoodIterator<IndirectNeighborhood>));
@@ -1475,10 +1349,10 @@ struct GridgraphTestSuite
     GridgraphTestSuite()
     : vigra::test_suite("GridgraphTestSuite")
     {
-        add(VIGRA_TEST_SUITE(GridgraphTestSuiteN<runtime_size>));
         add(VIGRA_TEST_SUITE(GridgraphTestSuiteN<2>));
         add(VIGRA_TEST_SUITE(GridgraphTestSuiteN<3>));
-//        add(VIGRA_TEST_SUITE(GridgraphTestSuiteN<4>));
+        add(VIGRA_TEST_SUITE(GridgraphTestSuiteN<runtime_size>));
+        //        add(VIGRA_TEST_SUITE(GridgraphTestSuiteN<4>));
     }
 };
 
