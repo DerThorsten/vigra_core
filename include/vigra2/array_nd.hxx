@@ -1223,7 +1223,7 @@ public:
             {
                 vigra::swap(u, v);
             },
-            "ArrayNDView::swapData()"
+            "ArrayViewND::swapData()"
         );
     }
 

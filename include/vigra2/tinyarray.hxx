@@ -251,7 +251,7 @@ class TinyArrayBase
     // constructor for two or more arguments
     template <class ... V>
     constexpr TinyArrayBase(value_type v0, value_type v1, V ... v)
-    : data_{v0, v1, v...}
+    : data_{VALUETYPE(v0), VALUETYPE(v1), VALUETYPE(v)...}
     {
         static_assert(sizeof...(V)+2 == static_size,
                       "TinyArrayBase(): number of constructor arguments contradicts size().");
@@ -680,9 +680,9 @@ std::ostream & operator<<(std::ostream & o, TinyArrayBase<T, DERIVED, N...> cons
 {
     o << "{";
     if(v.size() > 0)
-        o << v[0];
+        o << PromoteType<T>(v[0]);
     for(int i=1; i < v.size(); ++i)
-        o << ", " << v[i];
+        o << ", " << PromoteType<T>(v[i]);
     o << "}";
     return o;
 }
@@ -695,10 +695,10 @@ std::ostream & operator<<(std::ostream & o, TinyArrayBase<T, DERIVED, N1, N2> co
     {
         if(i > 0)
             o << ",\n ";
-        o << v(i,0);
+        o << PromoteType<T>(v(i,0));
         for(int j=1; j<N2; ++j)
         {
-            o << ", " << v(i, j);
+            o << ", " << PromoteType<T>(v(i, j));
         }
     }
     o << "}";
@@ -1710,10 +1710,10 @@ std::ostream & operator<<(std::ostream & o, TinySymmetricView<T, N> const & v)
     {
         if(i > 0)
             o << ",\n ";
-        o << v(i,0);
+        o << PromoteType<T>(v(i,0));
         for(int j=1; j<N; ++j)
         {
-            o << ", " << v(i, j);
+            o << ", " << PromoteType<T>(v(i, j));
         }
     }
     o << "}";

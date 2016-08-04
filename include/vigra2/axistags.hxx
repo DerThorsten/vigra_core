@@ -59,7 +59,10 @@ enum AxisType { Channels = 1,
                 NonChannel = Space | Angle | Time | Frequency | UnknownAxisType,
                 AllAxes = 2*UnknownAxisType-1 };
 
-    // order must conform to the indices of AxisTag
+namespace
+{
+
+// order must conform to the indices of AxisTag
 const char * AxisTagKeys[] = { "?",
                                "c",
                                "n",
@@ -88,6 +91,8 @@ AxisType AxisTagTypes[] = { UnknownAxisType,             // unknown
                             AxisType(Time | Frequency),  // ft
                             Edge                         // e
                           };
+
+}
 
 } // namespace tags
 

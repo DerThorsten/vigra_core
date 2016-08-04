@@ -155,6 +155,19 @@ struct PromoteTraits
 : public AddTraits<T1, T2>
 {};
 
+template <class T1, class T2>
+struct PromoteTraits<T1 *, T2 *>
+{
+    static const bool value = false;
+};
+
+template <class T>
+struct PromoteTraits<T *, T *>
+{
+    static const bool value = true;
+    using type = T *;
+};
+
 template <class T1, class T2 = T1>
 using PromoteType = typename PromoteTraits<T1, T2>::type;
 
