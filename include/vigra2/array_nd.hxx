@@ -715,7 +715,7 @@ public:
     {
         int m = channelAxis();
 
-        vigra_assert(m != tags::no_channel_axis,
+        vigra_assert(m != tags::axis_missing,
             "ArrayViewND::bindChannel(): array has no channel axis.");
 
         return bind(m, d);
@@ -1447,12 +1447,25 @@ public:
         for(int k=0; k<ndim(); ++k)
             if(axistags_[k] == tags::axis_c)
                 return k;
-        return tags::no_channel_axis;
+        return tags::axis_missing;
+    }
+
+    int axisIndex(AxisTag tag) const
+    {
+        for(int k=0; k<ndim(); ++k)
+            if(axistags_[k] == tag)
+                return k;
+        return tags::axis_missing;
+    }
+
+    bool hasAxis(AxisTag tag) const
+    {
+        return axisIndex(tag) != tags::axis_missing;
     }
 
     bool hasChannelAxis() const
     {
-        return channelAxis() != tags::no_channel_axis;
+        return channelAxis() != tags::axis_missing;
     }
 
     CoordinateIterator<actual_dimension>

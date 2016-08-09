@@ -788,7 +788,7 @@ struct ArrayNDTest
 
         shouldEqual(v2.ndim(), 3);
         shouldEqual(v2.shape(), s);
-        shouldEqual(v2.channelAxis(), tags::no_channel_axis);
+        shouldEqual(v2.channelAxis(), tags::axis_missing);
         shouldNot(v2.isConsecutive());
 
         should(v1.bind(3, 0) == v2);
@@ -966,7 +966,7 @@ struct ArrayNDTest
         auto iter = makeCoupledIterator(a1, a2.cview(), const_cast<Array const &>(a3));
 
         should((std::is_same<IteratorND<PointerNDCoupledType<Array, ConstView, Array const>>, decltype(iter)>::value));
-        
+
         should((std::is_const<typename std::remove_reference<decltype(get<0>(iter))>::type>::value));
         should((!std::is_const<typename std::remove_reference<decltype(get<1>(iter))>::type>::value));
         should((std::is_const<typename std::remove_reference<decltype(get<2>(iter))>::type>::value));

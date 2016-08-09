@@ -113,7 +113,7 @@ namespace tags {
 
     // Tags to assign semantic meaning to axes.
     // (arranged in sorting order)
-enum AxisTag  { no_channel_axis = -1,
+enum AxisTag  { axis_missing = -1,
                 axis_unknown = 0,
                 axis_c,  // channel axis
                 axis_n,  // node map for a graph
