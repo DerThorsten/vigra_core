@@ -177,8 +177,10 @@ struct TinyArrayTest
         shouldEqual(2, (iv3.template subarray<1,3>().size()));
         shouldEqual(iv3[1], (iv3.template subarray<1,3>()[0]));
         shouldEqual(iv3[2], (iv3.template subarray<1,3>()[1]));
-        shouldEqual(1, (iv3.template subarray<1,2>().size()));
-        shouldEqual(iv3[1], (iv3.template subarray<1,2>()[0]));
+        shouldEqual(1, (iv3.template subarray<1, 2>().size()));
+        shouldEqual(iv3[1], (iv3.template subarray<1, 2>()[0]));
+        shouldEqual(1, (iv3.subarray(1,2).size()));
+        shouldEqual(iv3[1], (iv3.subarray(1,2)[0]));
 
         for(int k=0; k<SIZE; ++k)
         {

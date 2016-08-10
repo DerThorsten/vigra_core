@@ -203,12 +203,13 @@ class TinyArrayBase
     using AsType = TinyArray<NEW_VALUETYPE, N...>;
 
     using value_type             = VALUETYPE;
+    using const_value_type       = typename std::add_const<VALUETYPE>::type;
     using reference              = value_type &;
-    using const_reference        = value_type const &;
+    using const_reference        = const_value_type &;
     using pointer                = value_type *;
-    using const_pointer          = value_type const *;
+    using const_pointer          = const_value_type *;
     using iterator               = value_type *;
-    using const_iterator         = value_type const *;
+    using const_iterator         = const_value_type *;
     using reverse_iterator       = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     using size_type              = std::size_t;
@@ -472,6 +473,14 @@ class TinyArrayBase
         return TinyArrayView<value_type, TO-FROM>(data_+FROM);
     }
 
+    TinyArrayView<value_type, runtime_size>
+    subarray(ArrayIndex FROM, ArrayIndex TO) const
+    {
+        vigra_precondition(FROM >= 0 && FROM < TO && TO <= static_size,
+                      "TinyArrayBase::subarray(): range out of bounds.");
+        return TinyArrayView<value_type, runtime_size>(TO-FROM, const_cast<VALUETYPE*>(data_)+FROM);
+    }
+
     template<int M = static_ndim>
     TinyArray<value_type, static_size-1>
     erase(ArrayIndex m) const
@@ -730,12 +739,13 @@ class TinyArrayBase<VALUETYPE, DERIVED, runtime_size>
     using AsType = TinyArray<NEW_VALUETYPE, runtime_size>;
 
     using value_type             = VALUETYPE;
+    using const_value_type       = typename std::add_const<VALUETYPE>::type;
     using reference              = value_type &;
-    using const_reference        = value_type const &;
+    using const_reference        = const_value_type &;
     using pointer                = value_type *;
-    using const_pointer          = value_type const *;
+    using const_pointer          = const_value_type *;
     using iterator               = value_type *;
-    using const_iterator         = value_type const *;
+    using const_iterator         = const_value_type *;
     using reverse_iterator       = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     using size_type              = std::size_t;
@@ -762,12 +772,12 @@ class TinyArrayBase<VALUETYPE, DERIVED, runtime_size>
         data_[LEVEL] = v1;
     }
 
+  public:
+
     TinyArrayBase(ArrayIndex size=0, pointer data=0)
     : size_(size)
     , data_(data)
     {}
-
-  public:
 
     TinyArrayBase(TinyArrayBase const &) = default;
 
@@ -876,23 +886,23 @@ class TinyArrayBase<VALUETYPE, DERIVED, runtime_size>
             The bounds must fullfill <tt>0 <= FROM < TO <= size_</tt>.
         */
     template <int FROM, int TO>
-    TinyArrayBase
+    TinyArrayView<value_type, TO-FROM>
     subarray() const
     {
         vigra_precondition(FROM >= 0 && FROM < TO && TO <= size_,
                       "TinyArrayBase::subarray(): range out of bounds.");
-        return TinyArrayBase(TO-FROM, data_+FROM);
+        return TinyArrayView<value_type, TO-FROM>(data_+FROM);
     }
 
         /** Get a view to the subarray with length <tt>(TO-FROM)</tt> starting at <tt>FROM</tt>.
             The bounds must fullfill <tt>0 <= FROM < TO <= size_</tt>.
         */
-    TinyArrayBase
+    TinyArrayView<value_type, runtime_size>
     subarray(ArrayIndex FROM, ArrayIndex TO) const
     {
         vigra_precondition(FROM >= 0 && FROM < TO && TO <= size_,
                       "TinyArrayBase::subarray(): range out of bounds.");
-        return TinyArrayBase(TO-FROM, data_+FROM);
+        return TinyArrayView<value_type, runtime_size>(TO-FROM, const_cast<pointer>(data_)+FROM);
     }
 
 
@@ -1077,39 +1087,39 @@ class TinyArray
 : public TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, M, N...>, M, N...>
 {
   public:
-    using BaseType = TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, M, N...>, M, N...>;
+    using base_type = TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, M, N...>, M, N...>;
 
-    typedef typename BaseType::value_type value_type;
-    static const ArrayIndex static_ndim = BaseType::static_ndim;
-    static const ArrayIndex static_size = BaseType::static_size;
+    typedef typename base_type::value_type value_type;
+    static const ArrayIndex static_ndim = base_type::static_ndim;
+    static const ArrayIndex static_size = base_type::static_size;
 
     explicit constexpr
     TinyArray(value_type const & v = value_type())
-    : BaseType(v)
+    : base_type(v)
     {}
 
     template <class ... V>
     constexpr TinyArray(value_type v0, value_type v1, V... v)
-    : BaseType(v0, v1, v...)
+    : base_type(v0, v1, v...)
     {}
 
     explicit
     TinyArray(SkipInitialization)
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {}
 
         /** Construction from lemon::Invalid.
             Initializes all vector elements with -1.
         */
     constexpr TinyArray(lemon::Invalid const &)
-    : BaseType(-1)
+    : base_type(-1)
     {}
 
         // for compatibility with TinyArray<VALUETYPE, runtime_size>
     explicit
     TinyArray(tags::SizeProxy const & size,
               value_type const & v = value_type())
-    : BaseType(v)
+    : base_type(v)
     {
         vigra_assert(size.value == static_size,
             "TinyArray(size): size argument conflicts with array length.");
@@ -1117,7 +1127,7 @@ class TinyArray
 
         // for compatibility with TinyArray<VALUETYPE, runtime_size>
     TinyArray(tags::SizeProxy const & size, SkipInitialization)
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {
         vigra_assert(size.value == static_size,
             "TinyArray(size): size argument conflicts with array length.");
@@ -1125,7 +1135,7 @@ class TinyArray
 
         // for compatibility with TinyArray<VALUETYPE, runtime_size>
     TinyArray(ArrayIndex size, SkipInitialization)
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {
         vigra_assert(size == static_size,
             "TinyArray(size): size argument conflicts with array length.");
@@ -1135,12 +1145,12 @@ class TinyArray
 
     template <class OTHER, class DERIVED>
     TinyArray(TinyArrayBase<OTHER, DERIVED, M, N...> const & other)
-    : BaseType(other)
+    : base_type(other)
     {}
 
     template <class OTHER, class DERIVED>
     TinyArray(TinyArrayBase<OTHER, DERIVED, runtime_size> const & other)
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {
         if(other.size() == 0)
         {
@@ -1155,46 +1165,46 @@ class TinyArray
     }
 
     constexpr TinyArray(value_type const (&v)[static_ndim])
-    : BaseType(v)
+    : base_type(v)
     {}
 
     template <class U,
               VIGRA_REQUIRE<IteratorConcept<U>::value> >
     explicit TinyArray(U u, U end = U())
-    : BaseType(u)
+    : base_type(u)
     {}
 
     template <class U,
               VIGRA_REQUIRE<IteratorConcept<U>::value> >
     TinyArray(U u, ReverseCopyTag)
-    : BaseType(u, ReverseCopy)
+    : base_type(u, ReverseCopy)
     {}
 
         // for compatibility with TinyArray<..., runtime_size>
     template <class U,
               VIGRA_REQUIRE<IteratorConcept<U>::value> >
     TinyArray(U u, U end, ReverseCopyTag)
-    : BaseType(u, ReverseCopy)
+    : base_type(u, ReverseCopy)
     {}
 
     TinyArray & operator=(TinyArray const &) = default;
 
     TinyArray & operator=(value_type v)
     {
-        BaseType::operator=(v);
+        base_type::operator=(v);
         return *this;
     }
 
     TinyArray & operator=(value_type const (&v)[static_size])
     {
-        BaseType::operator=(v);
+        base_type::operator=(v);
         return *this;
     }
 
     template <class OTHER, class OTHER_DERIVED>
     TinyArray & operator=(TinyArrayBase<OTHER, OTHER_DERIVED, M, N...> const & other)
     {
-        BaseType::operator=(other);
+        base_type::operator=(other);
         return *this;
     }
 };
@@ -1238,18 +1248,18 @@ class TinyArray<VALUETYPE, runtime_size>
 : public TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, runtime_size>, runtime_size>
 {
   public:
-    using BaseType = TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, runtime_size>, runtime_size>;
+    using base_type = TinyArrayBase<VALUETYPE, TinyArray<VALUETYPE, runtime_size>, runtime_size>;
 
     using value_type = VALUETYPE;
 
     TinyArray()
-    : BaseType()
+    : base_type()
     {}
 
     explicit
     TinyArray(ArrayIndex size,
               value_type const & initial = value_type())
-    : BaseType(size)
+    : base_type(size)
     {
         this->data_ = alloc_.allocate(this->size_);
         std::uninitialized_fill(this->begin(), this->end(), initial);
@@ -1262,15 +1272,15 @@ class TinyArray<VALUETYPE, runtime_size>
     {}
 
     TinyArray(ArrayIndex size, SkipInitialization)
-    : BaseType(size)
+    : base_type(size)
     {
         this->data_ = alloc_.allocate(this->size_);
-        if(!BaseType::may_use_uninitialized_memory)
+        if(!base_type::may_use_uninitialized_memory)
             std::uninitialized_fill(this->begin(), this->end(), value_type());
     }
 
     TinyArray(lemon::Invalid const &)
-    : BaseType()
+    : base_type()
     {}
 
     TinyArray(ArrayIndex size, lemon::Invalid const &)
@@ -1278,14 +1288,14 @@ class TinyArray<VALUETYPE, runtime_size>
     {}
 
     TinyArray(TinyArray const & rhs )
-    : BaseType(rhs.size())
+    : base_type(rhs.size())
     {
         this->data_ = alloc_.allocate(this->size_);
         std::uninitialized_copy(rhs.begin(), rhs.end(), this->begin());
     }
 
     TinyArray(TinyArray && rhs)
-    : BaseType()
+    : base_type()
     {
         this->swap(rhs);
     }
@@ -1298,7 +1308,7 @@ class TinyArray<VALUETYPE, runtime_size>
     template <class U,
               VIGRA_REQUIRE<IteratorConcept<U>::value> >
     TinyArray(U begin, U end)
-    : BaseType(std::distance(begin, end))
+    : base_type(std::distance(begin, end))
     {
         this->data_ = alloc_.allocate(this->size_);
         for(int i=0; i<this->size_; ++i, ++begin)
@@ -1308,7 +1318,7 @@ class TinyArray<VALUETYPE, runtime_size>
     template <class U,
               VIGRA_REQUIRE<IteratorConcept<U>::value> >
     TinyArray(U begin, U end, ReverseCopyTag)
-    : BaseType(std::distance(begin, end))
+    : base_type(std::distance(begin, end))
     {
         this->data_ = alloc_.allocate(this->size_);
         for(int i=0; i<this->size_; ++i, --end)
@@ -1322,7 +1332,7 @@ class TinyArray<VALUETYPE, runtime_size>
 
     TinyArray & operator=(value_type const & v)
     {
-        BaseType::operator=(v);
+        base_type::operator=(v);
         return *this;
     }
 
@@ -1331,7 +1341,7 @@ class TinyArray<VALUETYPE, runtime_size>
         if(this->size_ != rhs.size())
             rhs.swap(*this);
         else
-            BaseType::operator=(rhs);
+            base_type::operator=(rhs);
         return *this;
     }
 
@@ -1342,7 +1352,7 @@ class TinyArray<VALUETYPE, runtime_size>
         if(this->size_ != rhs.size())
             TinyArray(rhs).swap(*this);
         else
-            BaseType::operator=(rhs);
+            base_type::operator=(rhs);
         return *this;
     }
 
@@ -1352,13 +1362,13 @@ class TinyArray<VALUETYPE, runtime_size>
         if(this->size_ == 0 || rhs.size() == 0)
             TinyArray(rhs).swap(*this);
         else
-            BaseType::operator=(rhs);
+            base_type::operator=(rhs);
         return *this;
     }
 
     ~TinyArray()
     {
-        if(!BaseType::may_use_uninitialized_memory)
+        if(!base_type::may_use_uninitialized_memory)
         {
             for(ArrayIndex i=0; i<this->size_; ++i)
                 (this->data_+i)->~value_type();
@@ -1415,43 +1425,43 @@ class TinyArrayView
 : public TinyArrayBase<VALUETYPE, TinyArrayView<VALUETYPE, M, N...>, M, N...>
 {
   public:
-    using BaseType = TinyArrayBase<VALUETYPE, TinyArrayView<VALUETYPE, M, N...>, M, N...>;
+    using base_type = TinyArrayBase<VALUETYPE, TinyArrayView<VALUETYPE, M, N...>, M, N...>;
 
-    typedef typename BaseType::value_type value_type;
-    typedef typename BaseType::pointer pointer;
-    typedef typename BaseType::const_pointer const_pointer;
-    static const ArrayIndex static_size = BaseType::static_size;
-    static const ArrayIndex static_ndim = BaseType::static_ndim;
+    typedef typename base_type::value_type value_type;
+    typedef typename base_type::pointer pointer;
+    typedef typename base_type::const_pointer const_pointer;
+    static const ArrayIndex static_size = base_type::static_size;
+    static const ArrayIndex static_ndim = base_type::static_ndim;
 
     TinyArrayView()
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {
-        BaseType::data_ = nullptr;
+        base_type::data_ = nullptr;
     }
 
         /** Construct view for given data array
         */
     TinyArrayView(const_pointer data)
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {
-        BaseType::data_ = const_cast<pointer>(data);
+        base_type::data_ = const_cast<pointer>(data);
     }
 
         /** Copy constructor (shallow copy).
         */
     TinyArrayView(TinyArrayView const & other)
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {
-        BaseType::data_ = const_cast<pointer>(other.data());
+        base_type::data_ = const_cast<pointer>(other.data());
     }
 
         /** Construct view from other TinyArray.
         */
     template <class OTHER_DERIVED>
     TinyArrayView(TinyArrayBase<value_type, OTHER_DERIVED, M, N...> const & other)
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {
-        BaseType::data_ = const_cast<pointer>(other.data());
+        base_type::data_ = const_cast<pointer>(other.data());
     }
 
         /** Reset to the other array's pointer.
@@ -1459,7 +1469,7 @@ class TinyArrayView
     template <class OTHER_DERIVED>
     void reset(TinyArrayBase<value_type, OTHER_DERIVED, M, N...> const & other)
     {
-        BaseType::data_ = const_cast<pointer>(other.data());
+        base_type::data_ = const_cast<pointer>(other.data());
     }
 
         /** Copy the data (not the pointer) of the rhs.
@@ -1467,7 +1477,7 @@ class TinyArrayView
     TinyArrayView & operator=(TinyArrayView const & r)
     {
         for(int k=0; k<static_size; ++k)
-            BaseType::data_[k] = detail::RequiresExplicitCast<value_type>::cast(r[k]);
+            base_type::data_[k] = detail::RequiresExplicitCast<value_type>::cast(r[k]);
         return *this;
     }
 
@@ -1477,9 +1487,20 @@ class TinyArrayView
     TinyArrayView & operator=(TinyArrayBase<U, OTHER_DERIVED, M, N...> const & r)
     {
         for(int k=0; k<static_size; ++k)
-            BaseType::data_[k] = detail::RequiresExplicitCast<value_type>::cast(r[k]);
+            base_type::data_[k] = detail::RequiresExplicitCast<value_type>::cast(r[k]);
         return *this;
     }
+};
+
+template <class VALUETYPE>
+class TinyArrayView<VALUETYPE, runtime_size>
+: public TinyArrayBase<VALUETYPE, TinyArrayView<VALUETYPE, runtime_size>, runtime_size>
+{
+  public:
+    using base_type = TinyArrayBase<VALUETYPE, TinyArrayView<VALUETYPE, runtime_size>, runtime_size>;
+
+    using base_type::base_type;
+    using base_type::operator=;
 };
 
 /********************************************************/
@@ -1518,50 +1539,50 @@ class TinySymmetricView
 : public TinyArrayBase<VALUETYPE, TinySymmetricView<VALUETYPE, N>, N*(N+1)/2>
 {
   public:
-    using BaseType = TinyArrayBase<VALUETYPE, TinySymmetricView<VALUETYPE, N>, N*(N+1)/2>;
+    using base_type = TinyArrayBase<VALUETYPE, TinySymmetricView<VALUETYPE, N>, N*(N+1)/2>;
 
-    typedef typename BaseType::value_type value_type;
-    typedef typename BaseType::pointer pointer;
-    typedef typename BaseType::const_pointer const_pointer;
-    typedef typename BaseType::reference reference;
-    typedef typename BaseType::const_reference const_reference;
+    typedef typename base_type::value_type value_type;
+    typedef typename base_type::pointer pointer;
+    typedef typename base_type::const_pointer const_pointer;
+    typedef typename base_type::reference reference;
+    typedef typename base_type::const_reference const_reference;
     using index_type = TinyArray<ArrayIndex, 2>;
 
-    static const ArrayIndex static_size = BaseType::static_size;
+    static const ArrayIndex static_size = base_type::static_size;
     static const ArrayIndex static_ndim = 2;
 #if !defined(_MSC_VER) || _MSC_VER > 1900
     static constexpr index_type static_shape = index_type(N, N);
 #endif
 
     TinySymmetricView()
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {
-        BaseType::data_ = nullptr;
+        base_type::data_ = nullptr;
     }
 
         /** Construct view for given data array
         */
     TinySymmetricView(const_pointer data)
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {
-        BaseType::data_ = const_cast<pointer>(data);
+        base_type::data_ = const_cast<pointer>(data);
     }
 
         /** Copy constructor (shallow copy).
         */
     TinySymmetricView(TinySymmetricView const & other)
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {
-        BaseType::data_ = const_cast<pointer>(other.data());
+        base_type::data_ = const_cast<pointer>(other.data());
     }
 
         /** Construct view from other TinyArray.
         */
     template <class OTHER_DERIVED>
     TinySymmetricView(TinyArrayBase<value_type, OTHER_DERIVED, N*(N+1)/2> const & other)
-    : BaseType(DontInit)
+    : base_type(DontInit)
     {
-        BaseType::data_ = const_cast<pointer>(other.data());
+        base_type::data_ = const_cast<pointer>(other.data());
     }
 
         /** Reset to the other array's pointer.
@@ -1569,7 +1590,7 @@ class TinySymmetricView
     template <class OTHER_DERIVED>
     void reset(TinyArrayBase<value_type, OTHER_DERIVED, N*(N+1)/2> const & other)
     {
-        BaseType::data_ = const_cast<pointer>(other.data());
+        base_type::data_ = const_cast<pointer>(other.data());
     }
 
         /** Copy the data (not the pointer) of the rhs.
@@ -1577,7 +1598,7 @@ class TinySymmetricView
     TinySymmetricView & operator=(TinySymmetricView const & r)
     {
         for(int k=0; k<static_size; ++k)
-            BaseType::data_[k] = detail::RequiresExplicitCast<value_type>::cast(r[k]);
+            base_type::data_[k] = detail::RequiresExplicitCast<value_type>::cast(r[k]);
         return *this;
     }
 
@@ -1587,7 +1608,7 @@ class TinySymmetricView
     TinySymmetricView & operator=(TinyArrayBase<U, OTHER_DERIVED, N*(N+1)/2> const & r)
     {
         for(int k=0; k<static_size; ++k)
-            BaseType::data_[k] = detail::RequiresExplicitCast<value_type>::cast(r[k]);
+            base_type::data_[k] = detail::RequiresExplicitCast<value_type>::cast(r[k]);
         return *this;
     }
 
@@ -1595,22 +1616,22 @@ class TinySymmetricView
 
     reference operator[](ArrayIndex i)
     {
-        return BaseType::operator[](i);
+        return base_type::operator[](i);
     }
 
     constexpr const_reference operator[](ArrayIndex i) const
     {
-        return BaseType::operator[](i);
+        return base_type::operator[](i);
     }
 
     reference at(ArrayIndex i)
     {
-        return BaseType::at(i);
+        return base_type::at(i);
     }
 
     const_reference at(ArrayIndex i) const
     {
-        return BaseType::at(i);
+        return base_type::at(i);
     }
 
     reference operator[](ArrayIndex const (&i)[2])
@@ -1656,15 +1677,15 @@ class TinySymmetricView
     reference operator()(ArrayIndex i, ArrayIndex j)
     {
         return (i > j)
-            ? BaseType::data_[i + N*j - (j*(j+1) >> 1)]
-            : BaseType::data_[N*i + j - (i*(i+1) >> 1)];
+            ? base_type::data_[i + N*j - (j*(j+1) >> 1)]
+            : base_type::data_[N*i + j - (i*(i+1) >> 1)];
     }
 
     constexpr const_reference operator()(ArrayIndex const i, ArrayIndex const j) const
     {
         return (i > j)
-            ? BaseType::data_[i + (j*((2 * N - 1) - j) >> 1)]
-            : BaseType::data_[j + (i*((2 * N - 1) - i) >> 1)];
+            ? base_type::data_[i + (j*((2 * N - 1) - j) >> 1)]
+            : base_type::data_[j + (i*((2 * N - 1) - i) >> 1)];
     }
 
     reference at(ArrayIndex i, ArrayIndex j)
@@ -1674,7 +1695,7 @@ class TinySymmetricView
                            : j + (i*((2*N-1) - i) >> 1);
         if(k < 0 || k >= static_size)
             throw std::out_of_range("TinySymmetricView::at()");
-        return BaseType::data_[k];
+        return base_type::data_[k];
     }
 
     const_reference at(ArrayIndex i, ArrayIndex j) const
@@ -1684,7 +1705,7 @@ class TinySymmetricView
                            : N*i + j - (i*(i+1) >> 1);
         if(k < 0 || k >= static_size)
             throw std::out_of_range("TinySymmetricView::at()");
-        return BaseType::data_[k];
+        return base_type::data_[k];
     }
 
     constexpr index_type shape() const { return index_type(N, N); }
@@ -1754,7 +1775,8 @@ operator==(TinyArrayBase<V1, D1, M...> const & l,
 
     /// element-wise equal to a constant
 template <class V1, class D1, class V2, int ...M,
-          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+          VIGRA_REQUIRE<!TinyArrayConcept<V2>::value &&
+                        std::is_convertible<V2, V1>::value> >
 inline bool
 operator==(TinyArrayBase<V1, D1, M...> const & l,
            V2 const & r)
@@ -1767,7 +1789,8 @@ operator==(TinyArrayBase<V1, D1, M...> const & l,
 
     /// element-wise equal to a constant
 template <class V1, class V2, class D2, int ...M,
-          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value &&
+                        std::is_convertible<V2, V1>::value> >
 inline bool
 operator==(V1 const & l,
            TinyArrayBase<V2, D2, M...> const & r)
@@ -1794,7 +1817,8 @@ operator!=(TinyArrayBase<V1, D1, M...> const & l,
 
     /// element-wise not equal to a constant
 template <class V1, class D1, class V2, int ... M,
-          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+          VIGRA_REQUIRE<!TinyArrayConcept<V2>::value &&
+                        std::is_convertible<V2, V1>::value> >
 inline bool
 operator!=(TinyArrayBase<V1, D1, M...> const & l,
            V2 const & r)
@@ -1807,7 +1831,8 @@ operator!=(TinyArrayBase<V1, D1, M...> const & l,
 
     /// element-wise not equal to a constant
 template <class V1, class V2, class D2, int ... N,
-          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value &&
+                        std::is_convertible<V2, V1>::value> >
 inline bool
 operator!=(V1 const & l,
            TinyArrayBase<V2, D2, N...> const & r)
@@ -1883,16 +1908,32 @@ allLess(TinyArrayBase<V1, D1, N...> const & l,
     return true;
 }
 
-    /// pointwise greater-than
-template <class V1, class D1, class V2, class D2, int ... N>
+    /// pointwise less than a constant
+    /// (typically used to check negativity with `r = 0`)
+template <class V1, class D1, class V2, int ... N,
+          VIGRA_REQUIRE<!TinyArrayConcept<V2>::value &&
+                        std::is_convertible<V2, V1>::value> >
 inline bool
-allGreater(TinyArrayBase<V1, D1, N...> const & l,
-           TinyArrayBase<V2, D2, N...> const & r)
+allLess(TinyArrayBase<V1, D1, N...> const & l,
+        V2 const & r)
 {
-    VIGRA_ASSERT_RUNTIME_SIZE(N..., l.size() == r.size(),
-        "TinyArrayBase::allGreater(): size mismatch.");
     for(int k=0; k < l.size(); ++k)
-        if(l[k] <= r[k])
+        if (l[k] >= r)
+            return false;
+    return true;
+}
+
+    /// constant pointwise less than the vector
+    /// (typically used to check positivity with `l = 0`)
+template <class V1, class V2, class D2, int ... N,
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value &&
+                        std::is_convertible<V2, V1>::value> >
+inline bool
+allLess(V1 const & l,
+        TinyArrayBase<V2, D2, N...> const & r)
+{
+    for(int k=0; k < r.size(); ++k)
+        if (l >= r[k])
             return false;
     return true;
 }
@@ -1912,9 +1953,10 @@ allLessEqual(TinyArrayBase<V1, D1, N...> const & l,
 }
 
     /// pointwise less-equal with a constant
-    // (typically used to check non-positivity with `r = 0`)
+    /// (typically used to check non-positivity with `r = 0`)
 template <class V1, class D1, class V2, int ... N,
-          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+          VIGRA_REQUIRE<!TinyArrayConcept<V2>::value &&
+                        std::is_convertible<V2, V1>::value> >
 inline bool
 allLessEqual(TinyArrayBase<V1, D1, N...> const & l,
              V2 const & r)
@@ -1926,15 +1968,60 @@ allLessEqual(TinyArrayBase<V1, D1, N...> const & l,
 }
 
     /// pointwise less-equal with a constant
-    // (typically used to check non-negativity with `l = 0`)
+    /// (typically used to check non-negativity with `l = 0`)
 template <class V1, class V2, class D2, int ... N,
-          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> >
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value &&
+                        std::is_convertible<V2, V1>::value> >
 inline bool
 allLessEqual(V1 const & l,
              TinyArrayBase<V2, D2, N...> const & r)
 {
     for(int k=0; k < r.size(); ++k)
         if (l > r[k])
+            return false;
+    return true;
+}
+
+    /// pointwise greater-than
+template <class V1, class D1, class V2, class D2, int ... N>
+inline bool
+allGreater(TinyArrayBase<V1, D1, N...> const & l,
+           TinyArrayBase<V2, D2, N...> const & r)
+{
+    VIGRA_ASSERT_RUNTIME_SIZE(N..., l.size() == r.size(),
+        "TinyArrayBase::allGreater(): size mismatch.");
+    for(int k=0; k < l.size(); ++k)
+        if (l[k] <= r[k])
+            return false;
+    return true;
+}
+
+    /// pointwise greater-than with a constant
+    /// (typically used to check positivity with `r = 0`)
+template <class V1, class D1, class V2, int ... N,
+          VIGRA_REQUIRE<!TinyArrayConcept<V2>::value &&
+                        std::is_convertible<V2, V1>::value> >
+inline bool
+allGreater(TinyArrayBase<V1, D1, N...> const & l,
+           V2 const & r)
+{
+    for(int k=0; k < l.size(); ++k)
+        if (l[k] <= r)
+            return false;
+    return true;
+}
+
+    /// constant pointwise greater-than a vector
+    /// (typically used to check negativity with `l = 0`)
+template <class V1, class V2, class D2, int ... N,
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value &&
+                        std::is_convertible<V2, V1>::value> >
+inline bool
+allGreater(V1 const & l,
+           TinyArrayBase<V2, D2, N...> const & r)
+{
+    for(int k=0; k < r.size(); ++k)
+        if (l <= r[k])
             return false;
     return true;
 }
@@ -1949,6 +2036,36 @@ allGreaterEqual(TinyArrayBase<V1, D1, N...> const & l,
         "TinyArrayBase::allGreaterEqual(): size mismatch.");
     for(int k=0; k < l.size(); ++k)
         if (l[k] < r[k])
+            return false;
+    return true;
+}
+
+    /// pointwise greater-equal with a constant
+    /// (typically used to check non-negativity with `r = 0`)
+template <class V1, class D1, class V2, int ... N,
+          VIGRA_REQUIRE<!TinyArrayConcept<V2>::value &&
+                        std::is_convertible<V2, V1>::value> >
+inline bool
+allGreaterEqual(TinyArrayBase<V1, D1, N...> const & l,
+                V2 const & r)
+{
+    for(int k=0; k < l.size(); ++k)
+        if (l[k] < r)
+            return false;
+    return true;
+}
+
+    /// pointwise greater-equal with a constant
+    /// (typically used to check non-positivity with `l = 0`)
+template <class V1, class V2, class D2, int ... N,
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value &&
+                        std::is_convertible<V2, V1>::value> >
+inline bool
+allGreaterEqual(V1 const & l,
+                TinyArrayBase<V2, D2, N...> const & r)
+{
+    for(int k=0; k < r.size(); ++k)
+        if (l < r[k])
             return false;
     return true;
 }
@@ -1983,10 +2100,7 @@ inline bool
 operator==(lemon::Invalid const &,
            TinyArrayBase<V, D, M...> const & r)
 {
-    for(int k=0; k < r.size(); ++k)
-        if(r[k] != -1)
-            return false;
-    return true;
+    return r == lemon::INVALID;
 }
 
 template <class V, class D, int ... M>
@@ -2876,21 +2990,21 @@ struct NumericTraits<TinyArrayBase<T, D, N...>>
 
 template <class T, int ...N>
 struct NumericTraits<TinyArray<T, N...>>
-: public NumericTraits<typename TinyArray<T, N...>::BaseType>
+: public NumericTraits<typename TinyArray<T, N...>::base_type>
 {
     typedef TinyArray<T, N...>  Type;
 };
 
 template <class T, int ...N>
 struct NumericTraits<TinyArrayView<T, N...>>
-: public NumericTraits<typename TinyArrayView<T, N...>::BaseType>
+: public NumericTraits<typename TinyArrayView<T, N...>::base_type>
 {
     typedef TinyArrayView<T, N...>  Type;
 };
 
 template <class T, int N>
 struct NumericTraits<TinySymmetricView<T, N>>
-: public NumericTraits<typename TinySymmetricView<T, N>::BaseType>
+: public NumericTraits<typename TinySymmetricView<T, N>::base_type>
 {
     typedef TinySymmetricView<T, N>  Type;
 };
