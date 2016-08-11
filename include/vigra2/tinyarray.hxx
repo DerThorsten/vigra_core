@@ -470,7 +470,7 @@ class TinyArrayBase
             "TinyArrayBase::subarray(): array must be 1-dimensional.");
         static_assert(FROM >= 0 && FROM < TO && TO <= static_size,
             "TinyArrayBase::subarray(): range out of bounds.");
-        return TinyArrayView<value_type, TO-FROM>(data_+FROM);
+        return TinyArrayView<value_type, TO-FROM>(const_cast<VALUETYPE*>(data_)+FROM);
     }
 
     TinyArrayView<value_type, runtime_size>
@@ -889,8 +889,10 @@ class TinyArrayBase<VALUETYPE, DERIVED, runtime_size>
     TinyArrayView<value_type, TO-FROM>
     subarray() const
     {
-        vigra_precondition(FROM >= 0 && FROM < TO && TO <= size_,
-                      "TinyArrayBase::subarray(): range out of bounds.");
+        static_assert(FROM >= 0 && FROM < TO,
+            "TinyArrayBase::subarray(): range out of bounds.");
+        vigra_precondition(TO <= size_,
+            "TinyArrayBase::subarray(): range out of bounds.");
         return TinyArrayView<value_type, TO-FROM>(data_+FROM);
     }
 
@@ -901,7 +903,7 @@ class TinyArrayBase<VALUETYPE, DERIVED, runtime_size>
     subarray(ArrayIndex FROM, ArrayIndex TO) const
     {
         vigra_precondition(FROM >= 0 && FROM < TO && TO <= size_,
-                      "TinyArrayBase::subarray(): range out of bounds.");
+            "TinyArrayBase::subarray(): range out of bounds.");
         return TinyArrayView<value_type, runtime_size>(TO-FROM, const_cast<pointer>(data_)+FROM);
     }
 
@@ -2294,22 +2296,23 @@ operator%(V1 l,
 
 #define VIGRA_TINYARRAY_OPERATORS(OP) \
 template <class V1, class DERIVED, int ... N, class V2, \
-          VIGRA_REQUIRE<std::is_convertible<V2, V1>::value> > \
+          VIGRA_REQUIRE<!TinyArrayConcept<V2>::value && \
+                        std::is_convertible<V2, V1>::value> > \
 DERIVED & \
 operator OP##=(TinyArrayBase<V1, DERIVED, N...> & l, \
-                V2 r) \
+               V2 r) \
 { \
     for(int i=0; i<l.size(); ++i) \
         l[i] OP##= r; \
     return static_cast<DERIVED &>(l); \
 } \
  \
-template <class V1, class DERIVED, class V2, class OTHER_DERIVED, int ... N> \
+template <class V1, class DERIVED, class V2, class OTHER_DERIVED, int ... M, int ... N> \
 inline DERIVED &  \
-operator OP##=(TinyArrayBase<V1, DERIVED, N...> & l, \
-                TinyArrayBase<V2, OTHER_DERIVED, N...> const & r) \
+operator OP##=(TinyArrayBase<V1, DERIVED, M...> & l, \
+               TinyArrayBase<V2, OTHER_DERIVED, N...> const & r) \
 { \
-    VIGRA_ASSERT_RUNTIME_SIZE(N..., l.size() == r.size(), \
+    vigra_assert(l.size() == r.size(), \
         "TinyArrayBase::operator" #OP "=(): size mismatch."); \
     for(int i=0; i<l.size(); ++i) \
         l[i] OP##= r[i]; \
@@ -2319,7 +2322,7 @@ template <class V1, class D1, class V2, class D2, int ... N> \
 inline \
 TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> \
 operator OP(TinyArrayBase<V1, D1, N...> const & l, \
-             TinyArrayBase<V2, D2, N...> const & r) \
+            TinyArrayBase<V2, D2, N...> const & r) \
 { \
     TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> res(l); \
     return res OP##= r; \
@@ -2330,7 +2333,7 @@ template <class V1, class D1, class V2, int ... N, \
 inline \
 TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> \
 operator OP(TinyArrayBase<V1, D1, N...> const & l, \
-             V2 r) \
+            V2 r) \
 { \
     TinyArray<decltype((*(V1*)0) OP (*(V2*)0)), N...> res(l); \
     return res OP##= r; \
@@ -2655,6 +2658,34 @@ min(TinyArrayBase<V1, D1, N...> const & l,
     return res;
 }
 
+    /// element-wise minimum with a constant
+template <class V1, class D1, class V2, int ... N,
+          VIGRA_REQUIRE<!TinyArrayConcept<V2>::value>>
+inline
+TinyArray<PromoteType<V1, V2>, N...>
+min(TinyArrayBase<V1, D1, N...> const & l,
+    V2 const & r)
+{
+    TinyArray<PromoteType<V1, V2>, N...> res(l.size(), DontInit);
+    for(int k=0; k < l.size(); ++k)
+        res[k] =  min<PromoteType<V1, V2> >(l[k], r);
+    return res;
+}
+
+    /// element-wise minimum with a constant
+template <class V1, class V2, class D2, int ... N,
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value>>
+inline
+TinyArray<PromoteType<V1, V2>, N...>
+min(V1 const & l,
+    TinyArrayBase<V2, D2, N...> const & r)
+{
+    TinyArray<PromoteType<V1, V2>, N...> res(r.size(), DontInit);
+    for(int k=0; k < r.size(); ++k)
+        res[k] =  min<PromoteType<V1, V2> >(l, r[k]);
+    return res;
+}
+
     /** Index of minimal element.
 
         Returns -1 for an empty array.
@@ -2695,6 +2726,34 @@ max(TinyArrayBase<V1, D1, N...> const & l,
     TinyArray<PromoteType<V1, V2>, N...> res(l.size(), DontInit);
     for(int k=0; k < l.size(); ++k)
         res[k] =  max<PromoteType<V1, V2> >(l[k], r[k]);
+    return res;
+}
+
+    /// element-wise maximum with a constant
+template <class V1, class D1, class V2, int ... N,
+          VIGRA_REQUIRE<!TinyArrayConcept<V2>::value>>
+inline
+TinyArray<PromoteType<V1, V2>, N...>
+max(TinyArrayBase<V1, D1, N...> const & l,
+    V2 const & r)
+{
+    TinyArray<PromoteType<V1, V2>, N...> res(l.size(), DontInit);
+    for(int k=0; k < l.size(); ++k)
+        res[k] =  max<PromoteType<V1, V2> >(l[k], r);
+    return res;
+}
+
+    /// element-wise maximum with a constant
+template <class V1, class V2, class D2, int ... N,
+          VIGRA_REQUIRE<!TinyArrayConcept<V1>::value>>
+inline
+TinyArray<PromoteType<V1, V2>, N...>
+max(V1 const & l,
+    TinyArrayBase<V2, D2, N...> const & r)
+{
+    TinyArray<PromoteType<V1, V2>, N...> res(r.size(), DontInit);
+    for(int k=0; k < r.size(); ++k)
+        res[k] =  max<PromoteType<V1, V2> >(l, r[k]);
     return res;
 }
 

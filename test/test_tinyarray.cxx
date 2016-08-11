@@ -409,8 +409,13 @@ struct TinyArrayTest
         shouldEqual(iv3 % (iv3+iv1), iv3);
 
         float minRef[] = { 1.0f, 2.0f, 3.6f, 4.8f, 8.0f, 9.7f };
+        float minRefScalar[] = { 1.2f, 2.4f, 3.6f, 4.0f, 4.0f, 4.0f };
         auto minRes = min(iv3, fv3);
-        shouldEqualSequence(minRef, minRef+SIZE, minRes.cbegin());
+        shouldEqualSequence(minRef, minRef + SIZE, minRes.cbegin());
+        minRes = min(4.0f, fv3);
+        shouldEqualSequence(minRefScalar, minRefScalar + SIZE, minRes.cbegin());
+        minRes = min(fv3, 4.0f);
+        shouldEqualSequence(minRefScalar, minRefScalar + SIZE, minRes.cbegin());
         IV ivmin = floor(fv3);
         ivmin[1] = 3;
         int minRef2[] = { 1, 2, 3, 4, 8, 9 };
@@ -423,6 +428,9 @@ struct TinyArrayTest
 
         float maxRef[] = { 1.2f, 2.4f, 4.0f, 5.0f, 8.1f, 10.0f };
         shouldEqualSequence(maxRef, maxRef+SIZE, max(iv3, fv3).begin());
+        float maxRefScalar[] = { 4.0f, 4.0f, 4.0f, 4.8f, 8.1f, 9.7f };
+        shouldEqualSequence(maxRefScalar, maxRefScalar + SIZE, max(4.0f, fv3).begin());
+        shouldEqualSequence(maxRefScalar, maxRefScalar + SIZE, max(fv3, 4.0f).begin());
         IV ivmax = floor(fv3);
         ivmax[1] = 3;
         int maxRef2[] = { 1, 3, 4, 5, 8, 10 };
@@ -623,7 +631,10 @@ struct TinyArrayTest
 
         A r = A::range(2,6);
         shouldEqual(r, (A{2,3,4,5}));
-        shouldEqual(r.subarray(1,3), (A{3,4}));
+        shouldEqual(r.subarray(1, 3).size(), 2);
+        shouldEqual(r.subarray(1, 3), (A{ 3,4 }));
+        shouldEqual((r.template subarray<1, 3>().size()), 2);
+        shouldEqual((r.template subarray<1, 3>()), (A{ 3,4 }));
 
         shouldEqual(A::range(0,6,3), (A{0,3}));
         shouldEqual(A::range(0,7,3), (A{0,3,6}));
@@ -643,7 +654,7 @@ struct TinyArrayTest
         }
         catch(ContractViolation & e)
         {
-            std::string expected("\nPrecondition violation!\n"
+            std::string expected("\nInvariant violation!\n"
                                  "TinyArrayBase::operator/=(): size mismatch.");
             std::string message(e.what());
             should(0 == expected.compare(message.substr(0,expected.size())));
