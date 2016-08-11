@@ -227,7 +227,7 @@ class ArrayViewND
 
     unsigned isConsecutiveImpl() const
     {
-        return ((char*)&operator[](shape_ - 1) == data_ + (size()-1)*sizeof(T))
+        return (size() == 0 || (char*)&operator[](shape_ - 1) == data_ + (size()-1)*sizeof(T))
                      ? ConsecutiveMemory
                      : 0;
     }
@@ -332,6 +332,8 @@ public:
     , data_((char*)ptr)
     , flags_(isConsecutiveImpl())
     {
+        vigra_assert(allGreaterEqual(shape, 0),
+            "ArrayViewND(): invalid shape.");
         zeroSingletonStrides();
     }
 
@@ -348,6 +350,8 @@ public:
     , data_((char*)ptr)
     , flags_(isConsecutiveImpl())
     {
+        vigra_assert(allGreaterEqual(shape, 0),
+            "ArrayViewND(): invalid shape.");
         zeroSingletonStrides();
     }
 
@@ -1266,7 +1270,7 @@ public:
          */
     difference_type_1 size() const
     {
-        return vigra::prod(shape_);
+        return max(0, vigra::prod(shape_));
     }
 
 #ifdef DOXYGEN
@@ -1889,6 +1893,8 @@ class ArrayND
     : view_type(shape, 0, order)
     , allocated_data_(this->size(), init, alloc)
     {
+        vigra_precondition(allGreaterEqual(shape, 0),
+            "ArrayND(): invalid shape.");
         this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
@@ -1903,6 +1909,8 @@ class ArrayND
     : view_type(shape, axistags, 0, order)
     , allocated_data_(this->size(), init, alloc)
     {
+        vigra_precondition(allGreaterEqual(shape, 0),
+            "ArrayND(): invalid shape.");
         this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
@@ -1922,6 +1930,8 @@ class ArrayND
     : view_type(shape, 0, order)
     , allocated_data_(init, init + this->size(), alloc)
     {
+        vigra_precondition(allGreaterEqual(shape, 0),
+            "ArrayND(): invalid shape.");
         this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
@@ -1936,6 +1946,8 @@ class ArrayND
     : view_type(shape, axistags, 0, order)
     , allocated_data_(init, init + this->size(), alloc)
     {
+        vigra_precondition(allGreaterEqual(shape, 0),
+            "ArrayND(): invalid shape.");
         this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
@@ -2192,6 +2204,8 @@ class ArrayND
            axistags_type const & new_axistags = axistags_type{},
            MemoryOrder order = C_ORDER)
     {
+        vigra_precondition(allGreaterEqual(new_shape, 0),
+            "ArrayND::resize(): invalid shape.");
         if(this->size() == vigra::prod(new_shape))
         {
             auto this_r = this->reshape(new_shape, new_axistags, order);
