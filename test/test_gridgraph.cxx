@@ -38,6 +38,7 @@
 #include <vigra2/shape.hxx>
 #include <vigra2/iterator_nd.hxx>
 #include <vigra2/array_nd.hxx>
+#include <vigra2/timing.hxx>
 //#include <vigra2/gridgraph.hxx>
 //#include <vigra2/multi_localminmax.hxx>
 //#include <vigra2/algorithm.hxx>
@@ -438,9 +439,9 @@ edgeIdFromCoord(Shape<runtime_size> const & edge, Shape<runtime_size> const & st
 }
 
 template <int M, int N>
-inline Shape<M + 1> 
-edgeCoordFromId(ArrayIndex edge, std::vector<Shape<M>> const & shapes, MemoryOrder order, 
-                Shape<N> const & edge_offsets, Shape<N> const & edge_offsets2)
+inline Shape<M + 1>
+edgeCoordFromId(ArrayIndex edge, std::vector<Shape<M>> const & shapes, MemoryOrder order,
+    Shape<N> const & edge_offsets, Shape<N> const & edge_offsets2)
 {
     Shape<M + 1> res(DontInit);
     for (int k = 0; k < edge_offsets.size(); ++k)
@@ -454,13 +455,31 @@ edgeCoordFromId(ArrayIndex edge, std::vector<Shape<M>> const & shapes, MemoryOrd
     return res;
 }
 
+template <int M, int N>
+inline Shape<M + 1>
+edgeCoordFromId2(ArrayIndex edge, std::vector<Shape<M>> const & shapes, MemoryOrder order,
+    Shape<N> const & edge_offsets, std::vector<Shape<M>> const & pivots)
+{
+    Shape<M + 1> res(DontInit);
+    for (int k = 0; k < edge_offsets.size(); ++k)
+    {
+        if (edge < edge_offsets[k])
+            break;
+        res.back() = k;
+    }
+
+    res.template subarray<0, M>() = nodeCoordFromId(edge - edge_offsets[res.back()], shapes[res.back()], order) - 
+        pivots[res.back()];
+    return res;
+}
+
 template <int N>
 inline Shape<runtime_size>
-edgeCoordFromId(ArrayIndex edge, std::vector<Shape<runtime_size>> const & shapes, MemoryOrder order, 
-                Shape<N> const & edge_offsets, Shape<N> const & edge_offsets2)
+edgeCoordFromId(ArrayIndex edge, std::vector<Shape<runtime_size>> const & shapes, MemoryOrder order,
+    Shape<N> const & edge_offsets, Shape<N> const & edge_offsets2)
 {
     int size = shapes[0].size();
-    Shape<runtime_size> res(size+1, DontInit);
+    Shape<runtime_size> res(size + 1, DontInit);
     for (int k = 0; k < edge_offsets.size(); ++k)
     {
         if (edge < edge_offsets[k])
@@ -469,6 +488,25 @@ edgeCoordFromId(ArrayIndex edge, std::vector<Shape<runtime_size>> const & shapes
     }
 
     res.subarray(0, size) = nodeCoordFromId(edge - edge_offsets[res.back()], shapes[res.back()], order);
+    return res;
+}
+
+template <int N>
+inline Shape<runtime_size>
+edgeCoordFromId2(ArrayIndex edge, std::vector<Shape<runtime_size>> const & shapes, MemoryOrder order,
+    Shape<N> const & edge_offsets, std::vector<Shape<runtime_size>> const & pivots)
+{
+    int size = shapes[0].size();
+    Shape<runtime_size> res(size + 1, DontInit);
+    for (int k = 0; k < edge_offsets.size(); ++k)
+    {
+        if (edge < edge_offsets[k])
+            break;
+        res.back() = k;
+    }
+
+    res.subarray(0, size) = nodeCoordFromId(edge - edge_offsets[res.back()], shapes[res.back()], order) -
+        pivots[res.back()];
     return res;
 }
 
@@ -1984,23 +2022,27 @@ struct NeighborhoodTests
         CoordinateIterator<N> i(S(tags::size = ndim, 3), memoryOrder);
         int degree = neighborOffsets.size();
 
+        USETICTOC;
+        std::cerr << "N: " << N << ", neighborhood: " << NType << ", order: " << memoryOrder<< ": ";
+        TIC;
         for(; i.isValid(); ++i)
         {
             // create all possible array shapes from 1**N to 3**N
             // check neighborhood of all pixels
             S shape = *i + 1,
-            //S shape(tags::size = ndim, 2),
+            //S shape(tags::size = ndim, 3),
                 strides = shapeToStrides(shape, memoryOrder);
             CoordinateIterator<N> vi(shape, memoryOrder);
 
             Shape<> edge_offsets = edgeOffsets(shape, neighborOffsets, true),
                     edge_offsets2 = edge_offsets;
-            std::vector<Shape<N>> edge_shapes, edge_strides;
+            std::vector<Shape<N>> edge_shapes, edge_pivots, edge_strides;
             for (int k = 0; k < edge_offsets2.size(); ++k)
             {
                 auto p = min(neighborOffsets[k], 0);
                 auto sh = shape - abs(neighborOffsets[k]);
                 auto st = shapeToStrides(sh, memoryOrder);
+                edge_pivots.push_back(p);
                 edge_shapes.push_back(sh);
                 edge_strides.push_back(st);
                 edge_offsets2[k] += dot(p, st);
@@ -2008,8 +2050,10 @@ struct NeighborhoodTests
             //std::cerr << edge_offsets << "\n";
             auto directed_edges = gridGraphEdgeCount(shape, NType, true);
             auto undirected_edges = gridGraphEdgeCount(shape, NType, false);
-            ArrayND<1, int> foundDirectedEdges(directed_edges),
-                            foundUndirectedEdges(undirected_edges);
+            ArrayND<1, int> foundDirectedEdgeIds(directed_edges),
+                            foundUndirectedEdgeIds(undirected_edges);
+            ArrayND<ndim+1, int> foundDirectedEdges(shape.insert(ndim, degree)),
+                                 foundUndirectedEdges(shape.insert(ndim, degree/2));
 
             for(; vi.isValid(); ++vi)
             {
@@ -2052,10 +2096,14 @@ struct NeighborhoodTests
                         should(edgeId >= 0 && edgeId < directed_edges);
                         auto edge = edgeCoordFromId(edgeId, edge_shapes, memoryOrder, edge_offsets, edge_offsets2);
                         edge.subarray(0, ndim) -= min(neighborOffsets[edge.back()], 0);
+                        auto edge2 = edgeCoordFromId2(edgeId, edge_shapes, memoryOrder, edge_offsets, edge_pivots);
+                        shouldEqual(edge, edge2);
+                        //std::cerr << edge << " " << edge2 << " " << (edge == edge2) << "\n";
                         //std::cerr << di->source() << " " << di->edge() << " " << edgeId << "\n";
                         //std::cerr << "        " << edge << "\n";
                         shouldEqual(di->edge(), edge);
-                        ++foundDirectedEdges(edgeId);
+                        ++foundDirectedEdgeIds(edgeId);
+                        ++foundDirectedEdges[edge];
                         ++di;
 
                         should(ai != aend);
@@ -2075,8 +2123,11 @@ struct NeighborhoodTests
                         should(edgeId >= 0 && edgeId < undirected_edges);
                         edge = edgeCoordFromId(edgeId, edge_shapes, memoryOrder, edge_offsets, edge_offsets2);
                         edge.template subarray<0, ndim>() -= min(neighborOffsets[edge.back()], 0);
+                        edge2 = edgeCoordFromId2(edgeId, edge_shapes, memoryOrder, edge_offsets, edge_pivots);
+                        shouldEqual(edge, edge2);
                         shouldEqual(ai->edge(), edge);
-                        ++foundUndirectedEdges(edgeId);
+                        ++foundUndirectedEdgeIds(edgeId);
+                        ++foundUndirectedEdges[edge];
                         ++ai;
                     }
                     should(ni == nend);
@@ -2103,11 +2154,32 @@ struct NeighborhoodTests
                     should(ni.atEnd() && !ni.isValid());
                 }
             }
-            if(directed_edges > 0)
-                should(foundDirectedEdges == 1);
+            if (directed_edges > 0)
+            {
+                should(foundDirectedEdgeIds == 1);
+                for (int k = 0; k < directed_edges; ++k)
+                {
+                    auto edge = edgeCoordFromId(k, edge_shapes, memoryOrder, edge_offsets, edge_offsets2);
+                    edge.template subarray<0, ndim>() -= min(neighborOffsets[edge.back()], 0);
+                    shouldEqual(foundDirectedEdges[edge], 1);
+                    foundDirectedEdges[edge] = 0;
+                }
+                should(foundDirectedEdges == 0);
+            }
             if (undirected_edges > 0)
-                should(foundUndirectedEdges == 2);
+            {
+                should(foundUndirectedEdgeIds == 2);
+                for (int k = 0; k < undirected_edges; ++k)
+                {
+                    auto edge = edgeCoordFromId(k, edge_shapes, memoryOrder, edge_offsets, edge_offsets2);
+                    edge.template subarray<0, ndim>() -= min(neighborOffsets[edge.back()], 0);
+                    shouldEqual(foundUndirectedEdges[edge], 2);
+                    foundUndirectedEdges[edge] = 0;
+                }
+                should(foundUndirectedEdges == 0);
+            }
         }
+        TOC;
     }
     
 #if 0    
