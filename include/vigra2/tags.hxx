@@ -228,6 +228,38 @@ SizeTag size;
 
 }
 
+/********************************************************/
+/*                                                      */
+/*                     tags::directed                   */
+/*                                                      */
+/********************************************************/
+
+    // Support for tags::directed keyword argument
+    // to specify if a graph is directed or not.
+struct DirectedProxy
+{
+    bool value;
+};
+
+struct DirectedTag
+{
+    DirectedProxy operator=(bool s) const
+    {
+        return {s};
+    }
+
+    DirectedProxy operator()(bool s) const
+    {
+        return {s};
+    }
+};
+
+namespace {
+
+DirectedTag directed;
+
+}
+
 }} // namespace vigra::tags
 
 #endif // VIGRA2_TAGS_HXX
