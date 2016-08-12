@@ -253,13 +253,19 @@ public:
         , arc_index_(0)
     {}
 
-    CoordAdjacency(node_descriptor_type const & source)
-        : arc_(tags::size = source.size() + 1)
-        , reverse_arc_(tags::size = source.size() + 1)
+    CoordAdjacency(node_descriptor_type const & source, 
+                   int edge_index, int reverse_edge_index)
+        : arc_(source.size() + 1, DontInit)
+        , reverse_arc_(source.size() + 1, DontInit)
         , arc_index_(0)
     {
-        arc_.subarray(0, source.size()) = source;
-        reverse_arc_.subarray(0, source.size()) = source;
+        for (int k = 0; k < source.size(); ++k)
+        {
+            arc_[k] = source[k];
+            reverse_arc_[k] = source[k];
+        }
+        arc_.back() = edge_index;
+        reverse_arc_.back() = reverse_edge_index;
     }
 
     CoordAdjacency(edge_descriptor_type const & arc, edge_descriptor_type const & reverse, bool directed)
@@ -286,11 +292,13 @@ public:
         arc_index_ = (directed || arc.back() < reverse.back()) ? 0 : 1;
     }
 
-    void move(ArrayIndex edge_index, edge_descriptor_type const & diff, bool directed)
+    void move(ArrayIndex edge_index, node_descriptor_type const & diff, bool directed)
     {
+        reverse_arc_.back() += arc_.back() - edge_index;
         arc_.back() = edge_index;
-        reverse_arc_ += diff;
-        arc_index_ = (directed || arc_.back() < reverse_arc_.back()) ? 0 : 1;
+        for (int k = 0; k < diff.size(); ++k)
+            reverse_arc_[k] += diff[k];
+        arc_index_ = (directed || edge_index < reverse_arc_.back()) ? 0 : 1;
     }
 
     template <int M = N>
@@ -307,28 +315,28 @@ public:
 
     template <int M = N>
     enable_if_t<M != runtime_size, node_descriptor_view>
-        source() const
+    source() const
     {
         return arc_.template subarray<0, N>();
     }
 
     template <int M = N>
     enable_if_t<M == runtime_size, node_descriptor_view>
-        source() const
+    source() const
     {
         return arc_.subarray(0, ndim());
     }
 
     template <int M = N>
     enable_if_t<M != runtime_size, node_descriptor_view>
-        target() const
+    target() const
     {
         return reverse_arc_.template subarray<0, N>();
     }
 
     template <int M = N>
     enable_if_t<M == runtime_size, node_descriptor_view>
-        target() const
+    target() const
     {
         return reverse_arc_.subarray(0, ndim());
     }
@@ -426,38 +434,22 @@ nodeCoordFromId(ArrayIndex node, Shape<N> const & shape, MemoryOrder order)
 
 template <int M, int N>
 inline ArrayIndex
-edgeIdFromCoord(Shape<M + 1> const & edge, Shape<M> const & strides, Shape<N> const & edge_offsets)
+edgeIdFromCoord(Shape<M + 1> const & edge, std::vector<Shape<M>> const & strides, Shape<N> const & edge_offsets)
 {
-    return dot(edge.template subarray<0, M>(), strides) + edge_offsets[edge.back()];
+    return dot(edge.template subarray<0, M>(), strides[edge.back()]) + edge_offsets[edge.back()];
 }
 
 template <int N>
 inline ArrayIndex 
-edgeIdFromCoord(Shape<runtime_size> const & edge, Shape<runtime_size> const & strides, Shape<N> const & edge_offsets)
+edgeIdFromCoord(Shape<runtime_size> const & edge, std::vector<Shape<runtime_size>> const & strides, Shape<N> const & edge_offsets)
 {
-    return dot(edge.subarray(0, strides.size()), strides) + edge_offsets[edge.back()];
+    auto const & stride = strides[edge.back()];
+    return dot(edge.subarray(0, stride.size()), stride) + edge_offsets[edge.back()];
 }
 
 template <int M, int N>
 inline Shape<M + 1>
 edgeCoordFromId(ArrayIndex edge, std::vector<Shape<M>> const & shapes, MemoryOrder order,
-    Shape<N> const & edge_offsets, Shape<N> const & edge_offsets2)
-{
-    Shape<M + 1> res(DontInit);
-    for (int k = 0; k < edge_offsets.size(); ++k)
-    {
-        if (edge < edge_offsets[k])
-            break;
-        res.back() = k;
-    }
-
-    res.template subarray<0, M>() = nodeCoordFromId(edge - edge_offsets[res.back()], shapes[res.back()], order);
-    return res;
-}
-
-template <int M, int N>
-inline Shape<M + 1>
-edgeCoordFromId2(ArrayIndex edge, std::vector<Shape<M>> const & shapes, MemoryOrder order,
     Shape<N> const & edge_offsets, std::vector<Shape<M>> const & pivots)
 {
     Shape<M + 1> res(DontInit);
@@ -476,24 +468,6 @@ edgeCoordFromId2(ArrayIndex edge, std::vector<Shape<M>> const & shapes, MemoryOr
 template <int N>
 inline Shape<runtime_size>
 edgeCoordFromId(ArrayIndex edge, std::vector<Shape<runtime_size>> const & shapes, MemoryOrder order,
-    Shape<N> const & edge_offsets, Shape<N> const & edge_offsets2)
-{
-    int size = shapes[0].size();
-    Shape<runtime_size> res(size + 1, DontInit);
-    for (int k = 0; k < edge_offsets.size(); ++k)
-    {
-        if (edge < edge_offsets[k])
-            break;
-        res.back() = k;
-    }
-
-    res.subarray(0, size) = nodeCoordFromId(edge - edge_offsets[res.back()], shapes[res.back()], order);
-    return res;
-}
-
-template <int N>
-inline Shape<runtime_size>
-edgeCoordFromId2(ArrayIndex edge, std::vector<Shape<runtime_size>> const & shapes, MemoryOrder order,
     Shape<N> const & edge_offsets, std::vector<Shape<runtime_size>> const & pivots)
 {
     int size = shapes[0].size();
@@ -658,31 +632,21 @@ makeBorderNeighborhoodND(
     }
 }
 
-template <class SHAPE, class ARC_DESCRIPTOR>
+template <class SHAPE>
 void
 computeNeighborIncrements(
     std::vector<SHAPE> const & neighborOffsets,
     std::vector<std::vector<ArrayIndex> > const & indices,
-    std::vector<std::vector<SHAPE> > & adjacentNodeIncrements,
-    std::vector<std::vector<GridGraphArcDescriptor<SHAPE::static_size>>> & adjacentArcIncrements,
-    std::vector<std::vector<ARC_DESCRIPTOR>> & adjacencyIncrements,
-    bool directed)
+    std::vector<std::vector<SHAPE> > & adjacentNodeIncrements)
 {
     typedef GridGraphArcDescriptor<SHAPE::static_size> ArcDescriptor;
 
-    int borderTypeCount = indices.size(),
-        maxDegree = neighborOffsets.size(),
-        ndim = neighborOffsets[0].size();
-    SHAPE zero(tags::size = ndim);
+    int borderTypeCount = indices.size();
     adjacentNodeIncrements.resize(borderTypeCount);
-    adjacentArcIncrements.resize(borderTypeCount);
-    adjacencyIncrements.resize(borderTypeCount);
 
     for (int bt = 0; bt<borderTypeCount; ++bt)
     {
         adjacentNodeIncrements[bt].clear();
-        adjacentArcIncrements[bt].clear();
-        adjacencyIncrements[bt].clear();
 
         int degree = (int)indices[bt].size();
 
@@ -692,32 +656,10 @@ computeNeighborIncrements(
             if (k == 0)
             {
                 adjacentNodeIncrements[bt].push_back(neighborOffsets[j]);
-                ARC_DESCRIPTOR arc(ndim + 1, DontInit);
-                arc.subarray(0, ndim) = neighborOffsets[j];
-                arc.back() = maxDegree - j - 1;
-                adjacencyIncrements[bt].push_back(arc);
             }
             else
             {
                 adjacentNodeIncrements[bt].push_back(neighborOffsets[j] - neighborOffsets[indices[bt][k - 1]]);
-                ARC_DESCRIPTOR diff(ndim + 1, DontInit);
-                diff.subarray(0, ndim) = adjacentNodeIncrements[bt].back();
-                diff.back() = indices[bt][k - 1] - j;
-                adjacencyIncrements[bt].push_back(diff);
-            }
-
-            if (directed || j < maxDegree / 2) // directed or backward edge
-            {
-                adjacentArcIncrements[bt].push_back(ArcDescriptor(zero, j));
-            }
-            else if (k == 0 || !adjacentArcIncrements[bt].back().isReversed()) // the first forward edge
-            {
-                adjacentArcIncrements[bt].push_back(ArcDescriptor(neighborOffsets[j], maxDegree - j - 1, true));
-            }
-            else // second or higher forward edge
-            {
-                adjacentArcIncrements[bt].push_back(ArcDescriptor(neighborOffsets[j] - neighborOffsets[indices[bt][k - 1]],
-                    maxDegree - j - 1, true));
             }
         }
     }
@@ -899,7 +841,7 @@ public:
     friend struct NeighborhoodTests<N>;
 
     GridGraphAdjacencyIterator()
-    : adjacencyOffsets_(0)
+    : targetOffsets_(0)
     , neighborIndices_(0)
     , index_(0)
     {}
@@ -1003,15 +945,16 @@ public:
 protected:
 
     // for testing only
-    GridGraphAdjacencyIterator(std::vector<edge_descriptor_type> const & adjacencyOffsets,
+    GridGraphAdjacencyIterator(std::vector<node_descriptor_type> const & targetOffsets,
                                std::vector<index_type> const & neighborIndices,
                                node_descriptor_type const & source,
-                               bool directed = false)
-    : adjacencyOffsets_(&adjacencyOffsets)
+                               int max_degree,
+                               bool directed)
+    : targetOffsets_(&targetOffsets)
     , neighborIndices_(&neighborIndices)
-    , adjacency_(source)
-    , directed_(directed)
+    , adjacency_(source, 0, max_degree - 1)
     , index_(0)
+    , directed_(directed)
     {
         updateAdjacency();
     }
@@ -1019,14 +962,14 @@ protected:
     void updateAdjacency()
     {
         if (isValid())
-            adjacency_.move((*neighborIndices_)[index_], (*adjacencyOffsets_)[index_], directed_);
+            adjacency_.move((*neighborIndices_)[index_], (*targetOffsets_)[index_], directed_);
     }
 
-    std::vector<edge_descriptor_type> const * adjacencyOffsets_;
+    std::vector<node_descriptor_type> const * targetOffsets_;
     std::vector<index_type> const * neighborIndices_;
     value_type adjacency_;
+    short index_;
     bool directed_;
-    ArrayIndex index_;
 };
 
 #if 0
@@ -2016,7 +1959,7 @@ struct NeighborhoodTests
     {
         detail::makeNeighborhoodND(ndim, NType, memoryOrder, neighborOffsets);
         detail::makeBorderNeighborhoodND(neighborOffsets, neighborIndices, backIndices);
-        detail::computeNeighborIncrements(neighborOffsets, neighborIndices, neighborIncrements, arcIncrements, adjacencyIncrements, false);
+        detail::computeNeighborIncrements(neighborOffsets, neighborIndices, neighborIncrements);
 
         // check neighborhoods at ROI border
         CoordinateIterator<N> i(S(tags::size = ndim, 3), memoryOrder);
@@ -2065,13 +2008,13 @@ struct NeighborhoodTests
                                                     neighborIndices[borderType], 
                                                     vi.coord()),
                                                  nend = ni.end();
-                    GridGraphAdjacencyIterator<N> di(adjacencyIncrements[borderType],
+                    GridGraphAdjacencyIterator<N> di(neighborIncrements[borderType],
                                                      neighborIndices[borderType],
-                                                     vi.coord(), true),
+                                                     vi.coord(), degree, true),
                                                   dend = di.end();
-                    GridGraphAdjacencyIterator<N> ai(adjacencyIncrements[borderType],
+                    GridGraphAdjacencyIterator<N> ai(neighborIncrements[borderType],
                                                      neighborIndices[borderType],
-                                                     vi.coord(), false),
+                                                     vi.coord(), degree, false),
                                                   aend = ai.end();
 
                     for(int k=0; k<neighborIndices[borderType].size(); ++k)
@@ -2092,12 +2035,9 @@ struct NeighborhoodTests
                         shouldEqual(target, di->node());
                         shouldEqual(source.insert(ndim, index), di->edge());
                         auto nodeId = nodeIdFromCoord(di->source(), strides);
-                        auto edgeId = edgeIdFromCoord(di->edge(), edge_strides[di->edge().back()], edge_offsets2);
+                        auto edgeId = edgeIdFromCoord(di->edge(), edge_strides, edge_offsets2);
                         should(edgeId >= 0 && edgeId < directed_edges);
-                        auto edge = edgeCoordFromId(edgeId, edge_shapes, memoryOrder, edge_offsets, edge_offsets2);
-                        edge.subarray(0, ndim) -= min(neighborOffsets[edge.back()], 0);
-                        auto edge2 = edgeCoordFromId2(edgeId, edge_shapes, memoryOrder, edge_offsets, edge_pivots);
-                        shouldEqual(edge, edge2);
+                        auto edge = edgeCoordFromId(edgeId, edge_shapes, memoryOrder, edge_offsets, edge_pivots);
                         //std::cerr << edge << " " << edge2 << " " << (edge == edge2) << "\n";
                         //std::cerr << di->source() << " " << di->edge() << " " << edgeId << "\n";
                         //std::cerr << "        " << edge << "\n";
@@ -2119,12 +2059,9 @@ struct NeighborhoodTests
                         //    << ai->edge() << "\n";
                         //edgeId = edgeIdFromCoord(ai->edge(), shape, neighborOffsets, undirected_edge_offsets, memoryOrder);
                         //std::cerr << ai->source() << " " << ai->edge() << " " << nodeId << " " << edgeId << "\n";
-                        edgeId = edgeIdFromCoord(ai->edge(), edge_strides[ai->edge().back()], edge_offsets2);
+                        edgeId = edgeIdFromCoord(ai->edge(), edge_strides, edge_offsets2);
                         should(edgeId >= 0 && edgeId < undirected_edges);
-                        edge = edgeCoordFromId(edgeId, edge_shapes, memoryOrder, edge_offsets, edge_offsets2);
-                        edge.template subarray<0, ndim>() -= min(neighborOffsets[edge.back()], 0);
-                        edge2 = edgeCoordFromId2(edgeId, edge_shapes, memoryOrder, edge_offsets, edge_pivots);
-                        shouldEqual(edge, edge2);
+                        edge = edgeCoordFromId(edgeId, edge_shapes, memoryOrder, edge_offsets, edge_pivots);
                         shouldEqual(ai->edge(), edge);
                         ++foundUndirectedEdgeIds(edgeId);
                         ++foundUndirectedEdges[edge];
@@ -2159,8 +2096,7 @@ struct NeighborhoodTests
                 should(foundDirectedEdgeIds == 1);
                 for (int k = 0; k < directed_edges; ++k)
                 {
-                    auto edge = edgeCoordFromId(k, edge_shapes, memoryOrder, edge_offsets, edge_offsets2);
-                    edge.template subarray<0, ndim>() -= min(neighborOffsets[edge.back()], 0);
+                    auto edge = edgeCoordFromId(k, edge_shapes, memoryOrder, edge_offsets, edge_pivots);
                     shouldEqual(foundDirectedEdges[edge], 1);
                     foundDirectedEdges[edge] = 0;
                 }
@@ -2171,8 +2107,7 @@ struct NeighborhoodTests
                 should(foundUndirectedEdgeIds == 2);
                 for (int k = 0; k < undirected_edges; ++k)
                 {
-                    auto edge = edgeCoordFromId(k, edge_shapes, memoryOrder, edge_offsets, edge_offsets2);
-                    edge.template subarray<0, ndim>() -= min(neighborOffsets[edge.back()], 0);
+                    auto edge = edgeCoordFromId(k, edge_shapes, memoryOrder, edge_offsets, edge_pivots);
                     shouldEqual(foundUndirectedEdges[edge], 2);
                     foundUndirectedEdges[edge] = 0;
                 }
