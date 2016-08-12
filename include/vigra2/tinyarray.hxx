@@ -216,8 +216,8 @@ class TinyArrayBase
     using difference_type        = std::ptrdiff_t;
     using index_type             = TinyArray<ArrayIndex, sizeof...(N)>;
 
-    static const ArrayIndex static_ndim  = sizeof...(N);
-    static const ArrayIndex static_size  = ShapeHelper::total_size;
+    static constexpr ArrayIndex static_ndim  = sizeof...(N);
+    static constexpr ArrayIndex static_size  = ShapeHelper::total_size;
     static const bool may_use_uninitialized_memory =
                                    UninitializedMemoryTraits<VALUETYPE>::value;
 
@@ -1209,6 +1209,12 @@ class TinyArray
         base_type::operator=(other);
         return *this;
     }
+
+    constexpr bool       empty() const { return static_size == 0; }
+    constexpr ArrayIndex size()  const { return static_size; }
+    constexpr ArrayIndex max_size()  const { return static_size; }
+    constexpr index_type shape() const { return index_type{ M, N... }; }
+    constexpr ArrayIndex ndim()  const { return static_ndim; }
 };
 
 template<class T, int M, int ... N>
@@ -1492,6 +1498,12 @@ class TinyArrayView
             base_type::data_[k] = detail::RequiresExplicitCast<value_type>::cast(r[k]);
         return *this;
     }
+
+    constexpr bool       empty() const { return static_size == 0; }
+    constexpr ArrayIndex size()  const { return static_size; }
+    constexpr ArrayIndex max_size()  const { return static_size; }
+    constexpr index_type shape() const { return index_type{ M, N... }; }
+    constexpr ArrayIndex ndim()  const { return static_ndim; }
 };
 
 template <class VALUETYPE>
@@ -1761,6 +1773,7 @@ std::ostream & operator<<(std::ostream & o, TinySymmetricView<T, N> const & v)
     Namespace: vigra
 */
 //@{
+
     /// element-wise equal
 template <class V1, class D1, class V2, class D2, int ...M, int ... N>
 inline bool
