@@ -41,6 +41,7 @@
 #include "config.hxx"
 #include "concepts.hxx"
 #include "tinyarray.hxx"
+#include "shape.hxx"
 #include <string>
 #include <iostream>
 #include <map>
@@ -353,6 +354,60 @@ makeAxistags(std::string const & spec)
         res[k] = iter->second;
     }
     return res;
+}
+
+namespace detail
+{
+
+template <int N>
+inline Shape<N>
+permutationToOrder(AxisTags<N> const & t, MemoryOrder order)
+{
+    Shape<N> res = Shape<N>::range(t.size());
+    if(order == C_ORDER)
+        std::sort(res.begin(), res.end(),
+                 [t](ArrayIndex l, ArrayIndex r)
+                 {
+                    return t[r] < t[l];
+                 });
+    else
+        std::sort(res.begin(), res.end(),
+                 [t](ArrayIndex l, ArrayIndex r)
+                 {
+                    return t[l] < t[r];
+                 });
+    return res;
+}
+
+} // namespace detail
+
+// FIXME: place in detail:: and refactor the axisTags consistency checking (also add tests, and comments).
+
+template <int N>
+inline bool nontrivialAxisTags(AxisTags<N> const & t)
+{
+    for(int i=0; i<t.size(); ++i)
+        if(t[i] <= 0)
+            return false;
+    return true;
+}
+
+template <int N>
+inline bool trivialAxisTags(AxisTags<N> const & t)
+{
+    for(int i=0; i<t.size(); ++i)
+        if(t[i] != tags::axis_unknown)
+            return false;
+    return true;
+}
+
+template <int N>
+inline bool channelOnlyAxisTags(AxisTags<N> const & t)
+{
+    for(int i=0; i<t.size(); ++i)
+        if(t[i] != tags::axis_unknown && t[i] != tags::axis_c)
+            return false;
+    return true;
 }
 
 } // namespace vigra
