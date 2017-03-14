@@ -40,6 +40,12 @@
 
 namespace vigra {
 
+/********************************************************/
+/*                                                      */
+/*              array-related definitions               */
+/*                                                      */
+/********************************************************/
+
     /// use biggest signed type for array indexing
 using ArrayIndex = std::ptrdiff_t;
 
@@ -57,6 +63,60 @@ class TinyArray;
 
 template <class VALUETYPE, int M=runtime_size, int ... N>
 class TinyArrayView;
+
+/********************************************************/
+/*                                                      */
+/*           convolution-related definitions            */
+/*                                                      */
+/********************************************************/
+
+
+/** \page BorderTreatmentMode BorderTreatmentMode
+
+    Choose between different border treatment modes. In the convolution
+    algorithms, these modes apply to
+    all image pixels where the kernel does not completely fit inside
+    the image.
+
+    <b>\#include</b> \<vigra/bordertreatment.hxx\><br>
+    Namespace: vigra
+
+    \code
+    enum BorderTreatmentMode
+    {
+          // do not operate on a pixel where the kernel does
+          // not fit in the image
+       BORDER_TREATMENT_AVOID,
+
+          // clip kernel at image border (this is only useful if the
+          //  kernel is >= 0 everywhere)
+       BORDER_TREATMENT_CLIP,
+
+          // repeat the nearest valid pixel
+       BORDER_TREATMENT_REPEAT,
+
+          // reflect image at last row/column
+       BORDER_TREATMENT_REFLECT,
+
+          // wrap image around (periodic boundary conditions)
+       BORDER_TREATMENT_WRAP
+
+          // assume that all outside points have value zero
+       BORDER_TREATMENT_ZEROPAD
+    };
+    \endcode
+*/
+enum BorderTreatmentMode
+{
+   BORDER_TREATMENT_AVOID,
+   BORDER_TREATMENT_CLIP,
+   BORDER_TREATMENT_REPEAT,
+   BORDER_TREATMENT_REFLECT,
+   BORDER_TREATMENT_WRAP,
+   BORDER_TREATMENT_ZEROPAD
+};
+
+enum KernelSymmetry { KernelEven, KernelOdd, KernelAsymmetric };
 
 /********************************************************/
 /*                                                      */
