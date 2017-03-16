@@ -1,6 +1,6 @@
 /************************************************************************/
 /*                                                                      */
-/*               Copyright 2014-2015 by Ullrich Koethe                  */
+/*               Copyright 2014-2017 by Ullrich Koethe                  */
 /*                                                                      */
 /*    This file is part of the VIGRA2 computer vision library.          */
 /*    The VIGRA2 Website is                                             */
@@ -84,30 +84,34 @@ class TinyArrayView;
     \code
     enum BorderTreatmentMode
     {
-          // do not operate on a pixel where the kernel does
-          // not fit in the image
-       BORDER_TREATMENT_AVOID,
+           // use default border treatment (usually REFLECT)
+        BORDER_TREATMENT_DEFAULT = -1,
 
-          // clip kernel at image border (this is only useful if the
-          //  kernel is >= 0 everywhere)
-       BORDER_TREATMENT_CLIP,
+           // do not operate on a pixel where the kernel would
+           // not fit in the image
+        BORDER_TREATMENT_AVOID,
 
-          // repeat the nearest valid pixel
-       BORDER_TREATMENT_REPEAT,
+           // clip kernel at image border (this is only useful if the
+           // kernel is >= 0 everywhere)
+        BORDER_TREATMENT_CLIP,
 
-          // reflect image at last row/column
-       BORDER_TREATMENT_REFLECT,
+           // repeat the nearest valid pixel
+        BORDER_TREATMENT_REPEAT,
 
-          // wrap image around (periodic boundary conditions)
-       BORDER_TREATMENT_WRAP
+           // reflect image at last row/column
+        BORDER_TREATMENT_REFLECT,
 
-          // assume that all outside points have value zero
-       BORDER_TREATMENT_ZEROPAD
+           // wrap image around (periodic boundary conditions)
+        BORDER_TREATMENT_WRAP,
+
+           // assume that all outside points have value zero
+        BORDER_TREATMENT_ZEROPAD
     };
     \endcode
 */
 enum BorderTreatmentMode
 {
+   BORDER_TREATMENT_DEFAULT = -1,
    BORDER_TREATMENT_AVOID,
    BORDER_TREATMENT_CLIP,
    BORDER_TREATMENT_REPEAT,

@@ -112,11 +112,11 @@ class Kernel1D
 
         /** 1D random access iterator over the kernel's values
         */
-    typedef typename InternalVector::iterator iterator;
+    typedef typename InternalVector::pointer iterator;
 
         /** const 1D random access iterator over the kernel's values
         */
-    typedef typename InternalVector::const_iterator const_iterator;
+    typedef typename InternalVector::const_pointer const_iterator;
 
         // helper class to enable initialization via overloaded operator,()
     friend struct InitProxy;
@@ -260,9 +260,9 @@ class Kernel1D
             by windowing the Gaussian to a finite interval). However,
             if <tt>norm</tt> is 0.0, the kernel is normalized to 1 by the analytic
             expression for the Gaussian, and <b>no</b> correction for the windowing
-            error is performed. If <tt>windowRatio = 0.0</tt>, the radius of the filter
+            error is performed. If <tt>window_ratio = 0.0</tt>, the radius of the filter
             window is <tt>radius = round(3.0 * std_dev)</tt>, otherwise it is
-            <tt>radius = round(windowRatio * std_dev)</tt> (where <tt>windowRatio > 0.0</tt>
+            <tt>radius = round(window_ratio * std_dev)</tt> (where <tt>window_ratio > 0.0</tt>
             is required).
 
             Precondition:
@@ -278,7 +278,7 @@ class Kernel1D
             4. norm() == norm
             \endcode
         */
-    void initGaussian(double std_dev, value_type norm, double windowRatio = 0.0);
+    void initGaussian(double std_dev, value_type norm, double window_ratio = 0.0);
 
         /** Init as a Gaussian function with norm 1.
          */
@@ -329,10 +329,10 @@ class Kernel1D
             by windowing the Gaussian to a finite interval. However,
             if <tt>norm</tt> is 0.0, the kernel is normalized to 1 by the analytic
             expression for the Gaussian derivative, and <b>no</b> correction for the
-            windowing error is performed. If <tt>windowRatio = 0.0</tt>, the radius
+            windowing error is performed. If <tt>window_ratio = 0.0</tt>, the radius
             of the filter window is <tt>radius = round(3.0 * std_dev + 0.5 * order)</tt>,
-            otherwise it is <tt>radius = round(windowRatio * std_dev)</tt> (where
-            <tt>windowRatio > 0.0</tt> is required).
+            otherwise it is <tt>radius = round(window_ratio * std_dev)</tt> (where
+            <tt>window_ratio > 0.0</tt> is required).
 
             Preconditions:
             \code
@@ -348,7 +348,7 @@ class Kernel1D
             4. norm() == norm
             \endcode
         */
-    void initGaussianDerivative(double std_dev, int order, value_type norm, double windowRatio = 0.0);
+    void initGaussianDerivative(double std_dev, int order, value_type norm, double window_ratio = 0.0);
 
         /** \brief Init as a Gaussian derivative with norm 1.
          */
@@ -857,12 +857,12 @@ class Kernel1D
         */
     iterator center()
     {
-        return kernel_.begin() - left();
+        return &kernel_[-left()];
     }
 
     const_iterator center() const
     {
-        return kernel_.begin() - left();
+        return &kernel_[-left()];
     }
 
         /** \brief Access kernel value at specified location.
@@ -940,6 +940,13 @@ class Kernel1D
     void setSymmetry()
     {
         symmetry_ = checkSymmetry();
+    }
+
+        /** \brief Force kernel to be treated as asymmetric.
+        */
+    void setAsymmetric()
+    {
+        symmetry_ = KernelAsymmetric;
     }
 
   private:
@@ -1021,12 +1028,12 @@ template <class ARITHTYPE>
 void
 Kernel1D<ARITHTYPE>::initGaussian(double std_dev,
                                   value_type norm,
-                                  double windowRatio)
+                                  double window_ratio)
 {
     vigra_precondition(std_dev >= 0.0,
               "Kernel1D::initGaussian(): Standard deviation must be >= 0.");
-    vigra_precondition(windowRatio >= 0.0,
-              "Kernel1D::initGaussian(): windowRatio must be >= 0.");
+    vigra_precondition(window_ratio >= 0.0,
+              "Kernel1D::initGaussian(): window_ratio must be >= 0.");
 
     if(std_dev > 0.0)
     {
@@ -1034,10 +1041,10 @@ Kernel1D<ARITHTYPE>::initGaussian(double std_dev,
 
         // first calculate required kernel sizes
         int radius;
-        if (windowRatio == 0.0)
+        if (window_ratio == 0.0)
             radius = (int)(3.0 * std_dev + 0.5);
         else
-            radius = (int)(windowRatio * std_dev + 0.5);
+            radius = (int)(window_ratio * std_dev + 0.5);
         if(radius == 0)
             radius = 1;
 
@@ -1149,31 +1156,31 @@ void
 Kernel1D<ARITHTYPE>::initGaussianDerivative(double std_dev,
                                             int order,
                                             value_type norm,
-                                            double windowRatio)
+                                            double window_ratio)
 {
     vigra_precondition(order >= 0,
               "Kernel1D::initGaussianDerivative(): Order must be >= 0.");
 
     if(order == 0)
     {
-        initGaussian(std_dev, norm, windowRatio);
+        initGaussian(std_dev, norm, window_ratio);
         return;
     }
 
     vigra_precondition(std_dev > 0.0,
               "Kernel1D::initGaussianDerivative(): "
               "Standard deviation must be > 0.");
-    vigra_precondition(windowRatio >= 0.0,
-              "Kernel1D::initGaussianDerivative(): windowRatio must be >= 0.");
+    vigra_precondition(window_ratio >= 0.0,
+              "Kernel1D::initGaussianDerivative(): window_ratio must be >= 0.");
 
     Gaussian<ARITHTYPE> gauss((ARITHTYPE)std_dev, order);
 
     // first calculate required kernel sizes
     int radius;
-    if(windowRatio == 0.0)
+    if(window_ratio == 0.0)
         radius = (int)((3.0  + 0.5 * order) * std_dev + 0.5);
     else
-        radius = (int)(windowRatio * std_dev + 0.5);
+        radius = (int)(window_ratio * std_dev + 0.5);
     if(radius == 0)
         radius = 1;
 
