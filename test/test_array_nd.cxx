@@ -51,12 +51,13 @@ using namespace vigra;
 template <int N>
 struct ArrayNDTest
 {
-    typedef ArrayND<N, int>            Array;
-    typedef ArrayViewND<N, int>        View;
-    typedef ArrayViewND<N, const int>  ConstView;
-    typedef TinyArray<int, 3>          Vector;
-    typedef ArrayViewND<N, Vector>     VectorView;
-    typedef Shape<N>                   S;
+    typedef ArrayND<N, int>                            Array;
+    typedef ArrayViewND<N, int>                        View;
+    typedef ArrayViewND<N, const int>                  ConstView;
+    typedef TinyArray<int, 3>                          Vector;
+    typedef ArrayViewND<N, Vector>                     VectorView;
+    typedef Shape<N>                                   S;
+    typedef ArrayND<(N == runtime_size ? N : 1), int>  Array1D;
 
     S s{ 4,3,2 };
     std::vector<int> data0, data1;
@@ -189,6 +190,16 @@ struct ArrayNDTest
         shouldEqual(a1.size(), 0);
         should(a5 == v3);
         shouldEqual(d, a5.data());
+
+        Array1D a6{ 0,1,2,3 };
+        shouldEqual(a6.ndim(), 1);
+        shouldEqual(a6.size(), 4);
+        for (int k = 0; k < 4; ++k)
+            shouldEqual(a6(k), k);
+
+        Array a7(s, { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23 });
+        shouldEqual(a7.shape(), s);
+        should(a7 == v1);
     }
 
     void testBind()

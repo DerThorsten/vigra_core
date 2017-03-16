@@ -1936,7 +1936,7 @@ class ArrayND
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
 
-        /** construct from shape and and axistags and copy values from the given C array
+        /** construct from shape and axistags and copy values from the given C array
          */
     ArrayND(difference_type const & shape,
             axistags_type const & axistags,
@@ -1948,6 +1948,56 @@ class ArrayND
     {
         vigra_precondition(allGreaterEqual(shape, 0),
             "ArrayND(): invalid shape.");
+        this->data_  = (char*)&allocated_data_[0];
+        this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
+    }
+
+        /** construct from shape and copy values from the
+            given initializer_list
+         */
+    ArrayND(difference_type const & shape,
+            std::initializer_list<T> init,
+            MemoryOrder order = C_ORDER,
+            allocator_type const & alloc = allocator_type())
+    : view_type(shape, 0, order)
+    , allocated_data_(init, alloc)
+    {
+        vigra_precondition(allGreaterEqual(shape, 0),
+            "ArrayND(): invalid shape.");
+        vigra_precondition(this->size() == init.size(),
+            "ArrayND(): initializer_list has wrong size.");
+        this->data_  = (char*)&allocated_data_[0];
+        this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
+    }
+
+        /** construct from shape and axistags and copy values from the
+            given initializer_list
+         */
+    ArrayND(difference_type const & shape,
+            axistags_type const & axistags,
+            std::initializer_list<T> init,
+            MemoryOrder order = C_ORDER,
+            allocator_type const & alloc = allocator_type())
+    : view_type(shape, axistags, 0, order)
+    , allocated_data_(init, alloc)
+    {
+        vigra_precondition(allGreaterEqual(shape, 0),
+            "ArrayND(): invalid shape.");
+        vigra_precondition(this->size() == init.size(),
+            "ArrayND(): initializer_list has wrong size.");
+        this->data_  = (char*)&allocated_data_[0];
+        this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
+    }
+
+        /** construct 1D-array from initializer_list
+         */
+    template<int M = N,
+             VIGRA_REQUIRE<(M == 1 || M == runtime_size)> >
+    ArrayND(std::initializer_list<T> init,
+            allocator_type const & alloc = allocator_type())
+    : view_type(Shape<1>(init.size()), 0, C_ORDER)
+    , allocated_data_(init, alloc)
+    {
         this->data_  = (char*)&allocated_data_[0];
         this->flags_ |= this->ConsecutiveMemory | this->OwnsMemory;
     }
