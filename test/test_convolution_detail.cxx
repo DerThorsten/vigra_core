@@ -38,7 +38,7 @@
 #include <string>
 #include <vigra2/unittest.hxx>
 #include <vigra2/array_nd.hxx>
-#include <vigra2/convolution_atoms.hxx>
+#include <vigra2/convolution_detail.hxx>
 
 using namespace vigra;
 
@@ -52,6 +52,8 @@ struct ConvolutionAtomsTest
 
     void convolveLineTest()
     {
+        using namespace vigra::convolution_detail;
+
         typedef ArrayND<1, double> A;
 
         A ramp{ 0.0, 1.0, 2.0, 3.0, 4.0 },

@@ -35,8 +35,8 @@
 
 #pragma once
 
-#ifndef VIGRA2_CONVOLUTION_ATOMS_HXX
-#define VIGRA2_CONVOLUTION_ATOMS_HXX
+#ifndef VIGRA2_CONVOLUTION_DETAIL_HXX
+#define VIGRA2_CONVOLUTION_DETAIL_HXX
 
 #include "numeric_traits.hxx"
 #include "mathutil.hxx"
@@ -47,6 +47,8 @@ namespace vigra {
 /** \addtogroup SeparableConvolution One-dimensional and separable convolution functionality
 */
 //@{
+
+namespace convolution_detail {
 
 template <KernelSymmetry SYMMETRY = KernelEven>
 struct AddBySymmetry
@@ -642,8 +644,10 @@ void convolveLine(T1 * in, ArrayIndex size, ArrayIndex start, ArrayIndex end,
     }
 }
 
+} // namespace convolution_detail
+
 //@}
 
 } // namespace vigra
 
-#endif /* VIGRA2_CONVOLUTION_ATOMS_HXX */
+#endif /* VIGRA2_CONVOLUTION_DETAIL_HXX */
