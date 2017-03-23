@@ -149,6 +149,113 @@ struct ConvolutionAtomsTest
         }
     }
 
+    void borderCopyTest()
+    {
+        using namespace vigra::convolution_detail;
+
+        static const int size = 6, kleft = -2, kright = 3,
+                         ksize = kright - kleft,
+                         outsize = size + ksize;
+
+        int data[size] = {1, 2, 3, 4, 5, 6};
+        int out[outsize];
+
+        // copy entire array
+        {
+            copyLineWithBorderTreatment(data, size, 0, size, out,
+                                        kleft, kright, BORDER_TREATMENT_WRAP);
+            int r[] = {4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2};
+            shouldEqualSequence(out, out+outsize, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, 0, size, out,
+                                        kleft, kright, BORDER_TREATMENT_REFLECT);
+            int r[] = {4, 3, 2, 1, 2, 3, 4, 5, 6, 5, 4};
+            shouldEqualSequence(out, out+outsize, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, 0, size, out,
+                                        kleft, kright, BORDER_TREATMENT_REPEAT);
+            int r[] = {1, 1, 1, 1, 2, 3, 4, 5, 6, 6, 6};
+            shouldEqualSequence(out, out+outsize, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, 0, size, out,
+                                        kleft, kright, BORDER_TREATMENT_AVOID);
+            int r[] = {1, 2, 3, 4, 5, 6};
+            shouldEqualSequence(out+kright, out+outsize+kleft, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, 0, size, out,
+                                        kleft, kright, BORDER_TREATMENT_ZEROPAD);
+            int r[] = {0, 0, 0, 1, 2, 3, 4, 5, 6, 0, 0};
+            shouldEqualSequence(out, out+outsize, r);
+        }
+
+        // copy with partial border treatment
+        {
+            copyLineWithBorderTreatment(data, size, 1, size-1, out,
+                                        kleft, kright, BORDER_TREATMENT_WRAP);
+            int r[] = {5, 6, 1, 2, 3, 4, 5, 6, 1};
+            shouldEqualSequence(out, out+outsize-2, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, 1, size-1, out,
+                                        kleft, kright, BORDER_TREATMENT_REFLECT);
+            int r[] = {3, 2, 1, 2, 3, 4, 5, 6, 5};
+            shouldEqualSequence(out, out+outsize-2, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, 1, size-1, out,
+                                        kleft, kright, BORDER_TREATMENT_REPEAT);
+            int r[] = {1, 1, 1, 2, 3, 4, 5, 6, 6};
+            shouldEqualSequence(out, out+outsize-2, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, 1, size-1, out,
+                                        kleft, kright, BORDER_TREATMENT_AVOID);
+            int r[] = {2, 3, 4, 5};
+            shouldEqualSequence(out+kright, out+outsize+kleft-2, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, 1, size-1, out,
+                                        kleft, kright, BORDER_TREATMENT_ZEROPAD);
+            int r[] = {0, 0, 1, 2, 3, 4, 5, 6, 0};
+            shouldEqualSequence(out, out+outsize-2, r);
+        }
+
+        // copy interior, no border treatment necessary
+        {
+            copyLineWithBorderTreatment(data, size, kright, size+kleft, out,
+                                        kleft, kright, BORDER_TREATMENT_WRAP);
+            int r[] = {1, 2, 3, 4, 5, 6};
+            shouldEqualSequence(out, out+outsize-ksize, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, kright, size+kleft, out,
+                                        kleft, kright, BORDER_TREATMENT_REFLECT);
+            int r[] = {1, 2, 3, 4, 5, 6};
+            shouldEqualSequence(out, out+outsize-ksize, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, kright, size+kleft, out,
+                                        kleft, kright, BORDER_TREATMENT_REPEAT);
+            int r[] = {1, 2, 3, 4, 5, 6};
+            shouldEqualSequence(out, out+outsize-ksize, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, kright, size+kleft, out,
+                                        kleft, kright, BORDER_TREATMENT_AVOID);
+            int r[] = {4};
+            shouldEqualSequence(out+kright, out+outsize+kleft-ksize, r);
+        }
+        {
+            copyLineWithBorderTreatment(data, size, kright, size+kleft, out,
+                                        kleft, kright, BORDER_TREATMENT_ZEROPAD);
+            int r[] = {1, 2, 3, 4, 5, 6};
+            shouldEqualSequence(out, out+outsize-ksize, r);
+        }
+    }
 };
 
 struct ConvolutionAtomsTestSuite
@@ -158,6 +265,7 @@ struct ConvolutionAtomsTestSuite
     : vigra::test_suite("ConvolutionAtomsTest")
     {
         add( testCase(&ConvolutionAtomsTest::convolveLineTest));
+        add( testCase(&ConvolutionAtomsTest::borderCopyTest));
     }
 };
 

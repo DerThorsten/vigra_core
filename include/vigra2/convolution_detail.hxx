@@ -644,6 +644,109 @@ void convolveLine(T1 * in, ArrayIndex size, ArrayIndex start, ArrayIndex end,
     }
 }
 
+// dest array must have size = end - start + kright - kleft
+template <class T1, class T2>
+void
+copyLineWithBorderTreatment(T1 * in, ArrayIndex size, ArrayIndex start, ArrayIndex end,
+                            T2 * out,
+                            ArrayIndex kleft, ArrayIndex kright,
+                            BorderTreatmentMode borderTreatment = BORDER_TREATMENT_DEFAULT)
+{
+    vigra_precondition(size >= max(kright, -kleft) + 1,
+        "copyLineWithBorderTreatment(): kernel radius exceeds array size.");
+    vigra_precondition(borderTreatment != BORDER_TREATMENT_CLIP,
+        "copyLineWithBorderTreatment() not applicable to BORDER_TREATMENT_CLIP.");
+
+    if(borderTreatment == BORDER_TREATMENT_DEFAULT)
+        borderTreatment = BORDER_TREATMENT_REFLECT;
+
+    ArrayIndex leftBorder  = start - kright;
+    ArrayIndex rightBorder = end - kleft;
+    ArrayIndex copyEnd     = min(size, rightBorder);
+
+    ArrayIndex x = leftBorder;
+    switch(borderTreatment)
+    {
+        // handle range 'x < 0'
+        case BORDER_TREATMENT_WRAP:
+        {
+            for(; x<0; ++x, ++out)
+                *out = in[size+x];
+            break;
+        }
+        case BORDER_TREATMENT_AVOID:
+        {
+            // nothing to do
+            break;
+        }
+        case BORDER_TREATMENT_REFLECT:
+        {
+            for(; x<0; ++x, ++out)
+                *out = in[-x];
+            break;
+        }
+        case BORDER_TREATMENT_REPEAT:
+        {
+            for(; x<0; ++x, ++out)
+                *out = *in;
+            break;
+        }
+        case BORDER_TREATMENT_ZEROPAD:
+        {
+            for(; x<0; ++x, ++out)
+                *out = T2();
+            break;
+        }
+        default:
+        {
+            vigra_fail("copyLineWithBorderTreatment(): Unknown border treatment mode.");
+        }
+    }
+
+    // handle range '0 <= x < copyEnd'
+    for(; x<copyEnd; ++x, ++out)
+        *out = in[x];
+
+    switch(borderTreatment)
+    {
+        // handle range 'size <= x < rightBorder'
+        case BORDER_TREATMENT_WRAP:
+        {
+            for(; x<rightBorder; ++x, ++out, ++in)
+                *out = *in;
+            break;
+        }
+        case BORDER_TREATMENT_AVOID:
+        {
+            // nothing to do
+            break;
+        }
+        case BORDER_TREATMENT_REFLECT:
+        {
+            ArrayIndex s = 2*size - 2;
+            for(; x<rightBorder; ++x, ++out)
+                *out = in[s-x];
+            break;
+        }
+        case BORDER_TREATMENT_REPEAT:
+        {
+            for(; x<rightBorder; ++x, ++out)
+                *out = in[size-1];
+            break;
+        }
+        case BORDER_TREATMENT_ZEROPAD:
+        {
+            for(; x<rightBorder; ++x, ++out)
+                *out = T2();
+            break;
+        }
+        default:
+        {
+            vigra_fail("copyLineWithBorderTreatment(): Unknown border treatment mode.");
+        }
+    }
+}
+
 } // namespace convolution_detail
 
 //@}
