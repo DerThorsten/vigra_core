@@ -39,6 +39,7 @@
 #define VIGRA2_CONVOLUTION_KERNELS_HXX
 
 #include "config.hxx"
+#include "gaussians.hxx"
 #include "error.hxx"
 #include "numeric_traits.hxx"
 #include "mathutil.hxx"
@@ -125,7 +126,7 @@ class Kernel1D
     {
         InitProxy(Kernel1D & kernel, int count)
         : kernel_(kernel)
-        , iter_(kernel.kernel_.begin())
+        , iter_(kernel.kernel_.data())
         , count_(count)
         , sum_(count)
         , norm_(kernel.norm_)
@@ -133,7 +134,7 @@ class Kernel1D
 
         ~InitProxy()
 #ifndef _MSC_VER
-            throw(PreconditionViolation)
+            throw(ContractViolation)
 #elif _MSC_VER >= 1900
             noexcept(false)
 #endif
@@ -987,7 +988,7 @@ void Kernel1D<ARITHTYPE>::normalize(value_type norm,
     typedef typename NumericTraits<value_type>::RealPromote TmpType;
 
     // find kernel sum
-    Iterator k = kernel_.begin();
+    auto k = kernel_.begin();
     TmpType sum = NumericTraits<TmpType>::zero();
 
     if(derivativeOrder == 0)

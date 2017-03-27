@@ -1213,7 +1213,7 @@ class TinyArray
     constexpr bool       empty() const { return static_size == 0; }
     constexpr ArrayIndex size()  const { return static_size; }
     constexpr ArrayIndex max_size()  const { return static_size; }
-    constexpr index_type shape() const { return index_type{ M, N... }; }
+    constexpr typename base_type::index_type shape() const { return typename base_type::index_type{ M, N... }; }
     constexpr ArrayIndex ndim()  const { return static_ndim; }
 };
 
@@ -1502,7 +1502,7 @@ class TinyArrayView
     constexpr bool       empty() const { return static_size == 0; }
     constexpr ArrayIndex size()  const { return static_size; }
     constexpr ArrayIndex max_size()  const { return static_size; }
-    constexpr index_type shape() const { return index_type{ M, N... }; }
+    constexpr typename base_type::index_type shape() const { return typename base_type::index_type{ M, N... }; }
     constexpr ArrayIndex ndim()  const { return static_ndim; }
 };
 

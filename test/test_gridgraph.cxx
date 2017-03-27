@@ -253,7 +253,7 @@ public:
         , arc_index_(0)
     {}
 
-    CoordAdjacency(node_descriptor_type const & source, 
+    CoordAdjacency(node_descriptor_type const & source,
                    int edge_index, int reverse_edge_index)
         : arc_(source.size() + 1, DontInit)
         , reverse_arc_(source.size() + 1, DontInit)
@@ -398,7 +398,7 @@ nodeIdFromCoord(NODE const & node, Shape<N> const & strides)
 }
 
 template <int N>
-inline Shape<N> 
+inline Shape<N>
 nodeCoordFromId(ArrayIndex node, Shape<N> const & shape, MemoryOrder order)
 {
     Shape<N> res(shape.size(), DontInit);
@@ -423,7 +423,7 @@ nodeCoordFromId(ArrayIndex node, Shape<N> const & shape, MemoryOrder order)
 
 //template <int M, int N>
 //inline ArrayIndex
-//edgeIdFromCoord(Shape<M + 1> const & edge, Shape<M> const & shape, 
+//edgeIdFromCoord(Shape<M + 1> const & edge, Shape<M> const & shape,
 //    std::vector<Shape<M>> const & offsets, Shape<N> const & edge_offsets, MemoryOrder order)
 //{
 //    auto p = edge.template subarray<0, M>() + min(offsets[edge.back()], 0);
@@ -440,7 +440,7 @@ edgeIdFromCoord(Shape<M + 1> const & edge, std::vector<Shape<M>> const & strides
 }
 
 template <int N>
-inline ArrayIndex 
+inline ArrayIndex
 edgeIdFromCoord(Shape<runtime_size> const & edge, std::vector<Shape<runtime_size>> const & strides, Shape<N> const & edge_offsets)
 {
     auto const & stride = strides[edge.back()];
@@ -460,7 +460,7 @@ edgeCoordFromId(ArrayIndex edge, std::vector<Shape<M>> const & shapes, MemoryOrd
         res.back() = k;
     }
 
-    res.template subarray<0, M>() = nodeCoordFromId(edge - edge_offsets[res.back()], shapes[res.back()], order) - 
+    res.template subarray<0, M>() = nodeCoordFromId(edge - edge_offsets[res.back()], shapes[res.back()], order) -
         pivots[res.back()];
     return res;
 }
@@ -489,8 +489,8 @@ inline Shape<runtime_size>
 edgeOffsets(Shape<N> shape, std::vector<Shape<N>> const & neighborOffsets, bool directed)
 {
     shape = max(shape, Shape<N>(tags::size=shape.size(), 1));
-    int degree = directed 
-                     ? neighborOffsets.size() 
+    int degree = directed
+                     ? neighborOffsets.size()
                      : neighborOffsets.size() / 2;
     Shape<runtime_size> offsets(degree, DontInit);
     offsets[0] = 0;
@@ -528,7 +528,7 @@ makeArrayNeighborhoodOld(
     }
     else
     {
-        CoordinateIterator<SHAPE::static_size> c(SHAPE(tags::size = ndim, 3), order);
+        CoordinateIterator<SHAPE::static_size> c(SHAPE{tags::size = ndim, 3}, order);
         for (; c.isValid(); ++c)
         {
             if (*c == 1)
@@ -584,7 +584,7 @@ makeNeighborhoodND(
     }
     else
     {
-        CoordinateIterator<SHAPE::static_size> c(SHAPE(tags::size = ndim, 3), order);
+        CoordinateIterator<SHAPE::static_size> c(SHAPE{tags::size = ndim, 3}, order);
         for (; c.isValid(); ++c)
         {
             if (*c == 1)
@@ -1016,8 +1016,8 @@ public:
     and <tt>IndirectNeighborhood</tt> to use all diagonal edges as well
     ((3<sup>N</sup>-1)-neighborhood).
     */
-    GridGraphBase(shape_type const &shape, 
-                  NeighborhoodType ntype = DirectNeighborhood, 
+    GridGraphBase(shape_type const &shape,
+                  NeighborhoodType ntype = DirectNeighborhood,
                   tags::DirectedProxy directed = { false },
                   MemoryOrder order = C_ORDER)
     : shape_(shape)
@@ -1805,7 +1805,7 @@ struct NeighborhoodTests
     static const int ndim = (N == runtime_size)
         ? 3
         : N;
-    
+
     std::vector<S> neighborOffsets;
     std::vector<std::vector<bool>> neighborExists;
     std::vector<std::vector<S> > neighborIncrements, backOffsets, forwardOffsets;
@@ -1815,17 +1815,17 @@ struct NeighborhoodTests
 
     NeighborhoodTests()
     {}
-    
+
     void testVertexIterator()
     {
         CoordinateIterator<N> i(S(tags::size=ndim, 3)), iend = i.end();
-        
+
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
             S s = *i + 1;
             CoordinateIterator<N> vi(s), viend = vi.end();
-            
+
             ArrayND<N, int> vertex_map(s);
 
             for(; vi != viend; ++vi)
@@ -1833,22 +1833,22 @@ struct NeighborhoodTests
                 should(vi.isValid() && !vi.atEnd());
                 vertex_map[*vi] += 1;
             }
-            
+
             should(!vi.isValid() && vi.atEnd());
-            
+
             // check that all vertice are found
             auto minmax = vertex_map.minmax();
-            
+
             shouldEqual(minmax[0], 1);
             shouldEqual(minmax[1], 1);
         }
-    }   
+    }
 
     template <NeighborhoodType neighborhoodType, MemoryOrder memoryOrder>
     void testNeighborhood()
     {
         S shape(tags::size = ndim, 3);
-        
+
         detail::makeNeighborhoodND(ndim, neighborhoodType, memoryOrder, neighborOffsets);
         detail::makeBorderNeighborhoodND(neighborOffsets, neighborIndices, backIndices);
 
@@ -1864,7 +1864,7 @@ struct NeighborhoodTests
         found[scanOrder.shape() / 2] = 1;
 
         int scanOrderIndex = -1;
-        S forward(tags::size = ndim), backward(tags::size = ndim), 
+        S forward(tags::size = ndim), backward(tags::size = ndim),
           strides = shapeToStrides(scanOrder.shape(), memoryOrder);
         for (int k = 0; k<degree; ++k)
         {
@@ -2001,11 +2001,11 @@ struct NeighborhoodTests
             for(; vi.isValid(); ++vi)
             {
                 int borderType = vi.borderType();
-                
+
                 {
 
                     GridGraphNeighborIterator<N> ni(neighborIncrements[borderType],
-                                                    neighborIndices[borderType], 
+                                                    neighborIndices[borderType],
                                                     vi.coord()),
                                                  nend = ni.end();
                     GridGraphAdjacencyIterator<N> di(neighborIncrements[borderType],
@@ -2055,7 +2055,7 @@ struct NeighborhoodTests
                             shouldEqual(source.insert(ndim, index), ai->edge());
                         else
                             shouldEqual(target.insert(ndim, degree - 1 - index), ai->edge());
-                        //std::cerr << "adjacency: " << ai->arc_ << " " << ai->reverse_arc_ << " " << ai->arc_index_ 
+                        //std::cerr << "adjacency: " << ai->arc_ << " " << ai->reverse_arc_ << " " << ai->arc_index_
                         //    << ai->edge() << "\n";
                         //edgeId = edgeIdFromCoord(ai->edge(), shape, neighborOffsets, undirected_edge_offsets, memoryOrder);
                         //std::cerr << ai->source() << " " << ai->edge() << " " << nodeId << " " << edgeId << "\n";
@@ -2074,13 +2074,13 @@ struct NeighborhoodTests
                     should(ai == aend);
                     should(ai.atEnd() && !ai.isValid());
                 }
-                
+
                 {
-                    GridGraphNeighborIterator<N> ni(neighborIncrements[borderType], 
-                                                    backIndices[borderType], 
+                    GridGraphNeighborIterator<N> ni(neighborIncrements[borderType],
+                                                    backIndices[borderType],
                                                     vi.coord()),
                                                  nend = ni.end();
-                    
+
                     for(int k=0; k<backIndices[borderType].size(); ++k)
                     {
                         should(ni.isValid() && !ni.atEnd());
@@ -2116,8 +2116,8 @@ struct NeighborhoodTests
         }
         TOC;
     }
-    
-#if 0    
+
+#if 0
 
     template <NeighborhoodType NType>
     void testOutArcIteratorDirected()
@@ -2129,25 +2129,25 @@ struct NeighborhoodTests
         CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();
         ArrayND<N, int> a(Shape(3));
         typedef typename ArrayND<N, int>::view_type View;
-        
+
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
-            View va = a.subarray(Shape(), *i+Shape(1)); 
-            
+            View va = a.subarray(Shape(), *i+Shape(1));
+
             // check neighborhood of all pixels
             typename View::iterator vi = va.begin(), viend = vi.getEndIterator();
             for(; vi != viend; ++vi)
             {
                 int borderType = vi.borderType();
-                
+
                 {
-                    GridGraphOutArcIterator<N, false> ni(edgeDescrOffsets[borderType], 
-                                                         neighborIndices[borderType], 
-                                                         backIndices[borderType], 
+                    GridGraphOutArcIterator<N, false> ni(edgeDescrOffsets[borderType],
+                                                         neighborIndices[borderType],
+                                                         backIndices[borderType],
                                                          vi.point()),
                                                       nend = ni.getEndIterator();
-                    
+
                     for(int k=0; k<neighborExists[borderType].size(); ++k)
                     {
                         if(neighborExists[borderType][k])
@@ -2163,14 +2163,14 @@ struct NeighborhoodTests
                     should(ni == nend);
                     should(ni.atEnd() && !ni.isValid());
                 }
-                        
+
                 {
-                    GridGraphOutArcIterator<N, true> ni(edgeDescrOffsets[borderType], 
-                                                        neighborIndices[borderType], 
-                                                        backIndices[borderType], 
+                    GridGraphOutArcIterator<N, true> ni(edgeDescrOffsets[borderType],
+                                                        neighborIndices[borderType],
+                                                        backIndices[borderType],
                                                         vi.point()),
                                                      nend = ni.getEndIterator();
-                    
+
                     for(int k=0; k<neighborExists[borderType].size()/2; ++k)
                     {
                         if(neighborExists[borderType][k])
@@ -2189,7 +2189,7 @@ struct NeighborhoodTests
             }
         }
     }
-    
+
     template <NeighborhoodType NType>
     void testOutArcIteratorUndirected()
     {
@@ -2200,25 +2200,25 @@ struct NeighborhoodTests
         CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();
         ArrayND<N, int> a(Shape(3));
         typedef typename ArrayND<N, int>::view_type View;
-        
+
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
-            View va = a.subarray(Shape(), *i+Shape(1)); 
-            
+            View va = a.subarray(Shape(), *i+Shape(1));
+
             // check neighborhood of all pixels
             typename View::iterator vi = va.begin(), viend = vi.getEndIterator();
             for(; vi != viend; ++vi)
             {
                 int borderType = vi.borderType();
-                
+
                 {
-                    GridGraphOutArcIterator<N> ni(edgeDescrOffsets[borderType], 
-                                                  neighborIndices[borderType], 
-                                                  backIndices[borderType], 
+                    GridGraphOutArcIterator<N> ni(edgeDescrOffsets[borderType],
+                                                  neighborIndices[borderType],
+                                                  backIndices[borderType],
                                                   vi.point()),
                                                 nend = ni.getEndIterator();
-                    
+
                     for(int k=0; k<neighborExists[borderType].size(); ++k)
                     {
                         if(neighborExists[borderType][k])
@@ -2243,14 +2243,14 @@ struct NeighborhoodTests
                     should(ni == nend);
                     should(ni.atEnd() && !ni.isValid());
                 }
-                        
+
                 {
-                    GridGraphOutArcIterator<N, true> ni(edgeDescrOffsets[borderType], 
-                                                        neighborIndices[borderType], 
-                                                        backIndices[borderType], 
+                    GridGraphOutArcIterator<N, true> ni(edgeDescrOffsets[borderType],
+                                                        neighborIndices[borderType],
+                                                        backIndices[borderType],
                                                         vi.point()),
                                                      nend = ni.getEndIterator();
-                    
+
                     for(int k=0; k<neighborExists[borderType].size()/2; ++k)
                     {
                         if(neighborExists[borderType][k])
@@ -2269,7 +2269,7 @@ struct NeighborhoodTests
             }
         }
     }
-    
+
     template <NeighborhoodType NType>
     void testArcIteratorDirected()
     {
@@ -2279,34 +2279,34 @@ struct NeighborhoodTests
         // check neighborhoods at ROI border
         CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();
         typedef typename MultiArrayShape<N+1>::type EdgeMapShape;
-        
+
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
             Shape s = *i + Shape(1);
-            
+
             EdgeMapShape es(gridGraphMaxDegree(N, NType));
             es.template subarray<0,N>() = s;
             ArrayND<N+1, int> edge_map(es);
-            
+
             GridGraphArcIterator<N, false> ni(edgeDescrOffsets, neighborIndices, backIndices, s),
                                            nend = ni.getEndIterator();
-            
+
             for(; ni != nend; ++ni)
             {
                 should(ni.isValid() && !ni.atEnd());
                 edge_map[*ni] += 1;
             }
-            
+
             should(!ni.isValid() && ni.atEnd());
-                
+
             // check neighborhood of all pixels
             CoordinateIterator<N> vi(s), viend = vi.getEndIterator();
             for(; vi != viend; ++vi)
             {
                 int borderType = vi.borderType();
                 es.template subarray<0,N>() = *vi;
-                
+
                 for(es[N]=0; es[N]<(MultiArrayIndex)neighborExists[borderType].size(); ++es[N])
                 {
                     if(neighborExists[borderType][es[N]])
@@ -2315,11 +2315,11 @@ struct NeighborhoodTests
                         shouldEqual(edge_map[es], 0);
                 }
             }
-            
+
             shouldEqual(edge_map.template sum<int>(), gridGraphEdgeCount(s, NType, true));
         }
     }
-    
+
     template <NeighborhoodType NType>
     void testArcIteratorUndirected()
     {
@@ -2329,34 +2329,34 @@ struct NeighborhoodTests
         // check neighborhoods at ROI border
         CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();
         typedef typename MultiArrayShape<N+1>::type EdgeMapShape;
-        
+
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
             Shape s = *i + Shape(1);
-            
+
             EdgeMapShape es(gridGraphMaxDegree(N, NType) / 2);
             es.template subarray<0,N>() = s;
             ArrayND<N+1, int> edge_map(es);
-            
+
             GridGraphArcIterator<N, true> ni(edgeDescrOffsets, neighborIndices, backIndices, s),
                                           nend = ni.getEndIterator();
-            
+
             for(; ni != nend; ++ni)
             {
                 should(ni.isValid() && !ni.atEnd());
                 edge_map[*ni] += 1;
             }
-            
+
             should(!ni.isValid() && ni.atEnd());
-                
+
             // check neighborhood of all pixels
             CoordinateIterator<N> vi(s), viend = vi.getEndIterator();
             for(; vi != viend; ++vi)
             {
                 int borderType = vi.borderType();
                 es.template subarray<0,N>() = *vi;
-                
+
                 for(es[N]=0; es[N]<(MultiArrayIndex)neighborExists[borderType].size()/2; ++es[N])
                 {
                     if(neighborExists[borderType][es[N]])
@@ -2365,7 +2365,7 @@ struct NeighborhoodTests
                         shouldEqual(edge_map[es], 0);
                 }
             }
-            
+
             shouldEqual(edge_map.template sum<int>(), gridGraphEdgeCount(s, NType, false));
         }
     }
@@ -2377,29 +2377,29 @@ template <int N>
 struct GridGraphTests
 {
     typedef typename MultiArrayShape<N>::type Shape;
-    
+
     template <class DirectedTag, NeighborhoodType NType>
     void testBasics()
     {
         using namespace boost_graph;
         typedef GridGraph<N, DirectedTag> G;
-        
+
         static const bool directed = IsSameType<DirectedTag, directed_tag>::value;
-        
-        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();        
+
+        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
             Shape s = *i + Shape(1);
             G g(s, NType);
-            
+
 #ifdef WITH_LEMON
             shouldEqual(directed, !lemon::UndirectedTagIndicator<G>::value);
 #endif
-            
+
             should(typename G::vertex_descriptor(lemon::INVALID) == lemon::INVALID);
             should(typename G::edge_descriptor(lemon::INVALID) == lemon::INVALID);
-        
+
             shouldEqual(g.shape(), s);
             shouldEqual(g.isDirected(), directed);
             shouldEqual(g.num_vertices(), prod(s));
@@ -2407,7 +2407,7 @@ struct GridGraphTests
             shouldEqual(g.num_edges(), gridGraphEdgeCount(s, NType, directed));
             shouldEqual(num_edges(g), gridGraphEdgeCount(s, NType, directed));
             shouldEqual(g.maxDegree(), gridGraphMaxDegree(N, NType));
-            
+
             shouldEqual(g.num_vertices(), g.nodeNum());
             shouldEqual(g.num_edges(), g.edgeNum());
             shouldEqual(g.arcNum(), directed ? g.edgeNum() : 2*g.edgeNum());
@@ -2422,15 +2422,15 @@ struct GridGraphTests
         BOOST_CONCEPT_ASSERT(( boost::AdjacencyMatrixConcept<G> ));
 #endif
     }
-    
+
     template <class DirectedTag, NeighborhoodType NType>
     void testVertexIterator()
     {
         using namespace boost_graph;
-        
+
         typedef GridGraph<N, DirectedTag> Graph;
 
-        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();        
+        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
@@ -2440,13 +2440,13 @@ struct GridGraphTests
             lemon::InDegMap<Graph>  inDegreeMap(g);
             lemon::OutDegMap<Graph> outDegreeMap(g);
             typename Graph::IndexMap indexMap(g.indexMap());
-        
+
             int count = 0;
-        
-            typename Graph::vertex_iterator j = g.get_vertex_iterator(), 
+
+            typename Graph::vertex_iterator j = g.get_vertex_iterator(),
                                             end = g.get_vertex_end_iterator();
             typename Graph::NodeIt lj(g);
-                                            
+
             should(j == vertices(g).first);
             should(end == vertices(g).second);
             should(j == typename Graph::vertex_iterator(g));
@@ -2456,11 +2456,11 @@ struct GridGraphTests
                 should(j == lj);
                 should(j != lemon::INVALID);
                 should(!(j == lemon::INVALID));
-                
+
                 shouldEqual(j.scanOrderIndex(), g.id(j));
                 shouldEqual(j.scanOrderIndex(), g.id(*j));
                 shouldEqual(*j, g.nodeFromId(g.id(*j)));
-                
+
                 shouldEqual(g.out_degree(j), g.out_degree(*j));
                 shouldEqual(g.out_degree(j), out_degree(*j, g));
                 shouldEqual(g.forward_degree(j), g.forward_degree(*j));
@@ -2481,45 +2481,45 @@ struct GridGraphTests
             should(j == lj);
             should(j == lemon::INVALID);
             should(!(j != lemon::INVALID));
-            
+
             // check that all vertices are found exactly once
             shouldEqual(count, g.num_vertices());
             int min = NumericTraits<int>::max(), max = NumericTraits<int>::min();
             vertexMap.minmax(&min, &max);
-            
+
             shouldEqual(min, 1);
             shouldEqual(max, 1);
         }
     }
-    
+
     template <class DirectedTag, NeighborhoodType NType>
     void testNeighborIterator()
     {
         using namespace boost_graph;
-        
+
         static const bool directed = IsSameType<DirectedTag, directed_tag>::value;
-        
+
         typedef GridGraph<N, DirectedTag> Graph;
         typedef typename Graph::Node Node;
-        
-        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();        
+
+        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
             Shape s = *i + Shape(1);
             Graph g(s, NType);
-            
+
             ArrayND<N, int> vertexMap(s);
             typename Graph::template EdgeMap<int> edgeMap(g);
-            
-            typename Graph::template ArcMap<int> arcIdMap(g);            
-            typename Graph::template EdgeMap<int> edgeIdMap(g);            
+
+            typename Graph::template ArcMap<int> arcIdMap(g);
+            typename Graph::template EdgeMap<int> edgeIdMap(g);
             std::vector<unsigned char> arcExistsMap(g.maxArcId()+1, 0);
             std::vector<unsigned char> edgeExistsMap(g.maxEdgeId()+1, 0);
 
             linearSequence(arcIdMap.begin(), arcIdMap.end());
             linearSequence(edgeIdMap.begin(), edgeIdMap.end());
-            
+
             shouldEqual((edgeMap.shape().template subarray<0, N>()), s);
             shouldEqual(edgeMap.shape(N), g.maxUniqueDegree());
             shouldEqual((arcIdMap.shape().template subarray<0, N>()), s);
@@ -2527,16 +2527,16 @@ struct GridGraphTests
             shouldEqual(edgeMap.shape(), edgeIdMap.shape());
 
             int totalCount = 0;
-        
-            typename Graph::vertex_iterator j = g.get_vertex_iterator(), 
+
+            typename Graph::vertex_iterator j = g.get_vertex_iterator(),
                                             end = g.get_vertex_end_iterator();
             for(; j != end; ++j)
             {
-                typename Graph::neighbor_vertex_iterator n = g.get_neighbor_vertex_iterator(j), 
+                typename Graph::neighbor_vertex_iterator n = g.get_neighbor_vertex_iterator(j),
                                                          nend = g.get_neighbor_vertex_end_iterator(j);
-                typename Graph::out_edge_iterator        e = g.get_out_edge_iterator(j), 
+                typename Graph::out_edge_iterator        e = g.get_out_edge_iterator(j),
                                                          eend = g.get_out_edge_end_iterator(j);
-                typename Graph::in_edge_iterator         i = g.get_in_edge_iterator(j), 
+                typename Graph::in_edge_iterator         i = g.get_in_edge_iterator(j),
                                                          iend = g.get_in_edge_end_iterator(j);
                 typename Graph::IncEdgeIt                le(g, j);
                 typename Graph::OutArcIt                 la(g, j);
@@ -2571,15 +2571,15 @@ struct GridGraphTests
                     should(i != lemon::INVALID);
                     should(!(i == lemon::INVALID));
                     should(i == li);
-                    
+
                     shouldEqual(source(*e, g), *j);
                     shouldEqual(target(*e, g), *n);
                     vertexMap[*n] += 1;
                     edgeMap[*e] += 1;
-                    
+
                     shouldEqual(source(*i, g), *n);
                     shouldEqual(target(*i, g), *j);
-                    
+
                     typename Graph::Arc a  = g.findArc(*j, *n),
                                         oa = g.findArc(*n, *j);
                     should(a == *la);
@@ -2588,14 +2588,14 @@ struct GridGraphTests
                     shouldEqual(g.baseNode(la), *j);
                     shouldEqual(g.runningNode(la), *n);
                     shouldEqual(g.oppositeArc(a), oa);
-                    
+
                     typename Graph::Edge ge = g.findEdge(*j, *n),
                                          oe = g.findEdge(*n, *j);
                     should(ge == *le);
                     shouldEqual(g.baseNode(le), *j);
                     shouldEqual(g.runningNode(le), *n);
-                    
-                    typename Graph::Node u = g.u(oe), 
+
+                    typename Graph::Node u = g.u(oe),
                                          v = g.v(oe);
                     if(directed)
                     {
@@ -2628,7 +2628,7 @@ struct GridGraphTests
                     shouldEqual(g.oppositeNode(u, *le), v);
                     shouldEqual(g.oppositeNode(v, *le), u);
                     shouldEqual(g.oppositeNode(lemon::INVALID, *le), Node(lemon::INVALID));
-                    
+
                     MultiArrayIndex arcId = g.id(*la);
                     shouldEqual(arcIdMap[*la], arcId);
                     arcExistsMap[arcId] = 1;  // mark arc as found
@@ -2654,17 +2654,17 @@ struct GridGraphTests
                 should(i == iend);
                 should(i == lemon::INVALID);
                 should(!(i != lemon::INVALID));
-                
+
                 shouldEqual(count, g.out_degree(j));
-                
+
                 totalCount += count;
             }
-            
+
             // check that all neighbors are found
             if(!directed)
                 totalCount /= 2;
             shouldEqual(totalCount, g.num_edges());
-            
+
             int min = NumericTraits<int>::max(), max = NumericTraits<int>::min();
             edgeMap.minmax(&min, &max);
             shouldEqual(min, 0);
@@ -2699,48 +2699,48 @@ struct GridGraphTests
             }
         }
     }
-    
+
     template <class DirectedTag, NeighborhoodType NType>
     void testBackNeighborIterator()
     {
         using namespace boost_graph;
-        
+
         static const bool directed = IsSameType<DirectedTag, directed_tag>::value;
-        
+
         typedef GridGraph<N, DirectedTag> Graph;
-        
-        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();        
+
+        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
             Shape s = *i + Shape(1);
             Graph g(s, NType);
-            
+
             ArrayND<N, int> vertexMap(s);
             typename Graph::template EdgeMap<int> edgeMap(g);
             typename Graph::template ArcMap<int> arcMap(g);
-            
-            typename Graph::template ArcMap<int> arcIdMap(g);            
-            typename Graph::template EdgeMap<int> edgeIdMap(g);            
+
+            typename Graph::template ArcMap<int> arcIdMap(g);
+            typename Graph::template EdgeMap<int> edgeIdMap(g);
 
             linearSequence(arcIdMap.begin(), arcIdMap.end());
             linearSequence(edgeIdMap.begin(), edgeIdMap.end());
-            
+
             shouldEqual((edgeMap.shape().template subarray<0, N>()), s);
             shouldEqual(edgeMap.shape(N), g.maxUniqueDegree());
             shouldEqual((arcIdMap.shape().template subarray<0, N>()), s);
             shouldEqual(arcIdMap.shape(N), g.maxDegree());
             shouldEqual(edgeMap.shape(), edgeIdMap.shape());
-            
+
             int totalCount = 0;
-        
-            typename Graph::vertex_iterator j = g.get_vertex_iterator(), 
+
+            typename Graph::vertex_iterator j = g.get_vertex_iterator(),
                                             end = g.get_vertex_end_iterator();
             for(; j != end; ++j)
             {
-                typename Graph::back_neighbor_vertex_iterator n = g.get_back_neighbor_vertex_iterator(j), 
+                typename Graph::back_neighbor_vertex_iterator n = g.get_back_neighbor_vertex_iterator(j),
                                                               nend = g.get_back_neighbor_vertex_end_iterator(j);
-                typename Graph::out_back_edge_iterator        e = g.get_out_back_edge_iterator(j), 
+                typename Graph::out_back_edge_iterator        e = g.get_out_back_edge_iterator(j),
                                                               eend = g.get_out_back_edge_end_iterator(j);
                 typename Graph::IncBackEdgeIt                 le(g, j);
                 typename Graph::OutBackArcIt                  la(g, j);
@@ -2767,13 +2767,13 @@ struct GridGraphTests
                     should(e != eend);
                     should(e != lemon::INVALID);
                     should(!(e == lemon::INVALID));
-                    
+
                     shouldEqual(source(*e, g), *j);
                     shouldEqual(target(*e, g), *n);
                     vertexMap[*n] += 1;
                     edgeMap[*e] += 1;
                     arcMap[*la] += 1;
-                    
+
                     typename Graph::Arc a  = g.findArc(*j, *n),
                                         oa = g.findArc(*n, *j);
                     should(a == *la);
@@ -2782,14 +2782,14 @@ struct GridGraphTests
                     shouldEqual(g.baseNode(la), *j);
                     shouldEqual(g.runningNode(la), *n);
                     shouldEqual(g.oppositeArc(a), oa);
-                    
+
                     typename Graph::Edge ge = g.findEdge(*j, *n),
                                          oe = g.findEdge(*n, *j);
                     should(ge == *le);
                     shouldEqual(g.baseNode(le), *j);
                     shouldEqual(g.runningNode(le), *n);
-                    
-                    typename Graph::Node u = g.u(oe), 
+
+                    typename Graph::Node u = g.u(oe),
                                          v = g.v(oe);
                     if(!directed)
                     {
@@ -2799,7 +2799,7 @@ struct GridGraphTests
                     }
                     shouldEqual(u, *n);
                     shouldEqual(v, *j);
-                    
+
                     shouldEqual(arcIdMap[*la], g.id(la));
                     shouldEqual(edgeIdMap[*la], g.id((typename Graph::Edge &)*la));
                     shouldEqual(edgeIdMap[*le], g.id(*le));
@@ -2815,17 +2815,17 @@ struct GridGraphTests
                 should(e == le);
                 should(e == lemon::INVALID);
                 should(!(e != lemon::INVALID));
-                
+
                 shouldEqual(count, g.back_degree(j));
-                
+
                 totalCount += count;
             }
-            
+
             // check that all neighbors are found
             if(directed)
                 totalCount *= 2;
             shouldEqual(totalCount, g.num_edges());
-            
+
             int min = NumericTraits<int>::max(), max = NumericTraits<int>::min();
             edgeMap.minmax(&min, &max);
             shouldEqual(min, 0);
@@ -2835,7 +2835,7 @@ struct GridGraphTests
             estop.template subarray<0,N>() = s;
             estop[N] = g.maxDegree() / 2;
             shouldEqualSequence(edgeMap.begin(), edgeMap.end(), arcMap.subarray(estart, estop).begin());
-            
+
             estart[N] = g.maxDegree() / 2;
             estop[N] = g.maxDegree();
             min = NumericTraits<int>::max(), max = NumericTraits<int>::min();
@@ -2851,39 +2851,39 @@ struct GridGraphTests
             }
         }
     }
-    
+
     template <class DirectedTag, NeighborhoodType NType>
     void testEdgeIterator()
     {
         using namespace boost_graph;
-        
+
         static const bool directed = IsSameType<DirectedTag, directed_tag>::value;
-        
+
         typedef GridGraph<N, DirectedTag> Graph;
-        
-        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();        
+
+        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
             Shape s = *i + Shape(1);
             Graph g(s, NType);
-            
+
             ArrayND<N, int> sourceVertexMap(s),targetVertexMap(s);
             ArrayND<N+1, int> edgeMap(g.edge_propmap_shape()),
                                  edgeIdMap(g.edge_propmap_shape());
-            
+
             shouldEqual((edgeMap.shape().template subarray<0, N>()), s);
             shouldEqual(edgeMap.shape(N), g.maxUniqueDegree());
-            
+
             linearSequence(edgeIdMap.begin(), edgeIdMap.end());
-            
+
             typename Graph::edge_iterator e = g.get_edge_iterator(),
                                           eend = g.get_edge_end_iterator();
             typename Graph::EdgeIt el(g);
 
             should(e == edges(g).first);
             should(eend == edges(g).second);
-            
+
             int count = 0;
             int maxEdgeId = -1;
             for(; e != eend; ++e, ++el, ++count)
@@ -2896,7 +2896,7 @@ struct GridGraphTests
                 put(edgeMap, *e, get(edgeMap, *e) + 1); // same as: edgeMap[*e] += 1;
                 sourceVertexMap[source(*e, g)] += 1;
                 targetVertexMap[target(*e, g)] += 1;
-                
+
                 shouldEqual(edgeIdMap[*e], g.id(el));
                 shouldEqual(*el, g.edgeFromId(g.id(*el)));
 
@@ -2907,17 +2907,17 @@ struct GridGraphTests
             should(e == el);
             should(e == lemon::INVALID);
             should(!(e != lemon::INVALID));
-            
+
             shouldEqual(maxEdgeId, g.maxEdgeId());
-            
+
             // check that all neighbors are found
             shouldEqual(count, g.num_edges());
-            
+
             int min = NumericTraits<int>::max(), max = NumericTraits<int>::min();
             edgeMap.minmax(&min, &max);
             shouldEqual(min, 0);
             shouldEqual(max, g.num_edges() ? 1 : 0);
-            
+
             CoordinateIterator<N> j(s), end = j.getEndIterator();
             for(; j != end; ++j)
             {
@@ -2936,34 +2936,34 @@ struct GridGraphTests
             }
         }
     }
-    
+
     template <class DirectedTag, NeighborhoodType NType>
     void testArcIterator()
     {
         using namespace boost_graph;
-        
+
         static const bool directed = IsSameType<DirectedTag, directed_tag>::value;
-        
+
         typedef GridGraph<N, DirectedTag> Graph;
-        
-        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();        
+
+        CoordinateIterator<N> i(Shape(3)), iend = i.getEndIterator();
         for(; i != iend; ++i)
         {
             // create all possible array shapes from 1**N to 3**N
             Shape s = *i + Shape(1);
             Graph g(s, NType);
-            
+
             typename Graph::template NodeMap<int> sourceVertexMap(g), targetVertexMap(g);
             typename Graph::template EdgeMap<int> edgeMap(g);
             typename Graph::template ArcMap<int> arcMap(g);
-            
+
             shouldEqual(sourceVertexMap.shape(), s);
             shouldEqual(targetVertexMap.shape(), s);
             shouldEqual((edgeMap.shape().template subarray<0, N>()), s);
             shouldEqual(edgeMap.shape(N), g.maxUniqueDegree());
             shouldEqual((arcMap.shape().template subarray<0, N>()), s);
             shouldEqual(arcMap.shape(N), g.maxDegree());
-            
+
             typename Graph::ArcIt e(g);
 
             int count = 0;
@@ -2978,33 +2978,33 @@ struct GridGraphTests
                 targetVertexMap[target(*e, g)] += 1;
                 edgeMap[*e] += 1;
                 arcMap[*e] += 1;
-                
+
                 shouldEqual(*e, g.arcFromId(g.id(*e)));
-                
+
                 if(maxArcId < g.id(e))
                     maxArcId = g.id(e);
             }
             should(!e.isValid() && e.atEnd());
             should(e == lemon::INVALID);
             should(!(e != lemon::INVALID));
-            
+
             shouldEqual(maxArcId, g.maxArcId());
-            
+
             // check that all neighbors are found
             shouldEqual(count, g.arcNum());
             shouldEqual(count, directed ? g.edgeNum() : 2*g.edgeNum());
-            
+
             int min = NumericTraits<int>::max(), max = NumericTraits<int>::min();
             edgeMap.minmax(&min, &max);
             shouldEqual(min, 0);
             shouldEqual(max, g.arcNum() ? directed ? 1 : 2 : 0);
-            
+
             min = NumericTraits<int>::max();
             max = NumericTraits<int>::min();
             arcMap.minmax(&min, &max);
             shouldEqual(min, 0);
             shouldEqual(max, g.arcNum() ? 1 : 0);
-            
+
             CoordinateIterator<N> j(s), end = j.getEndIterator();
             for(; j != end; ++j)
             {
@@ -3021,25 +3021,25 @@ template <unsigned int N>
 struct GridGraphAlgorithmTests
 {
     typedef typename MultiArrayShape<N>::type Shape;
-    
+
     template <class DirectedTag, NeighborhoodType NType>
     void testLocalMinMax()
     {
         typedef GridGraph<N, DirectedTag> Graph;
-        
+
         Graph g(Shape(3), NType);
         typename Graph::template NodeMap<int> src(g), dest(g);
-        
+
         src[Shape(1)] = 1;
-        
+
         should(1 == boost_graph::localMinMaxGraph(g, src, dest, 1, -9999, std::greater<int>()));
-        
+
         shouldEqualSequence(src.begin(), src.end(), dest.begin());
-        
+
         dest.init(0);
-        
+
         should(1 == lemon_graph::localMinMaxGraph(g, src, dest, 1, -9999, std::greater<int>()));
-        
+
         shouldEqualSequence(src.begin(), src.end(), dest.begin());
     }
 };
@@ -3063,49 +3063,49 @@ struct GridgraphTestSuiteN
         add(testCase((&NeighborhoodTests<N>::template testNeighborhoodIterator<IndirectNeighborhood, F_ORDER>)));
         add(testCase((&NeighborhoodTests<N>::template testNeighborhoodIterator<IndirectNeighborhood, C_ORDER>)));
 #if 0
-        
+
         add(testCase(&NeighborhoodTests<N>::template testOutArcIteratorDirected<DirectNeighborhood>));
         add(testCase(&NeighborhoodTests<N>::template testOutArcIteratorDirected<IndirectNeighborhood>));
-        
+
         add(testCase(&NeighborhoodTests<N>::template testOutArcIteratorUndirected<DirectNeighborhood>));
         add(testCase(&NeighborhoodTests<N>::template testOutArcIteratorUndirected<IndirectNeighborhood>));
-        
+
         add(testCase(&NeighborhoodTests<N>::template testArcIteratorDirected<DirectNeighborhood>));
         add(testCase(&NeighborhoodTests<N>::template testArcIteratorDirected<IndirectNeighborhood>));
-        
+
         add(testCase(&NeighborhoodTests<N>::template testArcIteratorUndirected<DirectNeighborhood>));
         add(testCase(&NeighborhoodTests<N>::template testArcIteratorUndirected<IndirectNeighborhood>));
-        
+
         add(testCase((&GridGraphTests<N>::template testBasics<directed_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testBasics<undirected_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testBasics<directed_tag, DirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testBasics<undirected_tag, DirectNeighborhood>)));
-        
+
         add(testCase((&GridGraphTests<N>::template testVertexIterator<directed_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testVertexIterator<undirected_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testVertexIterator<directed_tag, DirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testVertexIterator<undirected_tag, DirectNeighborhood>)));
-        
+
         add(testCase((&GridGraphTests<N>::template testNeighborIterator<directed_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testNeighborIterator<undirected_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testNeighborIterator<directed_tag, DirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testNeighborIterator<undirected_tag, DirectNeighborhood>)));
-        
+
         add(testCase((&GridGraphTests<N>::template testBackNeighborIterator<directed_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testBackNeighborIterator<undirected_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testBackNeighborIterator<directed_tag, DirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testBackNeighborIterator<undirected_tag, DirectNeighborhood>)));
-        
+
         add(testCase((&GridGraphTests<N>::template testEdgeIterator<directed_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testEdgeIterator<undirected_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testEdgeIterator<directed_tag, DirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testEdgeIterator<undirected_tag, DirectNeighborhood>)));
-        
+
         add(testCase((&GridGraphTests<N>::template testArcIterator<directed_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testArcIterator<undirected_tag, IndirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testArcIterator<directed_tag, DirectNeighborhood>)));
         add(testCase((&GridGraphTests<N>::template testArcIterator<undirected_tag, DirectNeighborhood>)));
-        
+
         add(testCase((&GridGraphAlgorithmTests<N>::template testLocalMinMax<undirected_tag, DirectNeighborhood>)));
 #endif
     }
